@@ -12,6 +12,8 @@ import { createWarnings } from "./ui/warnings";
 import { orientMesh, type Oriented } from "./core/transform";
 import { load3mfToSoup } from "./ui/load3mf";
 import { h } from "./ui/dom";
+import { createHelp } from "./ui/help";
+import type { ViewMode } from "./ui/viewport3d";
 import type { Tab } from "./state";
 
 const store = new Store();
@@ -29,11 +31,16 @@ const tabs: { id: Tab; label: string; el: HTMLElement }[] = [
   { id: "sheets", label: "Sheets", el: sheetsEl },
 ];
 const tabBar = h("div", { class: "tabs", role: "tablist" });
+const help = createHelp();
 const tabButtons = tabs.map((t) => {
   const b = h("button", { type: "button", role: "tab", id: `tab-${t.id}`, onclick: () => store.set({ tab: t.id }) }, t.label);
   tabBar.append(b);
   return b;
 });
+tabBar.append(h("span", { class: "spacer" }), h("button", { type: "button", class: "help-btn", id: "help-btn", title: "Help and keyboard shortcuts (?)", onclick: () => help.toggle() }, "?"));
+const btnModel = h("button", { type: "button", id: "view-model", class: "active", onclick: () => setViewMode("model") }, "Model");
+const btnStack = h("button", { type: "button", id: "view-stack", disabled: true, title: "The sliced layers stacked (M)", onclick: () => setViewMode("stack") }, "Stacked result");
+const viewToggle = h("div", { class: "view-toggle", id: "view-toggle", role: "group", "aria-label": "3D view" }, btnModel, btnStack);
 const statusMsg = h("span", { class: "msg", id: "status-msg" }, "Starting…");
 const workerBadge = h("span", { class: "badge", id: "worker-status" }, "Worker: starting…");
 const progressBar = h("div", { class: "progress", id: "progress", hidden: true }, h("div", { class: "progress-fill", id: "progress-fill" }));
@@ -48,8 +55,9 @@ const statusBar = h("footer", { class: "statusbar" }, progressBar, statusMsg, pr
 const dropOverlay = h("div", { class: "drop-overlay", hidden: true }, "Drop model to load");
 
 app.append(
-  h("div", { class: "layout" }, panelEl, h("main", { class: "main" }, tabBar, h("div", { class: "stage" }, viewEl, layerEl, sheetsEl, fitBtn)), statusBar),
+  h("div", { class: "layout" }, panelEl, h("main", { class: "main" }, tabBar, h("div", { class: "stage" }, viewEl, layerEl, sheetsEl, fitBtn, viewToggle)), statusBar),
   dropOverlay,
+  help.el,
 );
 
 // ---------- worker ----------
@@ -74,6 +82,15 @@ const viewport = new Viewport3D(viewEl);
 fitBtn.addEventListener("click", () => viewport.fit());
 const layerView = new LayerView2D(layerEl, (i) => store.set({ layer: i }));
 const sheetView = new SheetView(sheetsEl, (layer) => store.set({ layer, tab: "layer" }));
+
+let viewMode: ViewMode = "model";
+function setViewMode(m: ViewMode) {
+  if (m === "stack" && !store.get().result) return;
+  viewMode = m;
+  btnModel.classList.toggle("active", m === "model");
+  btnStack.classList.toggle("active", m === "stack");
+  viewport.setMode(m);
+}
 
 async function openFile(file: File) {
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
@@ -159,11 +176,12 @@ function refresh() {
     tabButtons[i].classList.toggle("active", t.id === tab);
     tabButtons[i].setAttribute("aria-selected", String(t.id === tab));
   });
-  fitBtn.hidden = tab !== "3d";
+  fitBtn.hidden = viewToggle.hidden = tab !== "3d";
   if (tab === "3d") viewport.activate();
   if (tab === "layer") layerView.activate();
   if (tab === "sheets") sheetView.activate();
   layerView.setLayer(store.get().layer);
+  viewport.setHighlight(store.get().result ? store.get().layer : -1);
 
   // status
   statusMsg.textContent = status.text;
@@ -257,9 +275,58 @@ store.subscribe((state, changed) => {
       : "";
     runSummary.textContent = text;
     panel.setSummary(r ? text : "Load a model to slice it.");
+    btnStack.disabled = !r;
+    if (!r && viewMode === "stack") setViewMode("model");
+    viewport.setStack(r ? r.layers : null);
+    viewport.setHighlight(r ? state.layer : -1);
     panel.setExportReady(!!r && r.sheets.length > 0);
   }
 });
 
 store.subscribe(refresh);
 refresh();
+
+// ---------- keyboard shortcuts ----------
+const TEXT_INPUT_TYPES = new Set(["text", "number", "search", "email", "url", "password", "tel"]);
+window.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && help.open) {
+    help.close();
+    return;
+  }
+  if (e.ctrlKey || e.metaKey || e.altKey) return; // leave browser shortcuts alone
+  const t = e.target as HTMLElement | null;
+  if (t) {
+    if (t.tagName === "SELECT" || t.tagName === "TEXTAREA" || t.isContentEditable) return;
+    if (t.tagName === "INPUT" && (TEXT_INPUT_TYPES.has((t as HTMLInputElement).type) || (t as HTMLInputElement).type === "range")) return; // the slider handles its own keys
+  }
+  const { result, layer } = store.get();
+  const stepLayer = (d: number) => {
+    if (!result) return;
+    const n = Math.max(0, Math.min(result.layers.length - 1, layer + d));
+    if (n !== layer) store.set({ layer: n });
+  };
+  switch (e.key) {
+    case "1": store.set({ tab: "3d" }); break;
+    case "2": store.set({ tab: "layer" }); break;
+    case "3": store.set({ tab: "sheets" }); break;
+    case "ArrowLeft": case "ArrowDown": stepLayer(-1); break;
+    case "ArrowRight": case "ArrowUp": stepLayer(1); break;
+    case "PageDown": stepLayer(-10); break;
+    case "PageUp": stepLayer(10); break;
+    case "Home": stepLayer(-1e9); break;
+    case "End": stepLayer(1e9); break;
+    case "m": case "M": if (store.get().tab === "3d") setViewMode(viewMode === "model" ? "stack" : "model"); break;
+    case "f": case "F": if (store.get().tab === "3d") viewport.fit(); break;
+    case "?": help.toggle(); break;
+    default: return;
+  }
+  e.preventDefault();
+});
+
+// ---------- last line of defence: never a silent failure or blank screen ----------
+function reportUnexpected(e: unknown) {
+  const msg = e instanceof Error ? e.message : String(e);
+  store.setStatus(`Unexpected error: ${msg}`, "error");
+}
+window.addEventListener("error", (ev) => reportUnexpected(ev.error ?? ev.message));
+window.addEventListener("unhandledrejection", (ev) => reportUnexpected(ev.reason));

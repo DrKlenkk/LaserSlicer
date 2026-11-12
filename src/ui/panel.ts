@@ -1,8 +1,8 @@
 // Parameter panel: collapsible groups of inputs bound to Settings in the store.
 import type { Axis, Dim, Settings } from "../core/types";
-import type { Store } from "../state";
+import { parseProject, serializeProject, type Store } from "../state";
 import { h } from "./dom";
-import { createExportSection } from "./exportDialog";
+import { createExportSection, downloadBytes } from "./exportDialog";
 
 export type OrientInfo = { size: [number, number, number]; scale: number };
 
@@ -208,6 +208,37 @@ export function createPanel(root: HTMLElement, store: Store, actions: PanelActio
   const exportSection = createExportSection(store, actions.exportZip);
   const exportGroup = group("Export", false, exportSection.el);
 
+  // ---------- Project (settings as a .json file) ----------
+  const projectStatus = h("small", { class: "hint", id: "project-status", role: "status" });
+  const projectInput = h("input", { type: "file", accept: ".json,application/json", id: "project-input", hidden: true });
+  projectInput.addEventListener("change", async () => {
+    const f = projectInput.files?.[0];
+    projectInput.value = "";
+    if (!f) return;
+    try {
+      store.replaceSettings(parseProject(await f.text()));
+      projectStatus.textContent = `Loaded settings from ${f.name}`;
+    } catch (e) {
+      projectStatus.textContent = e instanceof Error ? e.message : String(e);
+    }
+  });
+  const projectGroup = group(
+    "Project",
+    false,
+    h("div", { class: "rotrow" },
+      h("button", {
+        type: "button", class: "btn small", id: "project-save",
+        onclick: () => {
+          downloadBytes("laser-slicer-project.json", "application/json", new TextEncoder().encode(serializeProject(store.get().settings)));
+          projectStatus.textContent = "Saved laser-slicer-project.json";
+        },
+      }, "Save settings…"),
+      h("button", { type: "button", class: "btn small", id: "project-load", onclick: () => projectInput.click() }, "Load settings…"),
+      projectInput),
+    h("small", { class: "hint" }, "A project file holds the settings only, not the model. The last settings are also remembered in this browser."),
+    projectStatus,
+  );
+
   root.append(
     h("div", { class: "brand" }, h("span", { class: "logo" }, "▤"), h("span", {}, "Laser Slicer")),
     modelGroup,
@@ -216,6 +247,7 @@ export function createPanel(root: HTMLElement, store: Store, actions: PanelActio
     hollowGroup,
     gluingGroup,
     exportGroup,
+    projectGroup,
   );
 
   function sync() {

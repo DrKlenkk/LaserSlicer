@@ -19,7 +19,7 @@ export class LayerView2D {
 
   constructor(private root: HTMLElement, private onLayer: (i: number) => void) {
     root.classList.add("layer-view");
-    const hint = h("div", { class: "layer-hint" }, "←/→ step · wheel zoom · drag pan · double-click fit");
+    const hint = h("div", { class: "layer-hint" }, "←/→ step (works in every tab) · wheel zoom · drag pan · double-click fit");
     const bar = h("div", { class: "layer-bar" }, this.slider, hint);
     root.append(this.canvas, this.info, this.empty, bar);
 
@@ -41,7 +41,6 @@ export class LayerView2D {
     this.canvas.addEventListener("pointerup", end);
     this.canvas.addEventListener("pointercancel", end);
     this.canvas.addEventListener("dblclick", () => this.fit());
-    window.addEventListener("keydown", (e) => this.onKey(e));
     new ResizeObserver(() => this.draw()).observe(root);
     this.updateUi();
   }
@@ -95,23 +94,6 @@ export class LayerView2D {
     this.updateUi();
     this.draw();
     this.onLayer(n);
-  }
-
-  private onKey(e: KeyboardEvent) {
-    if (this.root.offsetParent === null || e.ctrlKey || e.metaKey || e.altKey) return;
-    const t = e.target as HTMLElement | null;
-    if (t && (t.tagName === "INPUT" || t.tagName === "SELECT" || t.tagName === "TEXTAREA")) return; // slider handles its own keys
-    const n = this.result?.layers.length ?? 0;
-    let d = 0;
-    if (e.key === "ArrowLeft" || e.key === "ArrowDown") d = -1;
-    else if (e.key === "ArrowRight" || e.key === "ArrowUp") d = 1;
-    else if (e.key === "PageDown") d = -10;
-    else if (e.key === "PageUp") d = 10;
-    else if (e.key === "Home") d = -n;
-    else if (e.key === "End") d = n;
-    else return;
-    e.preventDefault();
-    this.step(d);
   }
 
   private onWheel(e: WheelEvent) {

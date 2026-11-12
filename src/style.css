@@ -192,3 +192,26 @@ button.warn-item:hover { background: var(--accent-soft); }
 .sheet-tip { position: absolute; pointer-events: none; padding: 3px 8px; border-radius: 5px; background: var(--surface); border: 1px solid var(--border); font-size: 12px; white-space: nowrap; z-index: 2; }
 .export-section { display: flex; flex-direction: column; gap: 8px; }
 .raster-options small.hint { display: block; margin-top: 4px; }
+
+/* 3D view mode toggle (model / stacked result) */
+.view-toggle { position: absolute; top: 10px; left: 12px; display: flex; z-index: 2; }
+.view-toggle button {
+  font: inherit; font-size: 12px; padding: 4px 10px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--panel); color: var(--text);
+}
+.view-toggle button:first-child { border-radius: 6px 0 0 6px; }
+.view-toggle button:last-child { border-radius: 0 6px 6px 0; border-left: 0; }
+.view-toggle button.active { background: var(--accent, #3e63dd); color: #fff; border-color: var(--accent, #3e63dd); }
+.view-toggle button:disabled { opacity: 0.5; cursor: default; }
+
+/* help overlay */
+.help-overlay { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; background: rgba(0,0,0,.4); }
+.help-overlay[hidden] { display: none; }
+.help-box { position: relative; width: min(560px, calc(100vw - 24px)); max-height: calc(100vh - 40px); overflow: auto; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 14px 20px 18px; box-shadow: 0 10px 40px rgba(0,0,0,.35); }
+.help-box h2 { margin: 0 0 6px; font-size: 18px; } .help-box h3 { margin: 14px 0 4px; font-size: 14px; }
+.help-box p, .help-box ol { margin: 4px 0; } .help-box ol { padding-left: 20px; }
+.help-close { position: absolute; top: 10px; right: 12px; }
+.help-keys td { padding: 2px 10px 2px 0; vertical-align: top; }
+.help-keys kbd { font: 12px ui-monospace, Menlo, Consolas, monospace; padding: 1px 6px; border: 1px solid var(--border); border-radius: 4px; background: var(--panel); white-space: nowrap; }
+.tabs .spacer { flex: 1; }
+.tabs button.help-btn { padding: 4px 10px; margin: 0 0 4px; border: 1px solid var(--border); border-radius: 999px; font-weight: 600; }

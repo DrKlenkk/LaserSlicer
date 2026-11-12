@@ -1,12 +1,12 @@
 // three.js scene: oriented model on a Z-up grid, orbit controls, axis gizmo.
 import {
   AmbientLight, BufferAttribute, BufferGeometry, Box3, Box3Helper, CanvasTexture, Color,
-  DirectionalLight, DoubleSide, GridHelper, Group, Line, LineBasicMaterial, Mesh as ThreeMesh,
-  MeshStandardMaterial, OrthographicCamera, PerspectiveCamera, Scene, Sprite, SpriteMaterial,
-  Vector3, WebGLRenderer,
+  DirectionalLight, DoubleSide, ExtrudeGeometry, GridHelper, Group, Line, LineBasicMaterial, Mesh as ThreeMesh,
+  MeshStandardMaterial, OrthographicCamera, Path, PerspectiveCamera, Scene, Shape as ThreeShape, Sprite, SpriteMaterial,
+  Vector2, Vector3, WebGLRenderer,
 } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import type { Mesh } from "../core/types";
+import type { Layer, Mesh, Shape } from "../core/types";
 import { bboxSize } from "../core/mesh";
 
 const GIZMO_PX = 96;
@@ -16,12 +16,36 @@ function cssColor(name: string, fallback: string): string {
   return v || fallback;
 }
 
+export type ViewMode = "model" | "stack";
+
+/** Layer shapes as a three.js extrusion: outer rings with their holes, `depth` thick. */
+function extrudeShapes(shapes: Shape[], depth: number): ExtrudeGeometry | null {
+  if (shapes.length === 0 || !(depth > 0)) return null;
+  const out = shapes.map((s) => {
+    const shape = new ThreeShape(s.outer.map(([x, y]) => new Vector2(x, y)));
+    for (const hole of s.holes) shape.holes.push(new Path(hole.map(([x, y]) => new Vector2(x, y))));
+    return shape;
+  });
+  return new ExtrudeGeometry(out, { depth, bevelEnabled: false, steps: 1, curveSegments: 1 });
+}
+
 export class Viewport3D {
   private renderer: WebGLRenderer | null = null;
   private scene = new Scene();
   private camera = new PerspectiveCamera(40, 1, 0.1, 100000);
   private controls: OrbitControls | null = null;
   private modelGroup = new Group();
+  private stackGroup = new Group();
+  private stackLayers: Layer[] | null = null;
+  private stackDirty = false;
+  private stackMeshes: ThreeMesh[] = [];
+  private mode: ViewMode = "model";
+  private highlight = -1;
+  private woodMats = [
+    new MeshStandardMaterial({ color: 0xd9b27c, roughness: 0.8, metalness: 0 }),
+    new MeshStandardMaterial({ color: 0xb98a55, roughness: 0.8, metalness: 0 }),
+  ];
+  private hiMat = new MeshStandardMaterial({ color: 0x3e63dd, emissive: 0x1d3a9e, roughness: 0.6, metalness: 0 });
   private grid: GridHelper | null = null;
   private gizmoScene = new Scene();
   private gizmoCamera = new OrthographicCamera(-1.6, 1.6, 1.6, -1.6, 0.1, 10);
@@ -54,6 +78,7 @@ export class Viewport3D {
     this.camera.add(light);
     this.scene.add(this.camera);
     this.scene.add(this.modelGroup);
+    this.scene.add(this.stackGroup);
     this.buildGizmo();
 
     this.controls = new OrbitControls(this.camera, r.domElement);
@@ -112,6 +137,8 @@ export class Viewport3D {
         side: DoubleSide,
         roughness: 0.75,
         metalness: 0,
+        transparent: true, // the original model is shown semi-transparent
+        opacity: 0.78,
       });
       this.modelGroup.add(new ThreeMesh(geo, mat));
       const size = bboxSize(mesh.bbox);
@@ -137,6 +164,61 @@ export class Viewport3D {
     // ends up inside the model or the model shrinks to a dot).
     const ratio = this.fitDim > 0 ? maxDim / this.fitDim : 1;
     if (fit || !mesh || ratio > 1.8 || ratio < 0.55) this.fit(maxDim);
+    this.syncStack();
+  }
+
+  /** The sliced result (layer shapes before kerf) for the stacked view. Geometry is rebuilt lazily, only while it is shown. */
+  setStack(layers: Layer[] | null) {
+    this.stackLayers = layers;
+    this.stackDirty = true;
+    this.syncStack();
+  }
+
+  setMode(mode: ViewMode) {
+    this.mode = mode;
+    this.syncStack();
+  }
+
+  /** Highlight one layer (the one selected in the Layer tab) in the stacked view. */
+  setHighlight(index: number) {
+    if (index === this.highlight) return;
+    this.highlight = index;
+    for (const m of this.stackMeshes) m.material = this.materialFor(m.userData.layer as number);
+    this.requestRender();
+  }
+
+  private materialFor(layerIndex: number) {
+    return layerIndex === this.highlight ? this.hiMat : this.woodMats[layerIndex % 2];
+  }
+
+  private disposeStack() {
+    for (const m of this.stackMeshes) {
+      this.stackGroup.remove(m);
+      m.geometry.dispose();
+    }
+    this.stackMeshes = [];
+  }
+
+  private syncStack() {
+    if (!this.renderer) return;
+    const showStack = this.mode === "stack";
+    this.stackGroup.visible = showStack;
+    for (const c of this.modelGroup.children) if (c instanceof ThreeMesh) c.visible = !showStack;
+    if (showStack && this.stackDirty) {
+      this.disposeStack();
+      for (const l of this.stackLayers ?? []) {
+        const geo = extrudeShapes(l.shapes, l.z1 - l.z0);
+        if (!geo) continue;
+        const mesh = new ThreeMesh(geo, this.materialFor(l.index));
+        mesh.position.z = l.z0;
+        mesh.userData.layer = l.index;
+        this.stackMeshes.push(mesh);
+        this.stackGroup.add(mesh);
+      }
+      this.stackDirty = false;
+    } else if (!this.stackLayers && this.stackMeshes.length) {
+      this.disposeStack();
+    }
     this.requestRender();
   }
 

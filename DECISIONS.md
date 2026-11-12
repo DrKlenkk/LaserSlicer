@@ -166,7 +166,7 @@ Sheets tab colours are close to, not identical to, the ACI colours (readable on 
 - **Font data is a reconstruction.** The glyphs in `core/font/hershey.ts` use the Hershey encoding (side bearings, R-offset pairs,
   `" R"` pen-up, cap height 21) and the Simplex style, but I could not copy the original table byte for byte offline; the outlines
   were authored by hand (polygonal curves on the integer grid) and checked visually by rendering digits, A-Z, `-`. Lower case letters
-  use the capital glyphs, so `L12-b` is engraved as `L12-B`. Unknown characters become a space.
+  were added in M9 (see below). Unknown characters become a space.
 - **Placement.** The pole of inaccessibility (`polylabel`, precision 0.1 mm) of the best shape of `part ∩ next layer`; the
   text box (plus 0.25 mm clearance) must lie inside that region, checked first with the inscribed circle and then exactly with a
   polygon difference (box minus region has no area), horizontal first, then turned by 90 degrees. Height goes from `labelHeight`
@@ -215,3 +215,24 @@ Sheets tab colours are close to, not identical to, the ACI colours (readable on 
   the mean of the candidates (the centroid); then farthest-point sampling. A core without any grid point (tiny) uses its polylabel point.
 - **Labels avoid dowel holes**: the label region is the joint minus circles of radius `d/2 + 1 mm` around the part's holes. Engrave
   lines are not routed around holes (they may cross them).
+
+## Hershey lower case (M9)
+`a`-`z` were authored by hand in the same encoding and Simplex style (single strokes, polygonal bowls on the integer grid, x-height
+14 units, ascenders to the cap height, descenders g j p q y down to y = 16/17); like the capitals they are a reconstruction, not
+the original table. Checked by rendering a-z and sample labels (`L12-b`, `L47-aa`, "Hello gypsy jump") to PNG and looking at them.
+`i` and `j` have a 1 unit long stroke as the dot. Known limit: label placement fits the box from baseline to cap height, so a
+label containing a descender letter (only the 7th, 10th, 16th, 17th, 25th island of one layer: `-g`, `-j`, `-p`, `-q`, `-y`)
+can poke up to about a third of its height below that box.
+
+## Stacked 3D view (M9)
+Built from `RunResult.layers` (outlines before kerf, after hollowing) as one `ExtrudeGeometry` per layer, built lazily only while the
+"Stacked result" button is active, and disposed whenever the result changes. Two wood tones alternate; the layer selected in the
+Layer tab is blue. The original model is drawn at 78 % opacity in the "Model" view.
+
+## Project file, shortcuts (M9)
+- Project file: `{format: "laser-slicer-project", version: 1, settings}`; loading validates every key (types, ranges, enums) and
+  rejects a bad value with one sentence naming the key; missing keys take the default; unknown keys are ignored. The model is not stored.
+- Shortcuts are global (not only in the Layer tab): 1/2/3 tabs, arrows / PgUp / PgDn / Home / End step layers, M toggles
+  model/stacked, F fits the view, ? opens help. They are ignored while a text or number input, a select or the layer slider has
+  focus. **Ctrl+S is deliberately not bound**: it is the browser's "save page" and the project buttons are in the panel.
+- Window-level `error` / `unhandledrejection` handlers put the message in the status bar, so a failure is never silent.

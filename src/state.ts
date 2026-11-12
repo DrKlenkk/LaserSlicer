@@ -80,6 +80,70 @@ function saveSettings(s: Settings) {
   }
 }
 
+// ---------- project file (settings only; the model is not stored) ----------
+
+export const PROJECT_FORMAT = "laser-slicer-project";
+
+export function serializeProject(s: Settings): string {
+  return JSON.stringify({ format: PROJECT_FORMAT, version: 1, settings: s }, null, 2) + "\n";
+}
+
+const POSITIVE = ["thickness", "sheetW", "sheetH", "scale", "labelHeight", "dowelDiameter"] as const;
+const NON_NEGATIVE = ["kerf", "partSpacing", "sheetMargin", "simplifyTol", "minPartArea", "minFeature", "hollowWall", "solidCapLayers"] as const;
+const INTEGERS = ["samplesPerLayer", "solidCapLayers", "dowelCount"] as const;
+const ENUMS: Record<string, readonly string[]> = {
+  axis: ["+X", "-X", "+Y", "-Y", "+Z", "-Z"],
+  mode: ["oversize", "midplane", "undersize"],
+  rasterStyle: ["filled", "outline"],
+};
+
+/**
+ * Parses a project file into complete, validated settings (keys missing from the file keep their default, unknown keys
+ * are ignored). Throws an Error with one clear sentence when the file is not a project or a value is unusable.
+ */
+export function parseProject(text: string): Settings {
+  let data: unknown;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error("This is not a valid project file (it is not JSON)");
+  }
+  const obj = data as { format?: unknown; settings?: unknown } | null;
+  if (!obj || typeof obj !== "object" || obj.format !== PROJECT_FORMAT || typeof obj.settings !== "object" || obj.settings === null)
+    throw new Error("This is not a Laser Slicer project file");
+  const src = obj.settings as Record<string, unknown>;
+  const out = structuredClone(DEFAULT_SETTINGS) as unknown as Record<string, unknown>;
+  const bad = (k: string): never => {
+    throw new Error(`Project file has an invalid value for "${k}"`);
+  };
+  for (const k of Object.keys(DEFAULT_SETTINGS)) {
+    if (!(k in src)) continue;
+    const v = src[k];
+    const def = (DEFAULT_SETTINGS as unknown as Record<string, unknown>)[k];
+    if (k in ENUMS) {
+      if (typeof v !== "string" || !ENUMS[k].includes(v)) bad(k);
+    } else if (k === "formats") {
+      if (!Array.isArray(v) || v.some((f) => !["dxf", "svg", "png", "jpg"].includes(f as string))) bad(k);
+    } else if (k === "rotationSteps") {
+      if (!Array.isArray(v) || v.length !== 3 || v.some((n) => !Number.isInteger(n))) bad(k);
+      src[k] = (v as number[]).map((n) => ((n % 4) + 4) % 4);
+    } else if (k === "targetSize") {
+      const t = v as { dim?: unknown; mm?: unknown } | null;
+      if (t !== null && !(typeof t === "object" && ["x", "y", "z"].includes(t.dim as string) && typeof t.mm === "number" && t.mm > 0 && Number.isFinite(t.mm))) bad(k);
+    } else if (typeof def === "number") {
+      if (typeof v !== "number" || !Number.isFinite(v)) bad(k);
+      if ((POSITIVE as readonly string[]).includes(k) && !((v as number) > 0)) bad(k);
+      if ((NON_NEGATIVE as readonly string[]).includes(k) && (v as number) < 0) bad(k);
+      if ((INTEGERS as readonly string[]).includes(k) && !Number.isInteger(v)) bad(k);
+      if (k === "samplesPerLayer" && (v as number) < 1) bad(k);
+      if (k === "dowelCount" && (v as number) < 1) bad(k);
+      if (k === "dpi" && ((v as number) < 1 || (v as number) > 4800)) bad(k);
+    } else if (typeof v !== typeof def) bad(k);
+    out[k] = src[k];
+  }
+  return out as unknown as Settings;
+}
+
 export type Listener = (state: AppState, changed: ReadonlySet<keyof AppState>) => void;
 
 export class Store {
@@ -118,6 +182,11 @@ export class Store {
 
   setStatus(text: string, level: AppState["status"]["level"] = "info") {
     this.set({ status: { text, level } });
+  }
+
+  /** Replace all settings (project load). */
+  replaceSettings(s: Settings) {
+    this.set({ settings: s });
   }
 
   resetSettings() {
