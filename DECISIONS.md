@@ -176,3 +176,19 @@ Sheets tab colours are close to, not identical to, the ACI colours (readable on 
   case on the growing half of a sphere) the intersection is the part's own edge, so no engrave line is written: it would retrace the cut
   and the glued part overhangs the edge anyway.
 - Layer tab: next layer outline dashed blue (from `layers[i+1]`, the model outline), labels green (from the parts).
+
+## Raster export (M7)
+- **Where.** `core/export/rasterBytes.ts` holds the pure parts (pixel size, size limits, CRC-32, PNG `pHYs` insert/read, JFIF
+  patch/read; all tested in Node); `core/export/raster.ts` draws on `OffscreenCanvas` (worker only) and is covered by a test with a
+  recording mock context (draw calls, Y flip, even-odd). Real rendering was verified in Chromium only.
+- **New setting `rasterEngrave`** (default on): grey engrave lines and labels in the images, the plan's "optional". Engrave and labels
+  are 0.2 mm wide (at least 1 px) in `#808080`; in the outline style the cut lines are exactly 1 px black.
+- **Limits** are checked for every image before the first one is rendered; the message names the image, the pixel size and a DPI that
+  works (rounded down to a multiple of 10). The same limit also holds for the per-layer export, where images are small.
+- **Pixel size** is `round(mm / 25.4 x DPI)`, so a 600 x 400 mm sheet at 300 DPI is 7087 x 4724 px (the drawing is scaled by DPI/25.4,
+  the last pixel may be fractionally covered). The DPI is 1 to 4800 in the UI (presets 254, 300, 600, 1000 or custom).
+- JPEG: Chromium writes a JFIF header with units 0 and density 1:1; it is patched in place. If a browser writes none (EXIF first), an
+  18-byte JFIF APP0 is inserted directly after SOI. PNG: any existing `pHYs` is replaced and the new one placed right after IHDR.
+- PNG and JPG are stored (not deflated) inside the ZIP. A 600 x 400 sheet at 1000 DPI is refused (23622 px wide), as the plan intends.
+- The export runs asynchronously in the worker now (`exportJob`); errors, including the size refusal, come back as the normal
+  `error` message and appear under the Download button.

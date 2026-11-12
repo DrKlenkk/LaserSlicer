@@ -2,8 +2,10 @@
 import type { FromWorker, ToWorker } from "./protocol";
 import { parseToSoup } from "../core/loaders";
 import { buildMesh } from "../core/mesh";
-import { Pipeline } from "../core/pipeline";
+import { Pipeline, type RunResult } from "../core/pipeline";
+import type { Settings } from "../core/types";
 import { buildExportFiles, modelBaseName } from "../core/export/files";
+import { buildRasterFiles } from "../core/export/raster";
 import { buildReadme, buildZip } from "../core/export/zip";
 
 const ctx = self as unknown as {
@@ -38,6 +40,18 @@ async function runJob(jobId: number, settings: Parameters<Pipeline["run"]>[0]) {
   }
 }
 
+/** Builds the ZIP; async because raster images are rendered on an OffscreenCanvas. */
+async function exportJob(jobId: number, result: RunResult, settings: Settings, model: string) {
+  try {
+    const files = [...buildExportFiles(result, settings, model), ...(await buildRasterFiles(result, settings, model))];
+    if (files.length === 0) throw new Error("Nothing to export: select a format and make sure parts exist");
+    const bytes = buildZip(files, buildReadme(result, settings, model, files));
+    ctx.postMessage({ type: "file", jobId, name: `${model}_laser.zip`, mime: "application/zip", bytes }, [bytes.buffer]);
+  } catch (err) {
+    ctx.postMessage({ type: "error", jobId, message: err instanceof Error ? err.message : String(err) });
+  }
+}
+
 ctx.onmessage = (e) => {
   const msg = e.data;
   try {
@@ -62,11 +76,15 @@ ctx.onmessage = (e) => {
         const last = pipeline.last;
         if (!last) throw new Error("Nothing to export yet: wait for slicing to finish");
         const model = modelBaseName(msg.model);
-        const settings = { ...last.settings, formats: msg.formats, perLayerFiles: msg.perLayerFiles };
-        const files = buildExportFiles(last.result, settings, model);
-        if (files.length === 0) throw new Error("Nothing to export: select DXF or SVG and make sure parts exist");
-        const bytes = buildZip(files, buildReadme(last.result, settings, model, files));
-        ctx.postMessage({ type: "file", jobId: msg.jobId, name: `${model}_laser.zip`, mime: "application/zip", bytes }, [bytes.buffer]);
+        const settings = {
+          ...last.settings,
+          formats: msg.formats,
+          perLayerFiles: msg.perLayerFiles,
+          dpi: msg.dpi,
+          rasterStyle: msg.rasterStyle,
+          rasterEngrave: msg.rasterEngrave,
+        };
+        void exportJob(msg.jobId, last.result, settings, model);
         break;
       }
       case "run":

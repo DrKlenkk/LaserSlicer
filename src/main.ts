@@ -116,8 +116,8 @@ const panel = createPanel(panelEl, store, {
   async exportZip() {
     const m = store.get().model;
     if (!m) throw new Error("No model loaded");
-    const { formats, perLayerFiles } = store.get().settings;
-    const f = await worker.exportZip(m.fileName, formats, perLayerFiles);
+    const { formats, perLayerFiles, dpi, rasterStyle, rasterEngrave } = store.get().settings;
+    const f = await worker.exportZip(m.fileName, { formats, perLayerFiles, dpi, rasterStyle, rasterEngrave });
     downloadBytes(f.name, f.mime, f.bytes);
     store.setStatus(`Saved ${f.name}`);
   },

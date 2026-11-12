@@ -31,6 +31,7 @@ export const DEFAULT_SETTINGS: Settings = {
   formats: ["dxf"],
   dpi: 300,
   rasterStyle: "filled",
+  rasterEngrave: true,
   perLayerFiles: false,
 };
 

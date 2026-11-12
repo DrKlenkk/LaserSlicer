@@ -4,7 +4,7 @@ import type { Store } from "../state";
 import { h } from "./dom";
 
 const FORMATS = ["dxf", "svg", "png", "jpg"] as const;
-const RASTER_SOON = "Raster export arrives in milestone M7";
+const DPI_PRESETS = [254, 300, 600, 1000];
 
 /** Save bytes through a Blob and a temporary link (works from file://). */
 export function downloadBytes(name: string, mime: string, bytes: Uint8Array) {
@@ -20,16 +20,54 @@ export function createExportSection(store: Store, onDownload: () => Promise<void
   const syncers: ((s: Settings) => void)[] = [];
 
   const chips = FORMATS.map((f) => {
-    const raster = f === "png" || f === "jpg";
-    const cb = h("input", { type: "checkbox", id: `fmt-${f}`, disabled: raster, title: raster ? RASTER_SOON : undefined });
+    const cb = h("input", { type: "checkbox", id: `fmt-${f}` });
     cb.addEventListener("change", () => {
       const cur = new Set(store.get().settings.formats);
       if (cb.checked) cur.add(f);
       else cur.delete(f);
       store.updateSettings({ formats: FORMATS.filter((x) => cur.has(x)) });
     });
-    syncers.push((s) => (cb.checked = !raster && s.formats.includes(f)));
-    return h("label", { class: "chip" + (raster ? " disabled" : ""), title: raster ? RASTER_SOON : undefined }, cb, f.toUpperCase());
+    syncers.push((s) => (cb.checked = s.formats.includes(f)));
+    return h("label", { class: "chip" }, cb, f.toUpperCase());
+  });
+
+  // Raster options (shown only while PNG or JPG is selected).
+  const dpiSel = h("select", { id: "f-dpi" }, ...DPI_PRESETS.map((d) => h("option", { value: String(d) }, `${d} DPI`)), h("option", { value: "custom" }, "Custom…"));
+  const dpiCustom = h("input", { type: "number", id: "f-dpi-custom", min: 1, max: 4800, step: 1, value: 300 });
+  const setDpi = (v: number) => {
+    if (Number.isFinite(v) && v >= 1 && v <= 4800) store.updateSettings({ dpi: Math.round(v) });
+  };
+  let customMode = false; // "Custom…" stays selected even when the typed value equals a preset
+  dpiSel.addEventListener("change", () => {
+    customMode = dpiSel.value === "custom";
+    if (customMode) {
+      dpiCustom.hidden = false;
+      setDpi(Number(dpiCustom.value));
+    } else setDpi(Number(dpiSel.value));
+    sync();
+  });
+  dpiCustom.addEventListener("input", () => setDpi(Number(dpiCustom.value)));
+  const styleSel = h("select", { id: "f-rasterStyle" }, h("option", { value: "filled" }, "Filled (black parts)"), h("option", { value: "outline" }, "Outline (1 px lines)"));
+  styleSel.addEventListener("change", () => store.updateSettings({ rasterStyle: styleSel.value as Settings["rasterStyle"] }));
+  const engraveCb = h("input", { type: "checkbox", id: "f-rasterEngrave" });
+  engraveCb.addEventListener("change", () => store.updateSettings({ rasterEngrave: engraveCb.checked }));
+  const rasterBox = h(
+    "div",
+    { class: "raster-options", id: "raster-options" },
+    h("label", { class: "field" }, h("span", { class: "lbl" }, "Resolution"), h("span", { class: "ctl" }, dpiSel, dpiCustom)),
+    h("label", { class: "field" }, h("span", { class: "lbl" }, "Image style"), h("span", { class: "ctl" }, styleSel)),
+    h("label", { class: "field check" }, engraveCb, h("span", { class: "lbl" }, "Engrave lines and labels (grey)")),
+    h("small", { class: "hint" }, "PNG is better for sharp edges; JPG (quality 95) is smaller. The DPI is stored in the file so it imports at true size."),
+    h("small", { class: "hint" }, "Raster images are not suitable for cutting without tracing."),
+  );
+  syncers.push((s) => {
+    rasterBox.hidden = !(s.formats.includes("png") || s.formats.includes("jpg"));
+    const preset = !customMode && DPI_PRESETS.includes(s.dpi);
+    dpiSel.value = preset ? String(s.dpi) : "custom";
+    dpiCustom.hidden = preset;
+    if (!preset && document.activeElement !== dpiCustom) dpiCustom.value = String(s.dpi);
+    styleSel.value = s.rasterStyle;
+    engraveCb.checked = s.rasterEngrave;
   });
 
   const mode = h("select", { id: "f-perLayerFiles" }, h("option", { value: "sheet" }, "One file per sheet"), h("option", { value: "layer" }, "One file per layer"));
@@ -59,7 +97,7 @@ export function createExportSection(store: Store, onDownload: () => Promise<void
     h("div", { class: "chips" }, ...chips),
     h("label", { class: "field" }, h("span", { class: "lbl" }, "Files"), h("span", { class: "ctl" }, mode)),
     h("small", { class: "hint" }, "DXF is the file to cut with (R12, mm, layers CUT red, ENGRAVE blue, LABEL green). SVG is a second vector option."),
-    h("small", { class: "hint" }, "PNG and JPG (engraving and reference) are not suitable for cutting without tracing."),
+    rasterBox,
     h("small", { class: "hint" }, "Cut every part face-up and stack bottom-up without flipping."),
     summary,
     button,

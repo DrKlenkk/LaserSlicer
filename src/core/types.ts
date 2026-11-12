@@ -94,5 +94,7 @@ export type Settings = {
   formats: ("dxf" | "svg" | "png" | "jpg")[];
   dpi: number;
   rasterStyle: "filled" | "outline";
+  /** draw engrave lines and labels (grey) in raster images */
+  rasterEngrave: boolean;
   perLayerFiles: boolean;
 };

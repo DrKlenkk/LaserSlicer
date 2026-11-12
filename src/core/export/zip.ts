@@ -23,6 +23,8 @@ export function buildReadme(result: RunResult, s: Settings, model: string, files
   L.push(`  Mode: ${s.mode}, samples per layer: ${s.samplesPerLayer}, simplify tolerance: ${s.simplifyTol} mm`);
   L.push(`  Min part area: ${s.minPartArea} mm2, min feature: ${s.minFeature} mm`);
   L.push(`  Formats: ${s.formats.join(", ")}, files per ${s.perLayerFiles ? "layer" : "sheet"}`);
+  if (s.formats.includes("png") || s.formats.includes("jpg"))
+    L.push(`  Raster images: ${s.dpi} DPI, ${s.rasterStyle} style${s.rasterEngrave ? ", engrave and labels in grey" : ""}; not suitable for cutting without tracing`);
   L.push("");
   L.push("Stacking order");
   L.push(`  Cut every part face-up and stack bottom-up without flipping: ${layerLabel(0)} is the bottom layer${n > 1 ? `, ${layerLabel(n - 1)} the top` : ""}.`);
@@ -41,8 +43,9 @@ export function buildReadme(result: RunResult, s: Settings, model: string, files
 
 /** ZIP of the files plus README.txt. */
 export function buildZip(files: ExportFile[], readme: string): Uint8Array {
-  const entries: Record<string, Uint8Array> = {};
-  for (const f of files) entries[f.name] = f.bytes;
+  const entries: Record<string, Uint8Array | [Uint8Array, { level: 0 | 6 }]> = {};
+  // PNG and JPG are compressed already: store them.
+  for (const f of files) entries[f.name] = /\.(png|jpg)$/.test(f.name) ? [f.bytes, { level: 0 }] : f.bytes;
   entries["README.txt"] = new TextEncoder().encode(readme);
   return zipSync(entries, { level: 6 });
 }

@@ -22,19 +22,12 @@ export function encodeDrawing(d: Drawing, format: VectorFormat): Uint8Array {
   return enc.encode(format === "dxf" ? writeDxf(d) : writeSvg(d));
 }
 
-/**
- * Files for every selected vector format: `<model>_sheet01.dxf` per sheet, or `<model>_L012.dxf` per layer
- * when `perLayer` is set. Raster formats are not handled here (M7).
- */
-export function buildExportFiles(
-  result: RunResult,
-  settings: Pick<Settings, "formats" | "perLayerFiles">,
-  model: string,
-): ExportFile[] {
-  const formats = settings.formats.filter((f): f is VectorFormat => f === "dxf" || f === "svg");
-  const files: ExportFile[] = [];
-  const drawings: { stem: string; drawing: Drawing }[] = [];
-  if (settings.perLayerFiles) {
+export type NamedDrawing = { stem: string; drawing: Drawing };
+
+/** The drawings to export: one per sheet (`<model>_sheet01`) or one per layer (`<model>_L012`). */
+export function exportDrawings(result: RunResult, perLayer: boolean, model: string): NamedDrawing[] {
+  const drawings: NamedDrawing[] = [];
+  if (perLayer) {
     for (const layer of result.layers) {
       const parts = result.parts.filter((p) => p.layer === layer.index);
       if (parts.length === 0) continue;
@@ -48,7 +41,21 @@ export function buildExportFiles(
       });
     }
   }
-  for (const { stem, drawing } of drawings)
+  return drawings;
+}
+
+/**
+ * Files for every selected vector format: `<model>_sheet01.dxf` per sheet, or `<model>_L012.dxf` per layer
+ * when `perLayer` is set. Raster formats are rendered separately (`buildRasterFiles`, needs OffscreenCanvas).
+ */
+export function buildExportFiles(
+  result: RunResult,
+  settings: Pick<Settings, "formats" | "perLayerFiles">,
+  model: string,
+): ExportFile[] {
+  const formats = settings.formats.filter((f): f is VectorFormat => f === "dxf" || f === "svg");
+  const files: ExportFile[] = [];
+  for (const { stem, drawing } of exportDrawings(result, settings.perLayerFiles, model))
     for (const f of formats) files.push({ name: `${stem}.${f}`, mime: MIME[f], bytes: encodeDrawing(drawing, f) });
   return files;
 }
