@@ -5,6 +5,9 @@ import { WorkerClient, StaleJobError } from "./worker/client";
 import { createPanel, type OrientInfo } from "./ui/panel";
 import { Viewport3D } from "./ui/viewport3d";
 import { LayerView2D } from "./ui/layerView2d";
+import { SheetView } from "./ui/sheetView";
+import { downloadBytes } from "./ui/exportDialog";
+import { materialUse } from "./core/nest";
 import { createWarnings } from "./ui/warnings";
 import { orientMesh, type Oriented } from "./core/transform";
 import { load3mfToSoup } from "./ui/load3mf";
@@ -18,7 +21,7 @@ const app = document.getElementById("app")!;
 const panelEl = h("aside", { class: "panel", id: "panel" });
 const viewEl = h("div", { class: "view-3d", id: "view-3d" });
 const layerEl = h("div", { id: "view-layer", hidden: true });
-const sheetsEl = h("div", { class: "placeholder", id: "view-sheets", hidden: true }, h("p", {}, "Sheets view: nested parts as they will be cut."), h("small", {}, "Coming in milestone M5."));
+const sheetsEl = h("div", { id: "view-sheets", hidden: true });
 const fitBtn = h("button", { type: "button", class: "btn small floating", id: "fit-btn", title: "Frame the model" }, "Fit view");
 const tabs: { id: Tab; label: string; el: HTMLElement }[] = [
   { id: "3d", label: "3D", el: viewEl },
@@ -70,6 +73,7 @@ worker.ping().then(
 const viewport = new Viewport3D(viewEl);
 fitBtn.addEventListener("click", () => viewport.fit());
 const layerView = new LayerView2D(layerEl, (i) => store.set({ layer: i }));
+const sheetView = new SheetView(sheetsEl, (layer) => store.set({ layer, tab: "layer" }));
 
 async function openFile(file: File) {
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
@@ -107,7 +111,17 @@ async function openFile(file: File) {
   }
 }
 
-const panel = createPanel(panelEl, store, { openFile });
+const panel = createPanel(panelEl, store, {
+  openFile,
+  async exportZip() {
+    const m = store.get().model;
+    if (!m) throw new Error("No model loaded");
+    const { formats, perLayerFiles } = store.get().settings;
+    const f = await worker.exportZip(m.fileName, formats, perLayerFiles);
+    downloadBytes(f.name, f.mime, f.bytes);
+    store.setStatus(`Saved ${f.name}`);
+  },
+});
 
 // Drag & drop anywhere on the page.
 let dragDepth = 0;
@@ -148,6 +162,7 @@ function refresh() {
   fitBtn.hidden = tab !== "3d";
   if (tab === "3d") viewport.activate();
   if (tab === "layer") layerView.activate();
+  if (tab === "sheets") sheetView.activate();
   layerView.setLayer(store.get().layer);
 
   // status
@@ -211,6 +226,7 @@ async function startRun() {
     const layer = Math.min(store.get().layer, result.layers.length - 1);
     store.set({ result, layer });
     layerView.setResult(result, resetLayerView);
+    sheetView.setResult(result, resetLayerView);
     resetLayerView = false;
   } catch (e) {
     if (e instanceof StaleJobError || seq !== runSeq) return;
@@ -225,6 +241,8 @@ store.subscribe((state, changed) => {
     lastRunModel = state.model;
     resetLayerView = true;
     layerView.setResult(null, true);
+    sheetView.setResult(null, true);
+    panel.setExportReady(false);
     warnings.set([]);
     runSummary.textContent = "";
     scheduleRun(true);
@@ -234,9 +252,12 @@ store.subscribe((state, changed) => {
   if (changed.has("result")) {
     const r = state.result;
     warnings.set(r ? r.warnings : []);
-    const text = r ? `${r.info.layerCount} layers · ${r.parts.length} parts` : "";
+    const text = r
+      ? `${r.info.layerCount} layers · ${r.parts.length} parts · ${r.sheets.length} sheet${r.sheets.length === 1 ? "" : "s"} · ${materialUse(r.sheets).toFixed(0)} % material use`
+      : "";
     runSummary.textContent = text;
     panel.setSummary(r ? text : "Load a model to slice it.");
+    panel.setExportReady(!!r && r.sheets.length > 0);
   }
 });
 
