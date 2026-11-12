@@ -5,6 +5,7 @@ import { WorkerClient, StaleJobError } from "./worker/client";
 import { createPanel, type OrientInfo } from "./ui/panel";
 import { Viewport3D } from "./ui/viewport3d";
 import { LayerView2D } from "./ui/layerView2d";
+import { createWarnings } from "./ui/warnings";
 import { orientMesh, type Oriented } from "./core/transform";
 import { load3mfToSoup } from "./ui/load3mf";
 import { h } from "./ui/dom";
@@ -35,7 +36,12 @@ const workerBadge = h("span", { class: "badge", id: "worker-status" }, "Worker: 
 const progressBar = h("div", { class: "progress", id: "progress", hidden: true }, h("div", { class: "progress-fill", id: "progress-fill" }));
 const progressText = h("span", { class: "progress-text", id: "progress-text", hidden: true });
 const runSummary = h("span", { class: "run-summary", id: "run-summary" });
-const statusBar = h("footer", { class: "statusbar" }, progressBar, statusMsg, progressText, runSummary, workerBadge);
+const warnings = createWarnings((w) => {
+  if (w.layer !== undefined) {
+    store.set({ layer: w.layer, tab: "layer" });
+  }
+});
+const statusBar = h("footer", { class: "statusbar" }, progressBar, statusMsg, progressText, runSummary, warnings.button, workerBadge, warnings.panel);
 const dropOverlay = h("div", { class: "drop-overlay", hidden: true }, "Drop model to load");
 
 app.append(
@@ -219,6 +225,7 @@ store.subscribe((state, changed) => {
     lastRunModel = state.model;
     resetLayerView = true;
     layerView.setResult(null, true);
+    warnings.set([]);
     runSummary.textContent = "";
     scheduleRun(true);
   } else if (changed.has("settings")) {
@@ -226,6 +233,7 @@ store.subscribe((state, changed) => {
   }
   if (changed.has("result")) {
     const r = state.result;
+    warnings.set(r ? r.warnings : []);
     const text = r ? `${r.info.layerCount} layers · ${r.parts.length} parts` : "";
     runSummary.textContent = text;
     panel.setSummary(r ? text : "Load a model to slice it.");
