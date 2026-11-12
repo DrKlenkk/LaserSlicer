@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { difference, intersect, offset, ringArea, shapeArea, shapesArea, simplify, union, unionEvenOdd } from "../src/core/poly";
 import type { Ring, Shape } from "../src/core/types";
+import { nudgeHeight, prepareMesh, slicePlane } from "../src/core/slice";
+import { orientMesh } from "../src/core/transform";
+import { roundedPlate } from "./fixtures/meshes";
+import { maxReflexDeg, settings, weld } from "./helpers";
 
 const sq = (x0: number, y0: number, x1: number, y1: number): Ring => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
 const rect = (x0: number, y0: number, x1: number, y1: number): Shape => ({ outer: sq(x0, y0, x1, y1), holes: [] });
@@ -47,5 +51,53 @@ describe("poly", () => {
     const out = simplify([{ outer: ring, holes: [] }], 0.05);
     expect(out[0].outer).toHaveLength(4);
     expect(shapeArea(out[0])).toBeCloseTo(100);
+  });
+});
+
+describe("clipper2-js aliasing bug (union of near-coincident outlines)", () => {
+  // Two sections of a vertical wall differ only by micrometre rounding. With the unpatched library the union lost about 1.2 mm2
+  // of 3424 (and grew hairline spikes) and the intersection lost the same, because intersection points were written into the
+  // polygon's own vertex objects.
+  const section = (z: number) => {
+    const { mesh } = weld(roundedPlate());
+    const prep = prepareMesh(orientMesh(mesh, settings()).mesh);
+    return unionEvenOdd(slicePlane(prep, nudgeHeight(prep, z)).rings);
+  };
+
+  it("union is never smaller than its inputs and intersection never bigger", () => {
+    for (const [z0, z1] of [[8.0001, 10], [10, 11.9999], [8.0001, 11.9999]]) {
+      const a = section(z0), b = section(z1);
+      const aa = shapesArea(a), bb = shapesArea(b);
+      const u = shapesArea(union(a, b)), i = shapesArea(intersect(a, b));
+      expect(u).toBeGreaterThan(Math.max(aa, bb) - 0.01);
+      expect(i).toBeLessThan(Math.min(aa, bb) + 0.01);
+      // inclusion-exclusion holds up to micrometre slivers
+      expect(Math.abs(aa + bb - u - i)).toBeLessThan(0.05);
+    }
+  });
+
+  it("the union of a section with a near copy has no spikes", () => {
+    const u = union(section(8.0001), section(10));
+    for (const s of u) for (const ring of [s.outer, ...s.holes]) expect(maxReflexDeg(ring, ringArea(ring) < 0)).toBeLessThan(5);
+  });
+});
+
+describe("offset micro-edges", () => {
+  it("kerf offset of nearly straight stretches leaves no micrometre edges or kinks", () => {
+    const { mesh } = weld(roundedPlate());
+    const prep = prepareMesh(orientMesh(mesh, settings()).mesh);
+    const shapes = unionEvenOdd(slicePlane(prep, nudgeHeight(prep, 6)).rings);
+    for (const d of [0.075, -0.075]) {
+      for (const s of offset(shapes, d, "miter", 2))
+        for (const ring of [s.outer, ...s.holes]) {
+          let minLen = Infinity;
+          for (let i = 0; i < ring.length; i++) {
+            const p = ring[i], q = ring[(i + 1) % ring.length];
+            minLen = Math.min(minLen, Math.hypot(q[0] - p[0], q[1] - p[1]));
+          }
+          expect(minLen).toBeGreaterThanOrEqual(0.005);
+          expect(maxReflexDeg(ring, ringArea(ring) < 0)).toBeLessThan(5);
+        }
+    }
   });
 });

@@ -256,3 +256,30 @@ Run ids come from the controller, so a result of a superseded run or of an old m
 load now also aborts a run in flight in the worker (`load` sets `latestRun`) and the client rejects its promise. Export awaits
 `ensureFresh()`: it starts a run if stale (or waits for the one in flight) and the worker exports `pipeline.last`, which is that run.
 With auto-update off, Download is enabled as soon as a model is loaded (it slices first).
+
+## Outline artifacts on filleted low-poly parts: two more clipper2-js defects and a micro-edge fix
+User report: rounded corners of a real model showed zig-zag steps, notches and kinks in the Sheets tab (oversize, 3 samples,
+simplify 0.05, kerf 0.15). Diagnosed on synthetic filleted plates (`roundedPlate` in `test/fixtures/meshes.ts`: 60 x 60 x 24 mm, R12
+vertical corners with 6 to 9 segments per 90 degrees, 5 mm fillets on the top and bottom edges, 16-gon hole, optional +-0.05 mm
+noise, optional different tessellation per ring) with every mode / samples / simplify / kerf combination, measuring reflex
+vertices (turning against the bend direction) and sub-0.2 mm edges per outline.
+1. **Aliasing bug in clipper2-js (fixed in `poly.ts`).** `InternalClipper.getIntersectPoint` returns the segment's own endpoint
+   object when the intersection falls on an end of the segment (and `getClosestPtOnSegment` can return `seg1`). In C# `Point64` is
+   a struct (copied); in JS it is a reference, and `ClipperBase.addNewIntersectNode` then assigns `ip.x/ip.y`, i.e. it edits a polygon
+   vertex in the middle of the run. The union / intersection of two near-identical outlines (the samples of one layer on a wall or on a
+   slowly changing fillet) lost about 1.2 mm2 of a 3424 mm2 section and left hairline spikes and notches up to 0.5 mm long (a 163 degree
+   reflex turn). This is the "third defect" that the M3 note blamed on union; it is also why oversize unions came out smaller than the
+   inputs and why undersize intersections were wrong. In a 788 pair stress test about 25 % of the pairs failed the invariants
+   (union >= max input, intersection <= min input, inclusion-exclusion); after the patch none do. The patch wraps the two static
+   methods so they return fresh points. This was the main cause of the visible steps at default settings.
+2. **Offset micro-edges (fixed in `poly.offset`).** Offsetting a nearly straight stretch writes two corner points 1 to 5 micrometres
+   apart; on the integer grid their direction is arbitrary, so the kerf output contained 1.4 micrometre edges that turned by up to 119
+   degrees. `offset` now merges points closer than 5 micrometres to the previous kept one (`TINY_EDGE`), a change of at most 5
+   micrometres of outline. Reflex turns after the kerf offset dropped from 119 to 0.8 degrees.
+3. **What remains is inherent** and is not a software bug: (a) the true section of a filleted part changes inside a layer, so the
+   oversize union has real outward steps (and notches between differently tessellated samples, up to the facet sagitta, about 0.1 mm
+   for R12 at 6 to 9 segments per 90 degrees; the default biased simplify already fills notches up to `simplifyTol`); (b) noisy
+   vertices (+-0.05 mm, the size of the default `simplifyTol`) give small reflex kinks that survive the default settings; (c) a
+   coarse tessellation is faceted by construction (a 16-gon hole is a 16-gon); (d) vertices of one source that differ by more
+   than the weld tolerance (1e-5 of the bbox diagonal) are not welded, the section opens and the repair joins gaps with straight lines
+   (a warning is shown); (e) undersize intersections leave 5 to 10 micrometre steps where two samples swap edges (invisible).

@@ -1,5 +1,5 @@
 import { DEFAULT_SETTINGS } from "../src/state";
-import type { Mesh, MeshStats, Settings } from "../src/core/types";
+import type { Mesh, MeshStats, Ring, Settings } from "../src/core/types";
 import { buildMesh, computeBBox } from "../src/core/mesh";
 import { Pipeline, type RunResult } from "../src/core/pipeline";
 import { toSoup, type RawMesh } from "./fixtures/meshes";
@@ -25,4 +25,16 @@ export async function slice(raw: RawMesh, patch: Partial<Settings> = {}): Promis
   const r = await p.run(settings(patch));
   if (!r) throw new Error("aborted");
   return r;
+}
+
+/** Largest turn (degrees) against the expected bend direction: outers CCW turn left everywhere, holes CW turn right. */
+export function maxReflexDeg(ring: Ring, hole: boolean): number {
+  const n = ring.length;
+  let worst = 0;
+  for (let i = 0; i < n; i++) {
+    const a = ring[(i + n - 1) % n], b = ring[i], c = ring[(i + 1) % n];
+    const t = Math.atan2((b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0]), (b[0] - a[0]) * (c[0] - b[0]) + (b[1] - a[1]) * (c[1] - b[1]));
+    worst = Math.max(worst, ((hole ? t : -t) * 180) / Math.PI);
+  }
+  return worst;
 }

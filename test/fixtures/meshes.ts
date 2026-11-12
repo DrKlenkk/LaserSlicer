@@ -159,6 +159,95 @@ export function finMesh(): RawMesh {
   };
 }
 
+// ---- rounded plate: a low-poly "real part" for outline-quality tests ----
+export type RoundedPlateOpts = {
+  W?: number; H?: number; R?: number; f?: number; fm?: number; // width, height, vertical corner R, top/bottom fillet radius, fillet steps (1 = chamfer)
+  nFn?: (k: number) => number; // segs per 90deg corner for ring k
+  phase?: (k: number) => number; // phase shift (fraction of one segment) per ring
+  holeR?: number; holeN?: number; noise?: number; seed?: number;
+};
+
+function rng(seed: number) { let s = seed >>> 0 || 1; return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296); }
+
+/**
+ * Plate with filleted vertical edges (radius R, `nFn(ring)` segments per 90 degrees), fillets of radius f on the top and bottom edges
+ * (`fm` steps, 1 = chamfer) and a polygonal hole through it. The section changes with Z in the fillet zones and the facets of
+ * neighbouring rings can be tessellated differently (nFn / phase), which is what real low-poly CAD exports do. Closed, outward CCW.
+ */
+export function roundedPlate(o: RoundedPlateOpts = {}): RawMesh {
+  const W = o.W ?? 60, H = o.H ?? 24, R = o.R ?? 12, f = o.f ?? 5, fm = o.fm ?? 6;
+  const holeR = o.holeR ?? 4, holeN = o.holeN ?? 16;
+  const nFn = o.nFn ?? (() => 8);
+  const phase = o.phase ?? (() => 0);
+  const rand = rng(o.seed ?? 7);
+  const pos: number[] = [];
+  const tris: number[] = [];
+  const addV = (x: number, y: number, z: number) => { pos.push(x, y, z); return pos.length / 3 - 1; };
+  type Loop = { ids: number[]; ang: number[] };
+  const mkLoop = (pts: [number, number][], z: number): Loop => {
+    const withAng = pts.map(([x, y]) => ({ x, y, a: Math.atan2(y, x) })).sort((p, q) => p.a - q.a);
+    return { ids: withAng.map((p) => addV(p.x, p.y, z)), ang: withAng.map((p) => p.a) };
+  };
+  const ringPts = (d: number, k: number): [number, number][] => {
+    const n = nFn(k), ph = phase(k);
+    const r = Math.max(R - d, 0.05), c = W / 2 - R;
+    const pts: [number, number][] = [];
+    for (let q = 0; q < 4; q++) for (let i = 0; i <= n; i++) {
+      // phase: shift interior points along the arc (end points stay put so straight edges stay straight)
+      let t = i / n; if (i > 0 && i < n) t = Math.min(0.999, Math.max(0.001, t + ph / n));
+      const a = (q * Math.PI) / 2 + (t * Math.PI) / 2;
+      const cx = (q === 0 || q === 3) ? c : -c, cy = (q === 0 || q === 1) ? c : -c;
+      pts.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]);
+    }
+    return pts;
+  };
+  const strip = (A: Loop, B: Loop, flip: boolean) => {
+    // A lower, B upper (flip: reversed orientation)
+    const nA = A.ids.length, nB = B.ids.length;
+    const aA = (i: number) => A.ang[i % nA] + (i >= nA ? 2 * Math.PI : 0);
+    const aB = (j: number) => B.ang[j % nB] + (j >= nB ? 2 * Math.PI : 0);
+    let i = 0, j = 0;
+    while (i < nA || j < nB) {
+      const advA = i < nA && (j >= nB || aA(i + 1) <= aB(j + 1));
+      const a0 = A.ids[i % nA], a1 = A.ids[(i + 1) % nA], b0 = B.ids[j % nB], b1 = B.ids[(j + 1) % nB];
+      const t = advA ? [a0, a1, b0] : [a0, b1, b0];
+      if (advA) i++; else j++;
+      if (flip) t.reverse();
+      tris.push(...t);
+    }
+  };
+  // profile: bottom fillet, wall, top fillet. list of (z, inset)
+  const prof: [number, number][] = [];
+  for (let s = 0; s <= fm; s++) { const th = (Math.PI / 2) * (s / fm); prof.push([f * (1 - Math.cos(th)), f * (1 - Math.sin(th))]); }
+  for (let s = fm; s >= 0; s--) { const th = (Math.PI / 2) * (s / fm); prof.push([H - f * (1 - Math.cos(th)), f * (1 - Math.sin(th))]); }
+  const loops = prof.map(([z, d], k) => mkLoop(ringPts(d, k), z));
+  for (let k = 0; k + 1 < loops.length; k++) strip(loops[k], loops[k + 1], false);
+  // hole
+  const hpts = (): [number, number][] => Array.from({ length: holeN }, (_, i) => [holeR * Math.cos((2 * Math.PI * i) / holeN + 0.1), holeR * Math.sin((2 * Math.PI * i) / holeN + 0.1)]);
+  const h0 = mkLoop(hpts(), 0), h1 = mkLoop(hpts(), H);
+  strip(h0, h1, true); // inward-facing wall
+  // caps
+  const capStrip = (I: Loop, O: Loop, top: boolean) => {
+    const nI = I.ids.length, nO = O.ids.length;
+    const aI = (i: number) => I.ang[i % nI] + (i >= nI ? 2 * Math.PI : 0);
+    const aO = (j: number) => O.ang[j % nO] + (j >= nO ? 2 * Math.PI : 0);
+    let i = 0, j = 0;
+    while (i < nI || j < nO) {
+      const advI = i < nI && (j >= nO || aI(i + 1) <= aO(j + 1));
+      const i0 = I.ids[i % nI], i1 = I.ids[(i + 1) % nI], o0 = O.ids[j % nO], o1 = O.ids[(j + 1) % nO];
+      const t = advI ? [i0, o0, i1] : [i0, o0, o1];
+      if (advI) i++; else j++;
+      if (!top) t.reverse();
+      tris.push(...t);
+    }
+  };
+  // The hole loops used by the cap must share vertices with the hole wall: reuse h0 / h1.
+  capStrip(h0, loops[0], false);
+  capStrip(h1, loops[loops.length - 1], true);
+  if (o.noise) for (let i = 0; i < pos.length; i++) pos[i] += (rand() * 2 - 1) * o.noise;
+  return { positions: Float32Array.from(pos), indices: Uint32Array.from(tris) };
+}
+
 /** All fixtures with expectations used by the loader tests. */
 export const FIXTURES: Record<string, { make: () => RawMesh; closed: boolean }> = {
   cube20: { make: cube20, closed: true },

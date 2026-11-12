@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { shapeArea, shapesArea, unionEvenOdd } from "../src/core/poly";
+import { ringArea, shapeArea, shapesArea, unionEvenOdd } from "../src/core/poly";
 import { nudgeHeight, prepareMesh, slicePlane } from "../src/core/slice";
 import { orientMesh } from "../src/core/transform";
 import { SAMPLE_EPS } from "../src/core/layers";
-import { torus, twoSpheres, uvSphere, box } from "./fixtures/meshes";
-import { slice, settings, weld } from "./helpers";
+import { torus, twoSpheres, uvSphere, box, roundedPlate } from "./fixtures/meshes";
+import { maxReflexDeg, slice, settings, weld } from "./helpers";
 
 const layerArea = (r: Awaited<ReturnType<typeof slice>>, i: number) => shapesArea(r.layers[i].shapes);
 
@@ -99,3 +99,15 @@ describe("islands", () => {
   });
 });
 
+
+describe("filleted plate (low-poly rounded part)", () => {
+  it("default oversize outlines have no spikes or notches and cover the mid-plane section", async () => {
+    const raw = roundedPlate();
+    const over = await slice(raw, { mode: "oversize", samplesPerLayer: 3, minPartArea: 0 });
+    const mid = await slice(raw, { mode: "midplane", kerf: 0, minPartArea: 0 });
+    for (const p of over.parts) {
+      for (const ring of [p.cut.outer, ...p.cut.holes]) expect(maxReflexDeg(ring, ringArea(ring) < 0)).toBeLessThan(5);
+    }
+    over.layers.forEach((l, i) => expect(shapesArea(l.shapes)).toBeGreaterThan(shapesArea(mid.layers[i].shapes) - 0.05));
+  });
+});

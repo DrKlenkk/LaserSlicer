@@ -1,6 +1,6 @@
 // The ONLY module that talks to clipper2-js. Everything outside works in mm with the Shape/Ring
 // types; here mm are converted to integer micrometres (SCALE = 1000) and back.
-import { Clipper, Clipper64, ClipperOffset, ClipType, EndType, FillRule, JoinType, PathType } from "clipper2-js";
+import { Clipper, Clipper64, ClipperOffset, ClipType, EndType, FillRule, InternalClipper, JoinType, PathType, Point64 } from "clipper2-js";
 import type { Path64, Paths64 } from "clipper2-js";
 import type { Ring, Shape, Vec2 } from "./types";
 
@@ -27,6 +27,24 @@ type OffsetInternals = {
   const cnt = path.length;
   for (let i = 0, k = cnt - 1; i < cnt; k = i, i++) this.offsetPoint(group, path, i, k);
   group.outPaths.push(group.outPath);
+};
+
+// clipper2-js 1.2.4 bug (aliasing): `InternalClipper.getIntersectPoint` returns the edge's own endpoint object when the
+// intersection falls on an end of the segment, and `getClosestPtOnSegment` can return `seg1` itself. In C# Point64 is a
+// struct, so the original copies it; in JS it is a reference, and `ClipperBase.addNewIntersectNode` then writes `ip.x/ip.y`
+// into what is really a polygon vertex. That corrupts the input paths and the active edges in the middle of a run, and
+// union / intersection of near-coincident outlines (the samples of one layer) silently lose area (1 mm2 on a 3400 mm2
+// section) and grow hairline spikes. Return fresh points. Covered by test/poly.test.ts.
+type IntersectResult = { ip: Point64; success: boolean };
+const origIntersect = InternalClipper.getIntersectPoint.bind(InternalClipper) as (a: Point64, b: Point64, c: Point64, d: Point64) => IntersectResult;
+const origClosest = InternalClipper.getClosestPtOnSegment.bind(InternalClipper) as (p: Point64, a: Point64, b: Point64) => Point64;
+(InternalClipper as unknown as Record<string, unknown>).getIntersectPoint = (a: Point64, b: Point64, c: Point64, d: Point64): IntersectResult => {
+  const r = origIntersect(a, b, c, d);
+  return { ip: new Point64(r.ip.x, r.ip.y), success: r.success };
+};
+(InternalClipper as unknown as Record<string, unknown>).getClosestPtOnSegment = (p: Point64, a: Point64, b: Point64): Point64 => {
+  const r = origClosest(p, a, b);
+  return new Point64(r.x, r.y);
 };
 
 /** 1 integer unit = 1 micrometre. */
@@ -187,18 +205,48 @@ export function difference(a: Shape[], b: Shape[]): Shape[] {
 export type JoinKind = "miter" | "round" | "square";
 const JOIN: Record<JoinKind, JoinType> = { miter: JoinType.Miter, round: JoinType.Round, square: JoinType.Square };
 
+/** Offset arc tolerance (mm): the largest distance between a round join / cap and the true circle. */
+export const ARC_TOLERANCE = 0.01;
+/** Edges shorter than this (mm) are merged after an offset; see `dropTinyEdges`. */
+export const TINY_EDGE = 0.005;
+
+/**
+ * An offset of a nearly straight stretch writes two corner points a few micrometres apart; on the 1 micrometre integer
+ * grid their direction is arbitrary, so the result has 1 to 5 micrometre edges that turn by up to 120 degrees (a hairline
+ * zig-zag in the DXF, and every later offset or measurement sees a kink). Merge points closer than `minLen` to the
+ * previous kept one. The outline moves by less than `minLen` (5 micrometres) at most.
+ */
+function dropTinyEdges(shapes: Shape[], minLen: number): Shape[] {
+  const clean = (r: Ring): Ring => {
+    const out: Ring = [];
+    for (const p of r) {
+      const l = out[out.length - 1];
+      if (!l || Math.hypot(p[0] - l[0], p[1] - l[1]) >= minLen) out.push(p);
+    }
+    while (out.length > 1 && Math.hypot(out[0][0] - out[out.length - 1][0], out[0][1] - out[out.length - 1][1]) < minLen) out.pop();
+    return out;
+  };
+  const res: Shape[] = [];
+  for (const s of shapes) {
+    const outer = clean(s.outer);
+    if (outer.length < 3) continue;
+    res.push({ outer, holes: s.holes.map(clean).filter((h) => h.length >= 3) });
+  }
+  return res;
+}
+
 /**
  * Offset all shapes by `delta` mm (positive grows: outer outlines move out, holes shrink).
  * The result is re-resolved through a NonZero union so it is a clean, correctly nested tree.
  */
-export function offset(shapes: Shape[], delta: number, join: JoinKind = "miter", miterLimit = 2): Shape[] {
+export function offset(shapes: Shape[], delta: number, join: JoinKind = "miter", miterLimit = 2, arcTol = ARC_TOLERANCE): Shape[] {
   if (shapes.length === 0) return [];
-  const co = new ClipperOffset(miterLimit, 0.01 * SCALE);
+  const co = new ClipperOffset(miterLimit, arcTol * SCALE);
   co.addPaths(shapesToPaths(shapes), JOIN[join], EndType.Polygon);
   const res: Paths64 = [];
   co.execute(delta * SCALE, res);
   if (res.length === 0) return [];
-  return boolean(ClipType.Union, FillRule.NonZero, res, []);
+  return dropTinyEdges(boolean(ClipType.Union, FillRule.NonZero, res, []), TINY_EDGE);
 }
 
 export type SimplifyBias = "none" | "outside" | "inside";
