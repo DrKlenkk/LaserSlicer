@@ -4,8 +4,8 @@
 // and every following character pair is an (x, y) vertex, all offset by the code of "R" (x right, y DOWN); the
 // marker " R" lifts the pen. The cap height is 21 units (y from -12 at the top to +9 at the baseline).
 // NOTE: the outlines were reconstructed in the Simplex style (single stroke, polygonal curves); they are not a
-// byte-exact copy of the original Hershey table (see DECISIONS.md). Covered: digits, A-Z, "-" and space.
-// Lower case letters are drawn with the upper case glyphs.
+// byte-exact copy of the original Hershey table (see DECISIONS.md). Covered: digits, A-Z, a-z, "-" and space.
+// Lower case: x-height 14 units (y from -5 to 9), ascenders to the cap height, descenders (g j p q y) down to y = 16/17.
 import type { Vec2 } from "../types";
 
 const GLYPHS: Record<string, string> = {
@@ -46,6 +46,32 @@ const GLYPHS: Record<string, string> = {
   "Y": "H\\KFRPYF RRPR[",
   "Z": "H[KFXFK[X[",
   "-": "JZMPWP",
+  "a": "P`^T^Q\\OZNXMVNTORQRTRWTYVZX[ZZ\\Y^W^T R^M^[",
+  "b": "P`RFR[ R^T^Q\\OZNXMVNTORQRTRWTYVZX[ZZ\\Y^W^T",
+  "c": "P_]P[NXMVMTORQRTRWTYV[X[[Z]X",
+  "d": "P`^F^[ R^T^Q\\OZNXMVNTORQRTRWTYVZX[ZZ\\Y^W^T",
+  "e": "P`RT^T^Q\\OZMXMVNTORRRTSWTYV[X[[Z]X",
+  "f": "Q`W[WLXIZG\\F^F RSM\\M",
+  "g": "P`^T^Q\\OZNXMVNTORQRTRWTYVZX[ZZ\\Y^W^T R^M^^]a[bXcUbS`",
+  "h": "P_RFR[ RRQTNWMZM\\N]Q][",
+  "i": "PTRMR[ RRFRG",
+  "j": "OXVMV^UaSbQb RVFVG",
+  "k": "P^RFR[ R\\MRW RVS\\[",
+  "l": "PTRFR[",
+  "m": "PfRMR[ RRQTNVMXMZN[Q[[ R[Q]N_MaMcNdQd[",
+  "n": "P^RMR[ RRQTNWMYM[N\\Q\\[",
+  "o": "P`^T^Q\\OZNXMVNTORQRTRWTYVZX[ZZ\\Y^W^T",
+  "p": "P`RMRb R^T^Q\\OZNXMVNTORQRTRWTYVZX[ZZ\\Y^W^T",
+  "q": "P`^M^b R^T^Q\\OZNXMVNTORQRTRWTYVZX[ZZ\\Y^W^T",
+  "r": "P]RMR[ RRRTOVMYM[N",
+  "s": "P^\\OZMWMTMRORQTSWTZU\\W\\YZ[W[T[RY",
+  "t": "P]VFVXWZY[[[ RRMZM",
+  "u": "P^RMRVSYU[X[ZZ\\W R\\M\\[",
+  "v": "P^RMW[\\M",
+  "w": "PdRMV[ZM^[bM",
+  "x": "P^RM\\[ R\\MR[",
+  "y": "P^RMWZ R\\MV^TaRb",
+  "z": "P^RM\\MR[\\[",
   " ": "JZ",
 };
 
@@ -70,10 +96,10 @@ function decode(code: string): Glyph {
 }
 
 function glyph(ch: string): Glyph {
-  const c = ch.toUpperCase();
+  const c = ch;
   let g = cache.get(c);
   if (!g) {
-    g = decode(GLYPHS[c] ?? GLYPHS[" "]);
+    g = decode(GLYPHS[c] ?? GLYPHS[c.toUpperCase()] ?? GLYPHS[" "]);
     cache.set(c, g);
   }
   return g;

@@ -35,6 +35,23 @@ describe("hershey text", () => {
     expect(textWidth("L12", 12)).toBeCloseTo(2 * textWidth("L12", 6), 9);
     expect(textWidth("AB", 6)).toBeCloseTo(textWidth("A", 6) + textWidth("B", 6), 9);
   });
+  it("has distinct lower case glyphs a-z within the cap height, descenders below the baseline", () => {
+    const seen = new Set<string>();
+    for (const ch of "abcdefghijklmnopqrstuvwxyz") {
+      const lines = textToPolylines(ch, 21);
+      expect(lines.length, ch).toBeGreaterThan(0);
+      const b = bboxOf(lines);
+      expect(b.maxY, ch).toBeLessThanOrEqual(21 + 1e-9);
+      expect(b.minY, ch).toBeGreaterThanOrEqual(-8);
+      expect(b.maxY, ch).toBeGreaterThanOrEqual(14 - 1e-9); // at least x-height
+      expect(textWidth(ch, 21), ch).toBeGreaterThan(3);
+      seen.add(JSON.stringify(lines));
+      expect(JSON.stringify(lines), `${ch} differs from ${ch.toUpperCase()}`).not.toBe(JSON.stringify(textToPolylines(ch.toUpperCase(), 21)));
+    }
+    expect(seen.size).toBe(26);
+    for (const ch of "gjpqy") expect(bboxOf(textToPolylines(ch, 21)).minY, ch).toBeLessThan(-5);
+    expect(bboxOf(textToPolylines("x", 21)).minY).toBeCloseTo(0, 6);
+  });
   it("label text drops the zero padding", () => {
     expect(labelText("L012")).toBe("L12");
     expect(labelText("L012-b")).toBe("L12-b");
