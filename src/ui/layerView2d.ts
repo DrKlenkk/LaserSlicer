@@ -2,6 +2,7 @@
 import type { Layer, Shape } from "../core/types";
 import type { RunResult } from "../core/pipeline";
 import { h } from "./dom";
+import { createLegend } from "./legend";
 
 type View = { scale: number; ox: number; oy: number }; // screen = o + world * scale (y flipped)
 
@@ -21,7 +22,19 @@ export class LayerView2D {
     root.classList.add("layer-view");
     const hint = h("div", { class: "layer-hint" }, "←/→ step (works in every tab) · wheel zoom · drag pan · double-click fit");
     const bar = h("div", { class: "layer-bar" }, this.slider, hint);
-    root.append(this.canvas, this.info, this.empty, bar);
+    const css = (v: string) => () => getComputedStyle(root).getPropertyValue(v).trim();
+    const legend = createLegend(
+      "legend-layer",
+      [
+        { layer: "CUT", text: "this layer's outline, dowel holes: cut through", color: css("--cut") },
+        { layer: "ENGRAVE", text: "next-layer outline (dashed), glue alignment line", color: css("--engrave"), dash: true },
+        { layer: "LABEL", text: "layer label text: engraved", color: css("--label") },
+        { layer: "Previous", text: "previous layer: reference only", color: css("--ghost"), fill: true },
+      ],
+      "Colours map to the DXF layers, so you can assign them to cut / engrave in LightBurn and similar software.",
+    );
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => legend.refresh());
+    root.append(this.canvas, this.info, this.empty, legend.el, bar);
 
     this.slider.addEventListener("input", () => this.step(Number(this.slider.value) - this.layer));
     this.canvas.addEventListener("wheel", (e) => this.onWheel(e), { passive: false });

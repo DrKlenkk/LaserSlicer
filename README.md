@@ -4,6 +4,7 @@ Slices a 3D model (STL, OBJ, 3MF) into flat layers and exports laser-ready files
 plywood that is stacked and glued into the shape. It is one offline HTML file: no server, no network, no install for users.
 
 ![Layer tab: hollowed sphere with dowel holes, label and next-layer outline](docs/screenshots/layer-tab.png)
+![Sheets tab with the colour legend](docs/screenshots/sheets-legend.png)
 ![Stacked 3D result with the selected layer highlighted](docs/screenshots/stacked-3d.png)
 
 ## Build
@@ -25,6 +26,8 @@ Open `dist/index.html` by double-click (`file://` works; nothing is fetched). Co
 3. Enter the **measured** plywood thickness (calipers; "4 mm" is often 3.7-3.9), sheet size and kerf.
 4. Choose an outline mode, optionally hollowing and dowels, and look at the result in the tabs: **3D** (original model or
    stacked layers), **Layer** (one layer: cut red, next layer blue dashed, labels green, dowel holes) and **Sheets** (the nested sheets).
+   The **Sheets** and **Layer** tabs have a small legend (bottom right, collapsible): the trace colours are the DXF layers
+   `CUT` (red), `ENGRAVE` (blue) and `LABEL` (green), so they can be assigned to cut / engrave in LightBurn and similar software.
 5. Export: pick formats and "Download all (ZIP)". Warnings are in the status bar; click one to jump to its layer.
 
 Press `?` in the app for the shortcuts: 1/2/3 tabs, arrows / PgUp / PgDn / Home / End step layers, M toggles model and stacked

@@ -238,3 +238,25 @@ button.warn-item:hover { background: var(--accent-soft); }
   color: var(--muted); font: 600 10px/1 var(--font); display: inline-grid;
 }
 .view-toggle .tip-icon:hover, .view-toggle .tip-icon:focus-visible { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+
+/* colour legend (ui/legend.ts), bottom-right of the Sheets and Layer views (nesting fills from the left, the layer grid caption is bottom-left) */
+.legend {
+  position: absolute; right: 12px; bottom: 12px; z-index: 2; max-width: min(400px, calc(100% - 24px)); font-size: 12px;
+  background: color-mix(in srgb, var(--surface) 82%, transparent); border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12); backdrop-filter: blur(2px);
+}
+#view-layer > .legend { bottom: 62px; } /* above the slider bar */
+.lg-head { font: inherit; font-weight: 600; width: 100%; text-align: left; background: none; border: 0; color: var(--text); cursor: pointer; padding: 5px 10px; display: flex; align-items: center; gap: 6px; }
+.lg-head::before { content: "▾"; color: var(--muted); font-size: 10px; }
+.legend.collapsed .lg-head::before { content: "▸"; }
+.lg-body { padding: 0 10px 8px; }
+.lg-body ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: auto auto 1fr; gap: 3px 8px; align-items: center; }
+.lg-body li { display: contents; }
+.lg-name { font: 600 11px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.lg-text { color: var(--muted); line-height: 1.25; }
+.lg-body ul { column-gap: 8px; }
+.lg-swatch { --c: #888; display: block; width: 22px; height: 0; border-top: 2px solid var(--c); border-radius: 1px; }
+.lg-swatch.thin { border-top-width: 1px; }
+.lg-swatch.dash { border-top-style: dashed; }
+.lg-swatch.fill { height: 8px; border: 1px solid var(--c); background: color-mix(in srgb, var(--c) 28%, transparent); border-radius: 2px; }
+.lg-note { margin: 6px 0 0; color: var(--muted); font-size: 11px; line-height: 1.3; border-top: 1px solid var(--border); padding-top: 5px; }

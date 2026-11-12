@@ -4,15 +4,20 @@ import type { Part, Ring, Vec2 } from "../core/types";
 import type { RunResult } from "../core/pipeline";
 import { applyPlacement } from "../core/nest";
 import { h } from "./dom";
+import { createLegend } from "./legend";
 
 type View = { scale: number; ox: number; oy: number }; // screen = o + world * (scale, -scale)
 type Placed = { part: Part; sheet: number; ox: number; path: Path2D; minX: number; minY: number; maxX: number; maxY: number };
 
 const GAP = 20; // mm between sheets
-const COLORS = {
+export const COLORS = {
   light: { cut: "#e02020", engrave: "#2a55ff", label: "#009a2c", sheet: "#8a8a8a" },
   dark: { cut: "#ff5c50", engrave: "#6f8dff", label: "#37d067", sheet: "#9a9a9a" },
 };
+
+export function sheetColors() {
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? COLORS.dark : COLORS.light;
+}
 
 function inRing(x: number, y: number, ring: Ring): boolean {
   let inside = false;
@@ -38,7 +43,20 @@ export class SheetView {
 
   constructor(private root: HTMLElement, private onPart: (layer: number, partId: string) => void) {
     root.classList.add("layer-view");
-    root.append(this.canvas, this.tip, this.empty);
+    const col = () => sheetColors();
+    const legend = createLegend(
+      "legend-sheets",
+      [
+        { layer: "CUT", text: "kerf-compensated outlines, dowel holes: cut through", color: () => col().cut },
+        { layer: "ENGRAVE", text: "next-layer outline, glue alignment line", color: () => col().engrave },
+        { layer: "LABEL", text: "layer label text: engraved", color: () => col().label },
+        { layer: "SHEET", text: "sheet border: not exported by default", color: () => col().sheet, thin: true },
+        { layer: "Hover", text: "part under the pointer (click: open its layer)", color: () => col().cut, fill: true },
+      ],
+      "Colours map to the DXF layers, so you can assign them to cut / engrave in LightBurn and similar software.",
+    );
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => legend.refresh());
+    root.append(this.canvas, this.tip, this.empty, legend.el);
     const c = this.canvas;
     c.addEventListener("wheel", (e) => this.onWheel(e), { passive: false });
     c.addEventListener("pointerdown", (e) => {
