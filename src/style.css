@@ -260,3 +260,15 @@ button.warn-item:hover { background: var(--accent-soft); }
 .lg-swatch.dash { border-top-style: dashed; }
 .lg-swatch.fill { height: 8px; border: 1px solid var(--c); background: color-mix(in srgb, var(--c) 28%, transparent); border-radius: 2px; }
 .lg-note { margin: 6px 0 0; color: var(--muted); font-size: 11px; line-height: 1.3; border-top: 1px solid var(--border); padding-top: 5px; }
+
+/* auto-update toggle (tab bar) and "Update preview" button (top right of the view area) */
+.tabs .auto-update { display: flex; align-items: center; gap: 6px; margin: 0 10px 4px 0; color: var(--text); white-space: nowrap; cursor: pointer; }
+.update-wrap { position: absolute; top: 10px; right: 12px; z-index: 3; display: flex; align-items: center; gap: 10px; }
+.update-note { color: var(--warn); font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 999px; background: color-mix(in srgb, var(--surface) 85%, transparent); border: 1px solid var(--border); }
+.update-wrap .btn.primary { padding: 7px 16px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25); }
+.update-wrap .btn.primary:disabled { opacity: 0.85; cursor: progress; }
+.stage:has(.update-wrap:not([hidden])) .floating { top: 52px; }
+@media (max-width: 560px) { .tabs .auto-update span:not(.tip) { display: none; } }
+.tabs .auto-update .tip { margin-left: 0; }
+.tabs .auto-update .tip-icon { padding: 0; margin: 0; color: var(--muted); border: 1px solid var(--muted); border-radius: 50%; background: transparent; }
+.tabs .auto-update .tip-icon:hover, .tabs .auto-update .tip-icon:focus-visible { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }

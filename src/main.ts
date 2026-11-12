@@ -16,8 +16,11 @@ import { h } from "./ui/dom";
 import { createHelp } from "./ui/help";
 import type { ViewMode } from "./ui/viewport3d";
 import type { Tab } from "./state";
+import { UpdateController, slicingKey, type RunAction } from "./updateController";
+import { loadUiPrefs, saveUiPrefs } from "./uiPrefs";
 
 const store = new Store();
+const ctl = new UpdateController(loadUiPrefs().autoUpdate);
 const app = document.getElementById("app")!;
 
 // ---------- layout ----------
@@ -38,7 +41,13 @@ const tabButtons = tabs.map((t) => {
   tabBar.append(b);
   return b;
 });
-tabBar.append(h("span", { class: "spacer" }), h("button", { type: "button", class: "help-btn", id: "help-btn", title: "Help and keyboard shortcuts (?)", onclick: () => help.toggle() }, "?"));
+const autoCb = h("input", { type: "checkbox", id: "auto-update" });
+autoCb.checked = ctl.auto;
+const autoLabel = h("label", { class: "auto-update" }, autoCb, h("span", {}, "Auto-update preview"), infoIcon("autoUpdate"));
+const updateNote = h("span", { class: "update-note", id: "update-note" }, "● settings changed");
+const updateBtn = h("button", { type: "button", class: "btn primary", id: "update-preview", title: "Slice with the current settings (U)" }, "Update preview");
+const updateWrap = h("div", { class: "update-wrap", id: "update-wrap", hidden: true }, updateNote, updateBtn);
+tabBar.append(h("span", { class: "spacer" }), autoLabel, h("button", { type: "button", class: "help-btn", id: "help-btn", title: "Help and keyboard shortcuts (?)", onclick: () => help.toggle() }, "?"));
 const btnModel = h("button", { type: "button", id: "view-model", class: "active", onclick: () => setViewMode("model") }, "Model");
 const btnStack = h("button", { type: "button", id: "view-stack", disabled: true, title: "The sliced layers stacked (M)", onclick: () => setViewMode("stack") }, "Stacked result");
 const viewToggle = h("div", { class: "view-toggle", id: "view-toggle", role: "group", "aria-label": "3D view" }, btnModel, btnStack, infoIcon("viewToggle"));
@@ -56,7 +65,7 @@ const statusBar = h("footer", { class: "statusbar" }, progressBar, statusMsg, pr
 const dropOverlay = h("div", { class: "drop-overlay", hidden: true }, "Drop model to load");
 
 app.append(
-  h("div", { class: "layout" }, panelEl, h("main", { class: "main" }, tabBar, h("div", { class: "stage" }, viewEl, layerEl, sheetsEl, fitBtn, viewToggle)), statusBar),
+  h("div", { class: "layout" }, panelEl, h("main", { class: "main" }, tabBar, h("div", { class: "stage" }, viewEl, layerEl, sheetsEl, fitBtn, viewToggle, updateWrap)), statusBar),
   dropOverlay,
   help.el,
 );
@@ -131,6 +140,7 @@ async function openFile(file: File) {
     );
   } catch (e) {
     store.setStatus(`Could not load ${file.name}: ${e instanceof Error ? e.message : String(e)}`, "error");
+    if (ctl.auto && ctl.stale) scheduleRun(true); // the load cancelled a run in flight; the old model is still there
   }
 }
 
@@ -139,6 +149,7 @@ const panel = createPanel(panelEl, store, {
   async exportZip() {
     const m = store.get().model;
     if (!m) throw new Error("No model loaded");
+    await ensureFresh(); // the ZIP is built from the last finished run, so it must match the current settings
     const { formats, perLayerFiles, dpi, rasterStyle, rasterEngrave } = store.get().settings;
     const f = await worker.exportZip(m.fileName, { formats, perLayerFiles, dpi, rasterStyle, rasterEngrave });
     downloadBytes(f.name, f.mime, f.bytes);
@@ -216,10 +227,10 @@ function refresh() {
   }
 }
 
-// ---------- slicing runs: debounced, newest wins ----------
+// ---------- slicing runs: debounced, newest wins; manual mode only on request ----------
 const DEBOUNCE_MS = 300;
 let runTimer: ReturnType<typeof setTimeout> | undefined;
-let runSeq = 0;
+let runPromise: Promise<void> = Promise.resolve();
 let resetLayerView = true;
 
 function showProgress(stage: string | null, fraction = 0) {
@@ -235,43 +246,93 @@ function scheduleRun(immediate: boolean) {
   runTimer = setTimeout(() => void startRun(), immediate ? 0 : DEBOUNCE_MS);
 }
 
-async function startRun() {
-  const { model, settings } = store.get();
-  if (!model) return;
-  const seq = ++runSeq;
-  showProgress("Starting", 0);
-  try {
-    const r = await worker.run(settings, (stage, f) => {
-      if (seq === runSeq) showProgress(stage, f);
-    });
-    if (seq !== runSeq) return;
-    const result = { layers: r.layers, parts: r.parts, placements: r.placements, sheets: r.sheets, warnings: r.warnings, info: r.info };
-    showProgress(null);
-    const layer = Math.min(store.get().layer, result.layers.length - 1);
-    store.set({ result, layer });
-    layerView.setResult(result, resetLayerView);
-    sheetView.setResult(result, resetLayerView);
-    resetLayerView = false;
-  } catch (e) {
-    if (e instanceof StaleJobError || seq !== runSeq) return;
-    showProgress(null);
-    store.setStatus(`Slicing failed: ${e instanceof Error ? e.message : String(e)}`, "error");
-  }
+function act(a: RunAction) {
+  if (a !== "none") scheduleRun(a === "immediate");
 }
 
+/** Slice now with the current settings (replaces a run in flight). Resolves when this run is over. */
+function startRun(): Promise<void> {
+  clearTimeout(runTimer);
+  const { model, settings } = store.get();
+  if (!model) return Promise.resolve();
+  const seq = ctl.runStarted();
+  showProgress("Starting", 0);
+  const p = (async () => {
+    try {
+      const r = await worker.run(settings, (stage, f) => {
+        if (ctl.isCurrent(seq)) showProgress(stage, f);
+      });
+      if (!ctl.isCurrent(seq)) return;
+      const result = { layers: r.layers, parts: r.parts, placements: r.placements, sheets: r.sheets, warnings: r.warnings, info: r.info };
+      showProgress(null);
+      const layer = Math.min(store.get().layer, result.layers.length - 1);
+      store.set({ result, layer });
+      layerView.setResult(result, resetLayerView);
+      sheetView.setResult(result, resetLayerView);
+      resetLayerView = false;
+      ctl.runFinished(seq);
+    } catch (e) {
+      if (!ctl.isCurrent(seq)) return; // superseded by a newer run or a new model
+      showProgress(null);
+      ctl.runFailed(seq);
+      if (!(e instanceof StaleJobError)) store.setStatus(`Slicing failed: ${e instanceof Error ? e.message : String(e)}`, "error");
+    }
+  })();
+  runPromise = p;
+  return p;
+}
+
+/** Makes sure the shown result belongs to the current settings: runs now if stale, else waits for the run in flight. */
+async function ensureFresh() {
+  for (let i = 0; i < 4 && (ctl.stale || ctl.running); i++) {
+    if (ctl.stale) {
+      store.setStatus("Updating the preview before export…");
+      await startRun();
+    } else await runPromise;
+  }
+  if (ctl.stale || ctl.running || !store.get().result) throw new Error("Slicing did not finish; check the warnings and try again");
+}
+
+function renderUpdate() {
+  updateWrap.hidden = !ctl.showButton;
+  updateBtn.disabled = ctl.running;
+  updateBtn.textContent = ctl.running ? "Updating…" : "Update preview";
+  updateBtn.setAttribute("aria-busy", String(ctl.running));
+  updateNote.hidden = !ctl.stale;
+  const r = store.get().result;
+  updateNote.textContent = r ? "● settings changed" : "● not sliced yet";
+  autoCb.checked = ctl.auto;
+  const base = r ? `${r.info.layerCount} layers · ${r.parts.length} parts · ${r.sheets.length} sheet${r.sheets.length === 1 ? "" : "s"} · ${materialUse(r.sheets).toFixed(0)} % material use` : "";
+  runSummary.textContent = base && !ctl.auto && ctl.stale ? `${base} · outdated` : base;
+  panel.setExportReady(!!r && r.sheets.length > 0 || (!ctl.auto && ctl.stale && !!store.get().model));
+}
+ctl.subscribe(renderUpdate);
+updateBtn.addEventListener("click", () => void startRun());
+autoCb.addEventListener("change", () => {
+  saveUiPrefs({ autoUpdate: autoCb.checked });
+  if (!autoCb.checked) clearTimeout(runTimer);
+  act(ctl.setAuto(autoCb.checked));
+});
+
 let lastRunModel: object | null = null;
+let lastSlicingKey = slicingKey(store.get().settings);
 store.subscribe((state, changed) => {
   if (changed.has("model") && state.model !== lastRunModel) {
     lastRunModel = state.model;
     resetLayerView = true;
     layerView.setResult(null, true);
     sheetView.setResult(null, true);
-    panel.setExportReady(false);
     warnings.set([]);
     runSummary.textContent = "";
-    scheduleRun(true);
+    lastSlicingKey = slicingKey(state.settings);
+    act(ctl.modelLoaded());
+    renderUpdate();
   } else if (changed.has("settings")) {
-    scheduleRun(false);
+    const k = slicingKey(state.settings);
+    if (k !== lastSlicingKey) {
+      lastSlicingKey = k;
+      act(ctl.settingsChanged());
+    }
   }
   if (changed.has("result")) {
     const r = state.result;
@@ -279,13 +340,12 @@ store.subscribe((state, changed) => {
     const text = r
       ? `${r.info.layerCount} layers · ${r.parts.length} parts · ${r.sheets.length} sheet${r.sheets.length === 1 ? "" : "s"} · ${materialUse(r.sheets).toFixed(0)} % material use`
       : "";
-    runSummary.textContent = text;
     panel.setSummary(r ? text : "Load a model to slice it.");
     btnStack.disabled = !r;
     if (!r && viewMode === "stack") setViewMode("model");
     viewport.setStack(r ? r.layers : null);
     viewport.setHighlight(r ? state.layer : -1);
-    panel.setExportReady(!!r && r.sheets.length > 0);
+    renderUpdate();
   }
 });
 
@@ -323,6 +383,7 @@ window.addEventListener("keydown", (e) => {
     case "End": stepLayer(1e9); break;
     case "m": case "M": if (store.get().tab === "3d") setViewMode(viewMode === "model" ? "stack" : "model"); break;
     case "f": case "F": if (store.get().tab === "3d") viewport.fit(); break;
+    case "u": case "U": if (ctl.auto || !ctl.stale || ctl.running) return; void startRun(); break;
     case "?": help.toggle(); break;
     default: return;
   }

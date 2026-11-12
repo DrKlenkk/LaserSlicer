@@ -8,6 +8,7 @@ export const SHORTCUTS: [string, string][] = [
   ["Home / End", "first / last layer"],
   ["M", "3D tab: switch between original model and stacked result"],
   ["F", "3D tab: frame the model"],
+  ["U", "update the preview (when auto-update is off)"],
   ["?", "show or hide this help"],
   ["Esc", "close help or the warnings list"],
 ];
@@ -20,7 +21,7 @@ export function createHelp() {
     { class: "help-box", role: "dialog", "aria-modal": "true", "aria-label": "Help" },
     h("button", { type: "button", class: "btn small help-close", id: "help-close", onclick: close }, "Close"),
     h("h2", {}, "Laser Slicer"),
-    h("p", {}, "Load an STL, OBJ or 3MF model, set the thickness you measured on your plywood, and download the ZIP. Every change re-slices automatically."),
+    h("p", {}, "Load an STL, OBJ or 3MF model, set the thickness you measured on your plywood, and download the ZIP. Every change re-slices automatically unless \"Auto-update preview\" is off; then click Update preview (or press U)."),
     h("h3", {}, "Gluing"),
     h("ol", {},
       h("li", {}, "Cut every part face-up; do not flip any part."),

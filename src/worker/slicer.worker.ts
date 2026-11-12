@@ -60,6 +60,7 @@ ctx.onmessage = (e) => {
         ctx.postMessage({ type: "pong", jobId: msg.jobId, t: msg.t });
         break;
       case "load": {
+        latestRun = msg.jobId; // a run in flight belongs to the old mesh: it abandons itself
         const soup = parseToSoup(msg.buffer, msg.ext);
         const { mesh, stats } = buildMesh(soup);
         pipeline.setMesh(mesh, stats);

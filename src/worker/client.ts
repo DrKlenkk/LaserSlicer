@@ -62,6 +62,7 @@ export class WorkerClient {
   }
 
   async load(buffer: ArrayBuffer, ext: LoadExt) {
+    this.dropRun(); // the worker abandons a run in flight when a model loads
     const r = await this.request({ type: "load", buffer, ext }, [buffer]);
     if (r.type !== "loaded") throw new Error("Unexpected reply");
     return r;
@@ -69,15 +70,19 @@ export class WorkerClient {
 
   private runJob = 0;
 
+  private dropRun() {
+    if (!this.runJob) return;
+    this.pending.get(this.runJob)?.reject(new StaleJobError());
+    this.pending.delete(this.runJob);
+    this.runJob = 0;
+  }
+
   /**
    * Start a slicing run. Starting a new run abandons the previous one: its promise rejects with
    * StaleJobError and the worker drops its result.
    */
   async run(settings: Settings, onProgress?: Pending["onProgress"]) {
-    if (this.runJob) {
-      this.pending.get(this.runJob)?.reject(new StaleJobError());
-      this.pending.delete(this.runJob);
-    }
+    this.dropRun();
     this.runJob = this.nextJob; // the id request() is about to assign
     const r = await this.request({ type: "run", settings }, [], onProgress);
     if (r.type !== "result") throw new Error("Unexpected reply");

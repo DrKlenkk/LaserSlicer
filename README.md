@@ -30,8 +30,14 @@ Open `dist/index.html` by double-click (`file://` works; nothing is fetched). Co
    `CUT` (red), `ENGRAVE` (blue) and `LABEL` (green), so they can be assigned to cut / engrave in LightBurn and similar software.
 5. Export: pick formats and "Download all (ZIP)". Warnings are in the status bar; click one to jump to its layer.
 
+**Auto-update preview** (checkbox in the tab bar, on by default) re-slices after every change. For large models turn it off:
+changes are then collected, an **Update preview** button appears at the top right of every tab (or press U), and slicing
+only runs when you click it. A newly loaded model is shown in 3D but not sliced until you update, and "Download all (ZIP)"
+updates first, so the files always match the settings you see. The checkbox is remembered in the browser; it is not part of
+the project file.
+
 Press `?` in the app for the shortcuts: 1/2/3 tabs, arrows / PgUp / PgDn / Home / End step layers, M toggles model and stacked
-result, F frames the model. "Project" in the panel saves and loads the settings as a `.json` file (the model is not stored);
+result, F frames the model, U updates the preview (auto-update off). "Project" in the panel saves and loads the settings as a `.json` file (the model is not stored);
 the last settings are also kept in the browser.
 
 ### Modes

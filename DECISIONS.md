@@ -247,3 +247,12 @@ Layer tab is blue. The original model is drawn at 78 % opacity in the "Model" vi
   hidden has none. On a real GPU this should be negligible but was not measured.
 - Corrupt, empty, truncated, NaN and wrong-extension files each give one status-bar message and keep the app and the previous model.
   A run with no parts at all gives an error warning. Verified for 9 sample files in Chromium.
+
+## Auto-update toggle and stale preview
+`src/updateController.ts` is a DOM-free state machine (auto, stale, running, run ids) that main.ts drives; `uiPrefs.ts` keeps the
+checkbox in `localStorage` key `laserslicer.ui.v1`, separate from the settings key and the project file (slicing settings only).
+Run ids come from the controller, so a result of a superseded run or of an old model is ignored. Settings that only affect export
+(formats, per layer, dpi, raster style) no longer trigger a run or mark the preview stale (`slicingKey`), in both modes. A model
+load now also aborts a run in flight in the worker (`load` sets `latestRun`) and the client rejects its promise. Export awaits
+`ensureFresh()`: it starts a run if stale (or waits for the one in flight) and the worker exports `pipeline.last`, which is that run.
+With auto-update off, Download is enabled as soon as a model is loaded (it slices first).

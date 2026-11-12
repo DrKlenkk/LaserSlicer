@@ -76,6 +76,8 @@ export const HELP = {
     "Also draws the engraved next-layer outline and the labels, in grey, in PNG and JPG images, so they appear on the picture. Turn it off if you want only the black part shapes. It does not change the DXF or SVG, which always contain these lines on their own layers.",
 
   // ----- Views -----
+  autoUpdate:
+    "When on (default), every change to a setting re-slices the model after a short pause and the preview follows. Turn it off for large or slow models: changes are then collected, the preview shows an 'Update preview' button at the top right, and slicing only runs when you click it (or press U). Downloading the ZIP always updates first, so the files match the settings you see. Loading a model still shows it in 3D, but slices only on Update. Turning auto-update back on updates at once if anything changed.",
   viewToggle:
     "Switches the 3D view between the original model (what you loaded, in the size and orientation you set) and the stacked result, which shows the cut layers on top of each other as they will look glued. Use the stacked view to check steps, thin walls and hollowing before you export. The stacked view is available once slicing has finished. Shortcut: M.",
 } as const;
@@ -83,4 +85,4 @@ export const HELP = {
 export type HelpKey = keyof typeof HELP;
 
 /** Keys that cover one control rather than a single Settings field. */
-export const EXTRA_HELP_KEYS: readonly HelpKey[] = ["rotate", "sheetSize", "viewToggle"];
+export const EXTRA_HELP_KEYS: readonly HelpKey[] = ["rotate", "sheetSize", "viewToggle", "autoUpdate"];
