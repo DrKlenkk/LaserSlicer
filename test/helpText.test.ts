@@ -11,7 +11,7 @@ for (const m of uiSource.matchAll(/boolField\("[^"]*", "\w+", "(\w+)"/g)) used.a
 for (const m of uiSource.matchAll(/\], "(\w+)"\)/g)) used.add(m[1]);
 
 // Settings whose tooltip lives under a different key (one control covers several settings).
-const COVERED_BY: Record<string, string> = { sheetW: "sheetSize", sheetH: "sheetSize", rotationSteps: "rotate" };
+const COVERED_BY: Record<string, string> = { sheetW: "sheetSize", sheetH: "sheetSize", rotationSteps: "rotate", exportCut: "exportLayers", exportEngrave: "exportLayers", exportLabel: "exportLayers", exportSheet: "exportLayers" };
 
 describe("help texts", () => {
   it("has a real text for every key", () => {

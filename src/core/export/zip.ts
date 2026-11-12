@@ -5,6 +5,7 @@ import type { RunResult } from "../pipeline";
 import { materialUse } from "../nest";
 import { layerLabel } from "../layers";
 import type { ExportFile } from "./files";
+import { exportLayersOf } from "./common";
 
 export function buildReadme(result: RunResult, s: Settings, model: string, files: ExportFile[]): string {
   const L: string[] = [];
@@ -23,8 +24,13 @@ export function buildReadme(result: RunResult, s: Settings, model: string, files
   L.push(`  Mode: ${s.mode}, samples per layer: ${s.samplesPerLayer}, simplify tolerance: ${s.simplifyTol} mm, smoothing radius: ${s.smoothRadius > 0 ? `${s.smoothRadius} mm` : "off"}`);
   L.push(`  Min part area: ${s.minPartArea} mm2, min feature: ${s.minFeature} mm`);
   L.push(`  Formats: ${s.formats.join(", ")}, files per ${s.perLayerFiles ? "layer" : "sheet"}`);
+  const EL = exportLayersOf(s);
+  const incl = ([["CUT", EL.cut], ["ENGRAVE", EL.engrave], ["LABEL", EL.label], ["SHEET border", EL.sheet]] as const).filter(([, on]) => on).map(([n]) => n);
+  const excl = ([["CUT", EL.cut], ["ENGRAVE", EL.engrave], ["LABEL", EL.label], ["SHEET border", EL.sheet]] as const).filter(([, on]) => !on).map(([n]) => n);
+  L.push(`  Layers included: ${incl.join(", ") || "none"}${excl.length ? ` (left out: ${excl.join(", ")})` : ""}`);
+  if (!EL.cut) L.push("  Note: CUT is not included, so these files do not cut the parts out.");
   if (s.formats.includes("png") || s.formats.includes("jpg"))
-    L.push(`  Raster images: ${s.dpi} DPI, ${s.rasterStyle} style${s.rasterEngrave ? ", engrave and labels in grey" : ""}; not suitable for cutting without tracing`);
+    L.push(`  Raster images: ${s.dpi} DPI, ${s.rasterStyle} style${s.rasterEngrave && (EL.engrave || EL.label) ? ", engrave and labels in grey" : ""}; not suitable for cutting without tracing`);
   L.push("");
   L.push("Stacking order");
   L.push(`  Cut every part face-up and stack bottom-up without flipping: ${layerLabel(0)} is the bottom layer${n > 1 ? `, ${layerLabel(n - 1)} the top` : ""}.`);

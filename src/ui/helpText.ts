@@ -82,9 +82,13 @@ export const HELP = {
     "When on (default), every change to a setting re-slices the model after a short pause and the preview follows. Turn it off for large or slow models: changes are then collected, the preview shows an 'Update preview' button at the top right, and slicing only runs when you click it (or press U). Downloading the ZIP always updates first, so the files match the settings you see. Loading a model still shows it in 3D, but slices only on Update. Turning auto-update back on updates at once if anything changed.",
   viewToggle:
     "Switches the 3D view between the original model (what you loaded, in the size and orientation you set) and the stacked result, which shows the cut layers on top of each other as they will look glued. Use the stacked view to check steps, thin walls and hollowing before you export. The stacked view is available once slicing has finished. Shortcut: M.",
+  viewTraces:
+    "The checkbox in front of each legend row shows or hides that trace in the Sheets and Layer tabs, for example to look at the cut lines without the blue glue lines. The choice is shared by both tabs, remembered in this browser and only changes what you see: it does not re-slice and it does not change the export. What goes into the files is chosen separately under Export, 'Layers in the files'.",
+  exportLayers:
+    "Chooses which traces are written into the exported DXF, SVG, PNG and JPG files. CUT = part outlines and dowel holes, ENGRAVE = the next-layer outline for gluing, LABEL = the layer text, SHEET border = a frame around the sheet (off by default; DXF layer SHEET, SVG group SHEET, grey frame in images). Use it, for example, to make a file with the cut lines only and a second one with the engraving only. Without CUT the files do not cut the parts out. These boxes are independent of the legend checkboxes in the views, which only change what you see. At least one layer must stay selected.",
 } as const;
 
 export type HelpKey = keyof typeof HELP;
 
 /** Keys that cover one control rather than a single Settings field. */
-export const EXTRA_HELP_KEYS: readonly HelpKey[] = ["rotate", "sheetSize", "viewToggle", "autoUpdate"];
+export const EXTRA_HELP_KEYS: readonly HelpKey[] = ["rotate", "sheetSize", "viewToggle", "autoUpdate", "viewTraces", "exportLayers"];

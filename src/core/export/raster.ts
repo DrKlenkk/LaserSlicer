@@ -2,12 +2,13 @@
 // the byte patching and size limits are pure functions in rasterBytes.ts and tested in Node).
 import type { Settings } from "../types";
 import type { RunResult } from "../pipeline";
-import type { Drawing } from "./common";
+import { exportLayersOf, type Drawing } from "./common";
 import { exportDrawings, type ExportFile } from "./files";
 import { checkRasterSize, insertPngPhys, patchJpegDpi, MM_PER_INCH } from "./rasterBytes";
 
 export type RasterFormat = "png" | "jpg";
-export type RasterOptions = { dpi: number; style: "filled" | "outline"; engrave: boolean };
+/** `engrave` = draw the ENGRAVE lines; `label` (default: same as `engrave`) the labels; `cut` (default on) the parts and dowel holes; `sheet` (default off) the sheet border. */
+export type RasterOptions = { dpi: number; style: "filled" | "outline"; engrave: boolean; label?: boolean; cut?: boolean; sheet?: boolean };
 
 const JPEG_QUALITY = 0.95;
 const GREY = "#808080";
@@ -29,7 +30,10 @@ export function paintDrawing(ctx: OffscreenCanvasRenderingContext2D, d: Drawing,
     ctx.arc(X(c[0]), Y(c[1]), (dia / 2) * k, 0, Math.PI * 2);
     ctx.closePath();
   };
-  if (o.style === "filled") {
+  const drawCut = o.cut ?? true;
+  if (!drawCut) {
+    /* parts excluded */
+  } else if (o.style === "filled") {
     ctx.fillStyle = "#000";
     for (const shape of d.cut) {
       ctx.beginPath();
@@ -51,13 +55,21 @@ export function paintDrawing(ctx: OffscreenCanvasRenderingContext2D, d: Drawing,
     for (const c of d.circles) circle(c.c, c.d);
     ctx.stroke();
   }
-  if (o.engrave) {
+  const lines = [...(o.engrave ? d.engrave : []), ...((o.label ?? o.engrave) ? d.label : [])];
+  if (o.sheet) {
+    ctx.strokeStyle = GREY;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.rect(0.5, 0.5, ctx.canvas.width - 1, heightPx - 1);
+    ctx.stroke();
+  }
+  if (lines.length) {
     ctx.strokeStyle = GREY;
     ctx.lineWidth = Math.max(1, 0.2 * k); // 0.2 mm, at least one pixel
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     ctx.beginPath();
-    for (const line of [...d.engrave, ...d.label]) {
+    for (const line of lines) {
       const closed = line.length > 2 && line[0][0] === line[line.length - 1][0] && line[0][1] === line[line.length - 1][1];
       line.forEach(([x, y], i) => (i ? ctx.lineTo(X(x), Y(y)) : ctx.moveTo(X(x), Y(y))));
       if (closed) ctx.closePath();
@@ -91,13 +103,15 @@ export function checkRasterLimits(result: RunResult, perLayer: boolean, dpi: num
 /** PNG and/or JPG files of every sheet (or layer). Browser only. */
 export async function buildRasterFiles(
   result: RunResult,
-  settings: Pick<Settings, "formats" | "perLayerFiles" | "dpi" | "rasterStyle" | "rasterEngrave">,
+  settings: Pick<Settings, "formats" | "perLayerFiles" | "dpi" | "rasterStyle" | "rasterEngrave"> & Partial<Pick<Settings, "exportCut" | "exportEngrave" | "exportLabel" | "exportSheet">>,
   model: string,
 ): Promise<ExportFile[]> {
   const formats = settings.formats.filter((f): f is RasterFormat => f === "png" || f === "jpg");
   if (formats.length === 0) return [];
   checkRasterLimits(result, settings.perLayerFiles, settings.dpi);
-  const opts: RasterOptions = { dpi: settings.dpi, style: settings.rasterStyle, engrave: settings.rasterEngrave };
+  const L = exportLayersOf(settings);
+  // `rasterEngrave` (older projects, "Engrave lines and labels (grey)") stays a raster-only extra switch: engrave lines and labels need both it and their layer checkbox
+  const opts: RasterOptions = { dpi: settings.dpi, style: settings.rasterStyle, engrave: settings.rasterEngrave && L.engrave, label: settings.rasterEngrave && L.label, cut: L.cut, sheet: L.sheet };
   const files: ExportFile[] = [];
   for (const { stem, drawing } of exportDrawings(result, settings.perLayerFiles, model))
     for (const f of formats)

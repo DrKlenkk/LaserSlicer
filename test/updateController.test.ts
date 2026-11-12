@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { UpdateController, slicingKey } from "../src/updateController";
 import { parseUiPrefs } from "../src/uiPrefs";
+import { TraceVisibility } from "../src/traceVisibility";
 import { settings } from "./helpers";
 
 describe("UpdateController, auto on", () => {
@@ -93,7 +94,7 @@ describe("UpdateController, auto off", () => {
 describe("slicingKey", () => {
   it("ignores export-only settings and notices slicing ones", () => {
     const base = slicingKey(settings());
-    expect(slicingKey(settings({ formats: ["dxf", "svg"], dpi: 600, perLayerFiles: true, rasterStyle: "outline", rasterEngrave: false }))).toBe(base);
+    expect(slicingKey(settings({ formats: ["dxf", "svg"], dpi: 600, perLayerFiles: true, rasterStyle: "outline", rasterEngrave: false, exportCut: false, exportEngrave: false, exportLabel: false, exportSheet: true }))).toBe(base);
     expect(slicingKey(settings({ thickness: 3.5 }))).not.toBe(base);
     expect(slicingKey(settings({ labels: false }))).not.toBe(base);
   });
@@ -105,5 +106,25 @@ describe("parseUiPrefs", () => {
     expect(parseUiPrefs("{nope").autoUpdate).toBe(true);
     expect(parseUiPrefs('{"autoUpdate":"yes"}').autoUpdate).toBe(true);
     expect(parseUiPrefs('{"autoUpdate":false}').autoUpdate).toBe(false);
+  });
+});
+
+describe("trace visibility prefs", () => {
+  it("parses hidden traces, ignoring unknown or malformed entries", () => {
+    expect(parseUiPrefs(null).hiddenTraces).toEqual([]);
+    expect(parseUiPrefs('{"hiddenTraces":["engrave","bogus","ghost",5]}').hiddenTraces).toEqual(["engrave", "ghost"]);
+    expect(parseUiPrefs('{"hiddenTraces":"engrave"}').hiddenTraces).toEqual([]);
+    expect(parseUiPrefs('{"autoUpdate":false}').hiddenTraces).toEqual([]); // prefs saved by an older version
+  });
+  it("TraceVisibility notifies on change only and keeps the hidden set", () => {
+    const v = new TraceVisibility(["label"]);
+    let n = 0;
+    v.subscribe(() => n++);
+    expect(v.visible("label")).toBe(false);
+    v.set("label", false); // no change
+    v.set("engrave", false);
+    v.set("label", true);
+    expect(n).toBe(2);
+    expect(v.hiddenList()).toEqual(["engrave"]);
   });
 });

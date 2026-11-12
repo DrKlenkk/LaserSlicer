@@ -14,6 +14,25 @@ export type Drawing = {
   label: Vec2[][];
 };
 
+/** Which traces go into an exported file (the SHEET border is off by default). */
+export type ExportLayers = { cut: boolean; engrave: boolean; label: boolean; sheet: boolean };
+export const DEFAULT_EXPORT_LAYERS: ExportLayers = { cut: true, engrave: true, label: true, sheet: false };
+
+/** The export layer flags of a settings object (missing flags take their defaults). */
+export function exportLayersOf(s: { exportCut?: boolean; exportEngrave?: boolean; exportLabel?: boolean; exportSheet?: boolean }): ExportLayers {
+  return {
+    cut: s.exportCut ?? DEFAULT_EXPORT_LAYERS.cut,
+    engrave: s.exportEngrave ?? DEFAULT_EXPORT_LAYERS.engrave,
+    label: s.exportLabel ?? DEFAULT_EXPORT_LAYERS.label,
+    sheet: s.exportSheet ?? DEFAULT_EXPORT_LAYERS.sheet,
+  };
+}
+
+/** Copy of the drawing without the excluded layers (dowel holes belong to CUT). The sheet border is not part of a drawing. */
+export function filterDrawing(d: Drawing, l: Pick<ExportLayers, "cut" | "engrave" | "label">): Drawing {
+  return { ...d, cut: l.cut ? d.cut : [], circles: l.cut ? d.circles : [], engrave: l.engrave ? d.engrave : [], label: l.label ? d.label : [] };
+}
+
 /** A polyline is closed when its first and last point coincide (the repeated point is dropped). */
 export function polyline(line: Vec2[]): { pts: Vec2[]; closed: boolean } {
   const n = line.length;

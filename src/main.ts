@@ -18,6 +18,7 @@ import type { ViewMode } from "./ui/viewport3d";
 import type { Tab } from "./state";
 import { UpdateController, slicingKey, type RunAction } from "./updateController";
 import { loadUiPrefs, saveUiPrefs } from "./uiPrefs";
+import { exportLayersOf } from "./core/export/common";
 
 const store = new Store();
 const ctl = new UpdateController(loadUiPrefs().autoUpdate);
@@ -150,8 +151,9 @@ const panel = createPanel(panelEl, store, {
     const m = store.get().model;
     if (!m) throw new Error("No model loaded");
     await ensureFresh(); // the ZIP is built from the last finished run, so it must match the current settings
-    const { formats, perLayerFiles, dpi, rasterStyle, rasterEngrave } = store.get().settings;
-    const f = await worker.exportZip(m.fileName, { formats, perLayerFiles, dpi, rasterStyle, rasterEngrave });
+    const st = store.get().settings; // read after the update: a click just before Download is included
+    const { formats, perLayerFiles, dpi, rasterStyle, rasterEngrave } = st;
+    const f = await worker.exportZip(m.fileName, { formats, perLayerFiles, dpi, rasterStyle, rasterEngrave, layers: exportLayersOf(st) });
     downloadBytes(f.name, f.mime, f.bytes);
     store.setStatus(`Saved ${f.name}`);
   },
@@ -309,7 +311,7 @@ function renderUpdate() {
 ctl.subscribe(renderUpdate);
 updateBtn.addEventListener("click", () => void startRun());
 autoCb.addEventListener("change", () => {
-  saveUiPrefs({ autoUpdate: autoCb.checked });
+  saveUiPrefs({ ...loadUiPrefs(), autoUpdate: autoCb.checked });
   if (!autoCb.checked) clearTimeout(runTimer);
   act(ctl.setAuto(autoCb.checked));
 });

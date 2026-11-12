@@ -3,7 +3,7 @@
 // Closed outlines are POLYLINE (70 = 1) + VERTEX + SEQEND, open engrave lines the same with 70 = 0, dowel holes CIRCLE.
 // Labels are polylines, never TEXT entities.
 import type { Vec2 } from "../types";
-import { num, polyline, type Drawing } from "./common";
+import { filterDrawing, num, polyline, type Drawing, type ExportLayers } from "./common";
 
 export const DXF_LAYERS = [
   { name: "CUT", color: 1 },
@@ -15,16 +15,20 @@ export const DXF_LAYERS = [
 export type DxfOptions = {
   /** draw the sheet border on layer SHEET (off by default) */
   sheetBorder?: boolean;
+  /** layers to write (default: all but the sheet border). `layers.sheet` wins over `sheetBorder`. Excluded layers stay in the LAYER table, with no entities. */
+  layers?: Partial<ExportLayers>;
 };
 
-export function writeDxf(d: Drawing, opts: DxfOptions = {}): string {
+export function writeDxf(src: Drawing, opts: DxfOptions = {}): string {
+  const L = { cut: true, engrave: true, label: true, sheet: !!opts.sheetBorder, ...opts.layers };
+  const d = filterDrawing(src, L);
   const out: string[] = [];
   const g = (code: number, value: string | number) => out.push(String(code).padStart(3, " "), typeof value === "number" ? num(value) : value);
   const gi = (code: number, value: number) => out.push(String(code).padStart(3, " "), String(value));
 
   // extents over everything that is drawn
   let minX = 0, minY = 0, maxX = d.width, maxY = d.height;
-  if (!opts.sheetBorder) {
+  if (!L.sheet) {
     minX = minY = Infinity;
     maxX = maxY = -Infinity;
     const grow = (p: Vec2) => {
@@ -72,7 +76,7 @@ export function writeDxf(d: Drawing, opts: DxfOptions = {}): string {
     }
     out.push("  0", "SEQEND", "  8", layer);
   };
-  if (opts.sheetBorder)
+  if (L.sheet)
     poly("SHEET", [[0, 0], [d.width, 0], [d.width, d.height], [0, d.height]], true);
   for (const sh of d.cut) for (const r of sh) poly("CUT", r, true);
   for (const c of d.circles) {

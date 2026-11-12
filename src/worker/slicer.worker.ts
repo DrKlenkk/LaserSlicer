@@ -84,6 +84,10 @@ ctx.onmessage = (e) => {
           dpi: msg.dpi,
           rasterStyle: msg.rasterStyle,
           rasterEngrave: msg.rasterEngrave,
+          exportCut: msg.layers.cut,
+          exportEngrave: msg.layers.engrave,
+          exportLabel: msg.layers.label,
+          exportSheet: msg.layers.sheet,
         };
         void exportJob(msg.jobId, last.result, settings, model);
         break;

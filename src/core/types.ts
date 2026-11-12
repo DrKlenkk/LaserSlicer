@@ -98,5 +98,11 @@ export type Settings = {
   rasterStyle: "filled" | "outline";
   /** draw engrave lines and labels (grey) in raster images */
   rasterEngrave: boolean;
+  /** layers written into the exported files (view-only toggles in the legend are separate, UI prefs) */
+  exportCut: boolean;
+  exportEngrave: boolean;
+  exportLabel: boolean;
+  /** sheet border (DXF layer SHEET, SVG group SHEET, grey frame in images), off by default */
+  exportSheet: boolean;
   perLayerFiles: boolean;
 };

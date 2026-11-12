@@ -305,3 +305,22 @@ cache key contains it and nothing earlier re-runs; kerf, hollowing and nesting c
   undersize); the guarantee is about the raw section, so the reference run now uses `simplifyTol: 0`, which is the stricter check.
 - Recommended radius: 0.5 to 1 mm for 4 mm material; never above a fifth of the thinnest wall. Features narrower than 2r go away
   (slots in oversize, thin walls / islands in the others); a warning is issued if a whole layer vanishes.
+
+## Trace visibility (view) and export layer selection
+- **Two independent things.** The legend checkboxes (CUT, ENGRAVE, LABEL, SHEET on Sheets; CUT, ENGRAVE, LABEL, Previous on Layer) only
+  change what is drawn. State lives in `traceVisibility.ts` (one instance, listeners redraw both views and sync both legends),
+  persisted as `hiddenTraces` in the UI prefs (`laserslicer.ui.v1`, older prefs without the key load as "all visible"; saving merges
+  with the stored prefs so the auto-update flag is not lost). It never touches settings or the pipeline (verified: no `run` message
+  to the worker). The `Hover` row has no checkbox. Hidden rows are dimmed and the name struck through; the control is a native checkbox.
+- **Export layers** are Settings `exportCut`, `exportEngrave`, `exportLabel`, `exportSheet` (defaults true, true, true, false), so
+  they are in the project file (missing keys take the default) and in `EXPORT_ONLY` of `updateController.ts`: changing them neither
+  marks the preview stale nor starts a run. They are sent with the worker `export` message (read from the store after `ensureFresh()`),
+  so a click just before Download counts. No layer selected -> Download disabled with a hint; CUT off -> warning line; the README lists
+  included/left-out layers and notes a missing CUT.
+- **Writers.** Dowel holes count as CUT. DXF: the LAYER table always lists the four layers (harmless, keeps the colour mapping stable
+  for LightBurn), excluded layers simply have no entities; extents cover only what is written (or the sheet when SHEET is on). SVG: no
+  group for an excluded layer; SHEET is a `<rect>` in group SHEET. Raster: parts and dowel holes are skipped without CUT, a grey 1 px
+  frame is drawn for SHEET.
+- **`rasterEngrave` kept** (backward compatible with saved projects/prefs): it stays a raster-only extra switch, "Engrave lines and
+  labels (grey)", and engrave lines / labels are drawn in images only if both it and the layer checkbox are on. The ZIP/README text
+  follows that.

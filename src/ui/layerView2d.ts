@@ -3,6 +3,7 @@ import type { Layer, Shape } from "../core/types";
 import type { RunResult } from "../core/pipeline";
 import { h } from "./dom";
 import { createLegend } from "./legend";
+import { traceVisibility as vis, traceVisibility } from "../traceVisibility";
 
 type View = { scale: number; ox: number; oy: number }; // screen = o + world * scale (y flipped)
 
@@ -26,15 +27,16 @@ export class LayerView2D {
     const legend = createLegend(
       "legend-layer",
       [
-        { layer: "CUT", text: "this layer's outline, dowel holes: cut through", color: css("--cut") },
-        { layer: "ENGRAVE", text: "next-layer outline (dashed), glue alignment line", color: css("--engrave"), dash: true },
-        { layer: "LABEL", text: "layer label text: engraved", color: css("--label") },
-        { layer: "Previous", text: "previous layer: reference only", color: css("--ghost"), fill: true },
+        { trace: "cut", layer: "CUT", text: "this layer's outline, dowel holes: cut through", color: css("--cut") },
+        { trace: "engrave", layer: "ENGRAVE", text: "next-layer outline (dashed), glue alignment line", color: css("--engrave"), dash: true },
+        { trace: "label", layer: "LABEL", text: "layer label text: engraved", color: css("--label") },
+        { trace: "ghost", layer: "Previous", text: "previous layer: reference only", color: css("--ghost"), fill: true },
       ],
       "Colours map to the DXF layers, so you can assign them to cut / engrave in LightBurn and similar software.",
     );
     window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => legend.refresh());
     root.append(this.canvas, this.info, this.empty, legend.el, bar);
+    traceVisibility.subscribe(() => this.draw()); // view only: no pipeline run
 
     this.slider.addEventListener("input", () => this.step(Number(this.slider.value) - this.layer));
     this.canvas.addEventListener("wheel", (e) => this.onWheel(e), { passive: false });
@@ -172,7 +174,7 @@ export class LayerView2D {
         }
     };
     this.drawGrid(ctx, w, hgt, css);
-    if (this.layer > 0) {
+    if (this.layer > 0 && vis.visible("ghost")) {
       trace(r.layers[this.layer - 1].shapes);
       ctx.globalAlpha = 0.16;
       ctx.fillStyle = ghost;
@@ -184,19 +186,21 @@ export class LayerView2D {
       ctx.globalAlpha = 1;
     }
     const cur = r.layers[this.layer].shapes;
-    trace(cur);
-    ctx.globalAlpha = 0.1;
-    ctx.fillStyle = cut;
-    ctx.fill("evenodd");
-    ctx.globalAlpha = 1;
-    ctx.strokeStyle = cut;
-    ctx.lineWidth = 1.75;
-    ctx.lineJoin = "round";
-    ctx.stroke();
+    if (vis.visible("cut")) {
+      trace(cur);
+      ctx.globalAlpha = 0.1;
+      ctx.fillStyle = cut;
+      ctx.fill("evenodd");
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = cut;
+      ctx.lineWidth = 1.75;
+      ctx.lineJoin = "round";
+      ctx.stroke();
+    }
 
     // Next layer outline (blue): where the next part will sit, as engraved on the parts of this layer.
     const nextLayer = r.layers[this.layer + 1];
-    if (nextLayer) {
+    if (nextLayer && vis.visible("engrave")) {
       trace(nextLayer.shapes);
       ctx.strokeStyle = engrave;
       ctx.lineWidth = 1.5;
@@ -209,7 +213,8 @@ export class LayerView2D {
     ctx.lineWidth = 1.5;
     ctx.lineCap = "round";
     ctx.beginPath();
-    for (const p of r.parts)
+    if (vis.visible("label"))
+     for (const p of r.parts)
       if (p.layer === this.layer)
         for (const line of p.label)
           line.forEach(([x, y], i) => (i ? ctx.lineTo(v.ox + x * v.scale, v.oy - y * v.scale) : ctx.moveTo(v.ox + x * v.scale, v.oy - y * v.scale)));
@@ -219,7 +224,8 @@ export class LayerView2D {
     ctx.strokeStyle = cut;
     ctx.lineWidth = 1.75;
     ctx.beginPath();
-    for (const p of r.parts)
+    if (vis.visible("cut"))
+     for (const p of r.parts)
       if (p.layer === this.layer)
         for (const c of p.holes) {
           const rad = (c.d / 2) * v.scale;

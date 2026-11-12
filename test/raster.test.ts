@@ -175,6 +175,27 @@ describe("painting", () => {
     expect(calls).not.toContain("fill(evenodd)");
     expect(calls.filter((c) => c === "stroke()")).toHaveLength(1);
   });
+
+  it("layer exclusions: no cut -> no fill, no part strokes; label separate from engrave; sheet frame on request", () => {
+    const dl: Drawing = { ...d, label: [[[2, 2], [3, 3]]] };
+    const strokes = (o: Parameters<typeof paintDrawing>[3]) => {
+      const { ctx, calls } = recorder();
+      paintDrawing(ctx, dl, 10, o, 50);
+      return calls;
+    };
+    const noCut = strokes({ dpi: 254, style: "filled", engrave: true, cut: false });
+    expect(noCut).not.toContain("fill(evenodd)");
+    expect(noCut).not.toContain("arc(80,30,10,0,6.28)");
+    expect(noCut.filter((c) => c === "stroke()")).toHaveLength(1); // engrave + label in one stroke
+    const labelOnly = strokes({ dpi: 254, style: "outline", engrave: false, label: true, cut: false });
+    expect(labelOnly).toContain("lineTo(30,20)");
+    expect(labelOnly).not.toContain("lineTo(10,40)"); // the engrave line (0,0)-(1,1) is gone
+    expect(labelOnly).not.toContain("lineTo(40,50)"); // and so are the parts
+    const nothing = strokes({ dpi: 254, style: "outline", engrave: false, label: false, cut: false });
+    expect(nothing.filter((c) => c === "stroke()")).toHaveLength(0);
+    expect(strokes({ dpi: 254, style: "outline", engrave: false, label: false, cut: false, sheet: true })).toContain("rect(0.5,0.5,99,49)");
+    expect(nothing.some((c) => c.startsWith("rect("))).toBe(false);
+  });
 });
 
 describe("README", () => {

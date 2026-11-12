@@ -32,6 +32,16 @@ export function createExportSection(store: Store, onDownload: () => Promise<void
     return h("label", { class: "chip" }, cb, f.toUpperCase());
   });
 
+  // Layers in the files (independent of the legend checkboxes, which only change the view).
+  const LAYER_KEYS = [["exportCut", "CUT"], ["exportEngrave", "ENGRAVE"], ["exportLabel", "LABEL"], ["exportSheet", "SHEET border"]] as const;
+  const layerChips = LAYER_KEYS.map(([key, text]) => {
+    const cb = h("input", { type: "checkbox", id: `lay-${key}` });
+    cb.addEventListener("change", () => store.updateSettings({ [key]: cb.checked }));
+    syncers.push((s) => (cb.checked = s[key]));
+    return h("label", { class: "chip" }, cb, text);
+  });
+  const layerHint = h("small", { class: "hint warn", id: "layer-hint", role: "status" });
+
   // Raster options (shown only while PNG or JPG is selected).
   const dpiSel = h("select", { id: "f-dpi" }, ...DPI_PRESETS.map((d) => h("option", { value: String(d) }, `${d} DPI`)), h("option", { value: "custom" }, "Custom…"));
   const dpiCustom = h("input", { type: "number", id: "f-dpi-custom", min: 1, max: 4800, step: 1, value: 300 });
@@ -87,16 +97,26 @@ export function createExportSection(store: Store, onDownload: () => Promise<void
     } catch (e) {
       status.textContent = `Export failed: ${e instanceof Error ? e.message : String(e)}`;
     } finally {
-      button.disabled = !ready;
+      updateButton();
     }
   });
   let ready = false;
+  const updateButton = () => {
+    const s = store.get().settings;
+    const none = !(s.exportCut || s.exportEngrave || s.exportLabel || s.exportSheet);
+    layerHint.hidden = !none && s.exportCut;
+    layerHint.textContent = none ? "No layer selected: choose at least one to download." : "CUT is not included: the files will not cut the parts out.";
+    button.disabled = !ready || none;
+  };
 
   const el = h(
     "div",
     { class: "export-section" },
     h("div", { class: "row-label" }, "Formats", infoIcon("formats")),
     h("div", { class: "chips" }, ...chips),
+    h("div", { class: "row-label" }, "Layers in the files", infoIcon("exportLayers")),
+    h("div", { class: "chips", id: "export-layers" }, ...layerChips),
+    layerHint,
     h("label", { class: "field" }, h("span", { class: "lbl" }, "Files", infoIcon("perLayerFiles")), h("span", { class: "ctl" }, mode)),
     h("small", { class: "hint" }, "DXF is the file to cut with (R12, mm, layers CUT red, ENGRAVE blue, LABEL green). SVG is a second vector option."),
     rasterBox,
@@ -106,7 +126,10 @@ export function createExportSection(store: Store, onDownload: () => Promise<void
     status,
   );
 
-  const sync = () => syncers.forEach((f) => f(store.get().settings));
+  const sync = () => {
+    syncers.forEach((f) => f(store.get().settings));
+    updateButton();
+  };
   store.subscribe((_s, changed) => {
     if (changed.has("settings")) sync();
   });
@@ -120,7 +143,7 @@ export function createExportSection(store: Store, onDownload: () => Promise<void
     /** enable the button when a result exists */
     setReady(v: boolean) {
       ready = v;
-      button.disabled = !v;
+      updateButton();
     },
   };
 }

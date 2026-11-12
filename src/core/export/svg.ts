@@ -1,10 +1,13 @@
 // SVG writer (plan "SVG"): 1 user unit = 1 mm, Y flipped (y_svg = height - y), groups CUT / ENGRAVE / LABEL.
 import type { Vec2 } from "../types";
-import { num, polyline, type Drawing } from "./common";
+import { filterDrawing, num, polyline, type Drawing, type ExportLayers } from "./common";
 
-export const SVG_COLORS = { CUT: "#ff0000", ENGRAVE: "#0000ff", LABEL: "#00a000" } as const;
+export const SVG_COLORS = { CUT: "#ff0000", ENGRAVE: "#0000ff", LABEL: "#00a000", SHEET: "#808080" } as const;
 
-export function writeSvg(d: Drawing): string {
+/** Excluded layers get no group at all; the SHEET border (a rectangle) is only written when `layers.sheet` is set. */
+export function writeSvg(src: Drawing, layers: Partial<ExportLayers> = {}): string {
+  const L = { cut: true, engrave: true, label: true, sheet: false, ...layers };
+  const d = filterDrawing(src, L);
   const pt = (p: Vec2) => `${num(p[0])} ${num(d.height - p[1])}`;
   const sub = (pts: Vec2[], closed: boolean) =>
     pts.length < 2 ? "" : `M${pts.map(pt).join(" L")}${closed ? " Z" : ""}`;
@@ -20,15 +23,16 @@ export function writeSvg(d: Drawing): string {
   for (const sh of d.cut) cut.push(`<path fill-rule="evenodd" d="${sh.map((r) => sub(r, true)).join(" ")}"/>`);
   for (const c of d.circles)
     cut.push(`<circle cx="${num(c.c[0])}" cy="${num(d.height - c.c[1])}" r="${num(c.d / 2)}"/>`);
-  group("CUT", cut);
+  if (L.cut) group("CUT", cut);
 
   const lines = (ls: Vec2[][]) =>
     ls.map((l) => {
       const { pts, closed } = polyline(l);
       return `<path d="${sub(pts, closed)}"/>`;
     });
-  group("ENGRAVE", lines(d.engrave));
-  group("LABEL", lines(d.label));
+  if (L.engrave) group("ENGRAVE", lines(d.engrave));
+  if (L.label) group("LABEL", lines(d.label));
+  if (L.sheet) group("SHEET", [`<rect x="0" y="0" width="${w}" height="${h}"/>`]);
   out.push("</svg>");
   return out.join("\n") + "\n";
 }

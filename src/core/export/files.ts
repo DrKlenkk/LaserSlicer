@@ -2,7 +2,7 @@
 import type { Settings } from "../types";
 import type { RunResult } from "../pipeline";
 import { layerLabel } from "../layers";
-import { layerDrawing, sheetDrawing, type Drawing } from "./common";
+import { exportLayersOf, layerDrawing, sheetDrawing, type Drawing, type ExportLayers } from "./common";
 import { writeDxf } from "./dxf";
 import { writeSvg } from "./svg";
 
@@ -18,8 +18,8 @@ export function modelBaseName(fileName: string): string {
   return base || "model";
 }
 
-export function encodeDrawing(d: Drawing, format: VectorFormat): Uint8Array {
-  return enc.encode(format === "dxf" ? writeDxf(d) : writeSvg(d));
+export function encodeDrawing(d: Drawing, format: VectorFormat, layers?: Partial<ExportLayers>): Uint8Array {
+  return enc.encode(format === "dxf" ? writeDxf(d, { layers }) : writeSvg(d, layers));
 }
 
 export type NamedDrawing = { stem: string; drawing: Drawing };
@@ -50,12 +50,13 @@ export function exportDrawings(result: RunResult, perLayer: boolean, model: stri
  */
 export function buildExportFiles(
   result: RunResult,
-  settings: Pick<Settings, "formats" | "perLayerFiles">,
+  settings: Pick<Settings, "formats" | "perLayerFiles"> & Partial<Pick<Settings, "exportCut" | "exportEngrave" | "exportLabel" | "exportSheet">>,
   model: string,
 ): ExportFile[] {
   const formats = settings.formats.filter((f): f is VectorFormat => f === "dxf" || f === "svg");
+  const layers = exportLayersOf(settings);
   const files: ExportFile[] = [];
   for (const { stem, drawing } of exportDrawings(result, settings.perLayerFiles, model))
-    for (const f of formats) files.push({ name: `${stem}.${f}`, mime: MIME[f], bytes: encodeDrawing(drawing, f) });
+    for (const f of formats) files.push({ name: `${stem}.${f}`, mime: MIME[f], bytes: encodeDrawing(drawing, f, layers) });
   return files;
 }

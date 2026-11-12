@@ -28,7 +28,10 @@ Open `dist/index.html` by double-click (`file://` works; nothing is fetched). Co
    stacked layers), **Layer** (one layer: cut red, next layer blue dashed, labels green, dowel holes) and **Sheets** (the nested sheets).
    The **Sheets** and **Layer** tabs have a small legend (bottom right, collapsible): the trace colours are the DXF layers
    `CUT` (red), `ENGRAVE` (blue) and `LABEL` (green), so they can be assigned to cut / engrave in LightBurn and similar software.
-5. Export: pick formats and "Download all (ZIP)". Warnings are in the status bar; click one to jump to its layer.
+   The checkbox in front of each legend row shows or hides that trace in both tabs (view only: it does not re-slice and
+   does not change the files; remembered in the browser).
+5. Export: pick formats, the layers that go into the files (CUT, ENGRAVE, LABEL and, off by default, a SHEET border; applies
+   to DXF, SVG, PNG and JPG, independent of the legend checkboxes) and "Download all (ZIP)". Warnings are in the status bar; click one to jump to its layer.
 
 **Auto-update preview** (checkbox in the tab bar, on by default) re-slices after every change. For large models turn it off:
 changes are then collected, an **Update preview** button appears at the top right of every tab (or press U), and slicing

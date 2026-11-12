@@ -5,6 +5,7 @@ import type { RunResult } from "../core/pipeline";
 import { applyPlacement } from "../core/nest";
 import { h } from "./dom";
 import { createLegend } from "./legend";
+import { traceVisibility as vis, traceVisibility } from "../traceVisibility";
 
 type View = { scale: number; ox: number; oy: number }; // screen = o + world * (scale, -scale)
 type Placed = { part: Part; sheet: number; ox: number; path: Path2D; minX: number; minY: number; maxX: number; maxY: number };
@@ -47,16 +48,17 @@ export class SheetView {
     const legend = createLegend(
       "legend-sheets",
       [
-        { layer: "CUT", text: "kerf-compensated outlines, dowel holes: cut through", color: () => col().cut },
-        { layer: "ENGRAVE", text: "next-layer outline, glue alignment line", color: () => col().engrave },
-        { layer: "LABEL", text: "layer label text: engraved", color: () => col().label },
-        { layer: "SHEET", text: "sheet border: not exported by default", color: () => col().sheet, thin: true },
+        { trace: "cut", layer: "CUT", text: "kerf-compensated outlines, dowel holes: cut through", color: () => col().cut },
+        { trace: "engrave", layer: "ENGRAVE", text: "next-layer outline, glue alignment line", color: () => col().engrave },
+        { trace: "label", layer: "LABEL", text: "layer label text: engraved", color: () => col().label },
+        { trace: "sheet", layer: "SHEET", text: "sheet border: not exported by default", color: () => col().sheet, thin: true },
         { layer: "Hover", text: "part under the pointer (click: open its layer)", color: () => col().cut, fill: true },
       ],
       "Colours map to the DXF layers, so you can assign them to cut / engrave in LightBurn and similar software.",
     );
     window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => legend.refresh());
     root.append(this.canvas, this.tip, this.empty, legend.el);
+    traceVisibility.subscribe(() => this.draw()); // view only: no pipeline run
     const c = this.canvas;
     c.addEventListener("wheel", (e) => this.onWheel(e), { passive: false });
     c.addEventListener("pointerdown", (e) => {
@@ -216,9 +218,11 @@ export class SheetView {
       const x0 = s.index * (s.w + GAP);
       ctx.fillStyle = paper;
       ctx.fillRect(x0, 0, s.w, s.h);
-      ctx.strokeStyle = col.sheet;
-      ctx.lineWidth = px;
-      ctx.strokeRect(x0, 0, s.w, s.h);
+      if (vis.visible("sheet")) {
+        ctx.strokeStyle = col.sheet;
+        ctx.lineWidth = px;
+        ctx.strokeRect(x0, 0, s.w, s.h);
+      }
     }
     ctx.lineJoin = "round";
     for (const p of this.placed) {
@@ -228,19 +232,27 @@ export class SheetView {
         ctx.fill(p.path, "evenodd");
         ctx.globalAlpha = 1;
       }
-      ctx.strokeStyle = col.cut;
-      ctx.lineWidth = Math.max(px * 1.25, 0.1);
-      ctx.stroke(p.path);
+      if (vis.visible("cut")) {
+        ctx.strokeStyle = col.cut;
+        ctx.lineWidth = Math.max(px * 1.25, 0.1);
+        ctx.stroke(p.path);
+      }
       ctx.lineWidth = Math.max(px, 0.1);
-      ctx.strokeStyle = col.engrave;
-      for (const l of p.part.engrave) strokeLine(ctx, l, p.ox);
-      ctx.strokeStyle = col.label;
-      for (const l of p.part.label) strokeLine(ctx, l, p.ox);
-      ctx.strokeStyle = col.cut;
-      for (const c of p.part.holes) {
-        ctx.beginPath();
-        ctx.arc(p.ox + c.c[0], c.c[1], c.d / 2, 0, Math.PI * 2);
-        ctx.stroke();
+      if (vis.visible("engrave")) {
+        ctx.strokeStyle = col.engrave;
+        for (const l of p.part.engrave) strokeLine(ctx, l, p.ox);
+      }
+      if (vis.visible("label")) {
+        ctx.strokeStyle = col.label;
+        for (const l of p.part.label) strokeLine(ctx, l, p.ox);
+      }
+      if (vis.visible("cut")) {
+        ctx.strokeStyle = col.cut;
+        for (const c of p.part.holes) {
+          ctx.beginPath();
+          ctx.arc(p.ox + c.c[0], c.c[1], c.d / 2, 0, Math.PI * 2);
+          ctx.stroke();
+        }
       }
     }
     // captions in screen space

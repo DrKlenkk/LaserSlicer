@@ -7,7 +7,7 @@ import { drawingOf, sheetDrawing } from "../src/core/export/common";
 import { buildExportFiles } from "../src/core/export/files";
 import { buildReadme, buildZip } from "../src/core/export/zip";
 import type { Part, Ring, Vec2 } from "../src/core/types";
-import { box } from "./fixtures/meshes";
+import { box, uvSphere } from "./fixtures/meshes";
 import { settings, slice } from "./helpers";
 
 const sq = (x0: number, y0: number, s: number): Ring => [[x0, y0], [x0 + s, y0], [x0 + s, y0 + s], [x0, y0 + s]];
@@ -171,5 +171,53 @@ describe("export files and ZIP", () => {
     expect(d.cut).toHaveLength(2);
     const xs = d.cut.flatMap((sh) => sh[0].map((p) => p[0]));
     expect(Math.min(...xs)).toBeGreaterThanOrEqual(5 - 1e-6); // sheet margin
+  });
+});
+
+describe("export layer selection", () => {
+  const d = drawingOf([samplePart()], 600, 400);
+  const layersOf = (dxf: string) => new Set((parse(dxf).entities as any[]).map((e) => e.layer));
+
+  it("DXF: excluded layers have no entities (the LAYER table still lists all four)", () => {
+    const dxf = writeDxf(d, { layers: { engrave: false, label: false } });
+    expect(layersOf(dxf)).toEqual(new Set(["CUT"])); // outlines + dowel circle
+    expect(Object.keys(parse(dxf).tables.layer.layers).sort()).toEqual(["CUT", "ENGRAVE", "LABEL", "SHEET"]);
+    expect(layersOf(writeDxf(d, { layers: { cut: false } }))).toEqual(new Set(["ENGRAVE", "LABEL"]));
+    expect((parse(writeDxf(d, { layers: { cut: false } })).entities as any[]).some((e) => e.type === "CIRCLE")).toBe(false); // dowel holes are CUT
+    expect(layersOf(writeDxf(d, { layers: { cut: false, engrave: false, label: false } })).size).toBe(0);
+  });
+
+  it("DXF: layers.sheet adds the border and extents then cover the sheet", () => {
+    const dxf = writeDxf(d, { layers: { cut: false, engrave: false, label: false, sheet: true } });
+    expect(layersOf(dxf)).toEqual(new Set(["SHEET"]));
+    expect((parse(dxf).header["$EXTMAX"] as { x: number }).x).toBe(600);
+  });
+
+  it("SVG: excluded groups are omitted, SHEET is a rect group", () => {
+    const only = writeSvg(d, { engrave: false, label: false });
+    expect(only).toContain('<g id="CUT"');
+    expect(only).not.toContain('id="ENGRAVE"');
+    expect(only).not.toContain('id="LABEL"');
+    expect(only).not.toContain('id="SHEET"');
+    const sheet = writeSvg(d, { cut: false, sheet: true });
+    expect(sheet).not.toContain('id="CUT"');
+    expect(sheet).toMatch(/<g id="SHEET"[^>]*>\s*<rect x="0" y="0" width="600.0" height="400.0"\/>/);
+    expect(writeSvg(d)).not.toContain('id="SHEET"');
+  });
+
+  it("buildExportFiles follows the export settings; the defaults keep every trace but the border", async () => {
+    const r = await slice(uvSphere(10, 24, 32), { thickness: 4 });
+    const text = (s: Parameters<typeof settings>[0]) => buildExportFiles(r, settings({ formats: ["dxf"], ...s }), "m").map((f) => new TextDecoder().decode(f.bytes)).join("\n");
+    expect(layersOf(text({}))).toEqual(new Set(["CUT", "ENGRAVE", "LABEL"]));
+    expect(layersOf(text({ exportEngrave: false, exportLabel: false }))).toEqual(new Set(["CUT"]));
+    expect(layersOf(text({ exportSheet: true })).has("SHEET")).toBe(true);
+  });
+
+  it("README lists the included layers and warns without CUT", async () => {
+    const r = await slice(box(20, 20, 8), { thickness: 4 });
+    expect(buildReadme(r, settings({ exportSheet: true, exportLabel: false }), "m", [])).toMatch(/Layers included: CUT, ENGRAVE, SHEET border \(left out: LABEL\)/);
+    const none = buildReadme(r, settings({ exportCut: false }), "m", []);
+    expect(none).toMatch(/left out: CUT/);
+    expect(none).toMatch(/do not cut the parts out/);
   });
 });

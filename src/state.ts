@@ -33,6 +33,10 @@ export const DEFAULT_SETTINGS: Settings = {
   dpi: 300,
   rasterStyle: "filled",
   rasterEngrave: true,
+  exportCut: true,
+  exportEngrave: true,
+  exportLabel: true,
+  exportSheet: false,
   perLayerFiles: false,
 };
 
