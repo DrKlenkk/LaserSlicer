@@ -165,6 +165,8 @@ export class LayerView2D {
     const css = getComputedStyle(this.root);
     const cut = css.getPropertyValue("--cut").trim() || "#d32f2f";
     const ghost = css.getPropertyValue("--ghost").trim() || "#8a7f72";
+    const engrave = css.getPropertyValue("--engrave").trim() || "#2a55ff";
+    const labelCol = css.getPropertyValue("--label").trim() || "#009a2c";
     const v = this.view;
     const trace = (shapes: Shape[]) => {
       ctx.beginPath();
@@ -195,6 +197,27 @@ export class LayerView2D {
     ctx.strokeStyle = cut;
     ctx.lineWidth = 1.75;
     ctx.lineJoin = "round";
+    ctx.stroke();
+
+    // Next layer outline (blue): where the next part will sit, as engraved on the parts of this layer.
+    const nextLayer = r.layers[this.layer + 1];
+    if (nextLayer) {
+      trace(nextLayer.shapes);
+      ctx.strokeStyle = engrave;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([6, 4]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    // Labels (green): the single-stroke text engraved on each part of this layer.
+    ctx.strokeStyle = labelCol;
+    ctx.lineWidth = 1.5;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    for (const p of r.parts)
+      if (p.layer === this.layer)
+        for (const line of p.label)
+          line.forEach(([x, y], i) => (i ? ctx.lineTo(v.ox + x * v.scale, v.oy - y * v.scale) : ctx.moveTo(v.ox + x * v.scale, v.oy - y * v.scale)));
     ctx.stroke();
   }
 

@@ -18,6 +18,8 @@
   --grid-minor: #dcd5ca;
   --view-bg: #eceae6;
   --cut: #d32f2f;
+  --engrave: #2a55ff;
+  --label: #009a2c;
   --ghost: #6f655a;
   --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
@@ -41,6 +43,8 @@
     --grid-minor: #35322f;
     --view-bg: #181716;
     --cut: #ff6b5e;
+    --engrave: #6f8dff;
+    --label: #37d067;
     --ghost: #b0a597;
   }
 }

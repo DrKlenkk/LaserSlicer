@@ -157,3 +157,22 @@ better than only looking at the last sheet. `Placement.angleDeg` rotates CCW abo
 `applyPlacement` in `nest.ts` applies it to cut, engrave, label and dowel holes. The tight rectangle is not a
 true-shape nest: round parts waste material (a sphere uses about 13 % of a 600 x 400 sheet), v2 is optional in the plan.
 Sheets tab colours are close to, not identical to, the ACI colours (readable on light and dark backgrounds).
+
+## Registration aids (M6)
+- **Stage position.** `core/registration.ts` is a cached stage between cleanup and kerf (key: cleanup key + `engraveNextOutline`,
+  `labels`, `labelHeight`); a kerf change re-runs only kerf and nesting. It reads the uncompensated outlines; the kerf stage
+  then offsets only `cut` (engrave and label lines are copied through), which only grows the outline, so labels stay inside.
+- **Label form** is `L12` / `L12-b` (the part id `L012-b` without the zero padding); ids themselves keep the padding.
+- **Font data is a reconstruction.** The glyphs in `core/font/hershey.ts` use the Hershey encoding (side bearings, R-offset pairs,
+  `" R"` pen-up, cap height 21) and the Simplex style, but I could not copy the original table byte for byte offline; the outlines
+  were authored by hand (polygonal curves on the integer grid) and checked visually by rendering digits, A-Z, `-`. Lower case letters
+  use the capital glyphs, so `L12-b` is engraved as `L12-B`. Unknown characters become a space.
+- **Placement.** The pole of inaccessibility (`polylabel`, precision 0.1 mm) of the best shape of `part ∩ next layer`; the
+  text box (plus 0.25 mm clearance) must lie inside that region, checked first with the inscribed circle and then exactly with a
+  polygon difference (box minus region has no area), horizontal first, then turned by 90 degrees. Height goes from `labelHeight`
+  down in 8 % steps to 3 mm. Fallback: the same procedure on the part itself (info warning when a next layer exists); if even 3 mm does
+  not fit, the text shrinks to the inscribed circle (warn) and is left out below 1 mm (warn). Top layer: inside the part, no warning.
+- **Engrave lines** are the closed rings of `part ∩ next layer`. When the next layer covers the whole part (area within 0.1 %, the
+  case on the growing half of a sphere) the intersection is the part's own edge, so no engrave line is written: it would retrace the cut
+  and the glued part overhangs the edge anyway.
+- Layer tab: next layer outline dashed blue (from `layers[i+1]`, the model outline), labels green (from the parts).

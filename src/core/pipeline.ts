@@ -1,6 +1,6 @@
 // Staged slicing pipeline with per-stage caching. Pure (no DOM): runs in the worker and in Node tests.
 //
-//   orient -> slice (planes + rings -> shapes) -> modes -> cleanup/islands -> kerf -> nesting
+//   orient -> slice (planes + rings -> shapes) -> modes -> cleanup/islands -> registration -> kerf -> nesting
 //
 // Each stage result is cached under a key built from only the settings that affect it, so e.g.
 // changing minPartArea re-runs cleanup only, and changing the mode never re-orients the mesh.
@@ -10,6 +10,7 @@ import { orientMesh } from "./transform";
 import { combineSamples, cleanupLayer, partIds, planLayers, roundHeightFactor, type LayerPlan } from "./layers";
 import { nudgeHeight, prepareMesh, slicePlanes, type PreparedMesh } from "./slice";
 import { unionEvenOdd } from "./poly";
+import { addRegistration } from "./registration";
 import { applyKerf } from "./kerf";
 import { nestParts, type NestResult } from "./nest";
 
@@ -57,10 +58,11 @@ export class Pipeline {
   private cSlice: Cached<SliceStage> | null = null;
   private cModes: Cached<Shape[][]> | null = null;
   private cClean: Cached<{ layers: Layer[]; parts: Part[]; warnings: Warning[] }> | null = null;
+  private cReg: Cached<{ parts: Part[]; warnings: Warning[] }> | null = null;
   private cKerf: Cached<{ parts: Part[]; warnings: Warning[] }> | null = null;
   private cNest: Cached<NestResult> | null = null;
   /** counters for tests: how many times each stage actually ran */
-  readonly runs = { orient: 0, slice: 0, modes: 0, cleanup: 0, kerf: 0, nest: 0 };
+  readonly runs = { orient: 0, slice: 0, modes: 0, cleanup: 0, registration: 0, kerf: 0, nest: 0 };
   /** the most recent completed run and the settings it used (for export) */
   last: { result: RunResult; settings: Settings } | null = null;
 
@@ -149,15 +151,24 @@ export class Pipeline {
     const clean = this.cClean.value;
     if (await checkpoint()) return null;
 
-    // ---- stage 5: kerf compensation (own stage: changing the kerf never re-slices) ----
-    const kerfKey = JSON.stringify([cleanKey, s.kerf]);
+    // ---- stage 5: registration aids (next-layer engraving, labels); before kerf, so a kerf change keeps it ----
+    const regKey = JSON.stringify([cleanKey, s.engraveNextOutline, s.labels, s.labelHeight]);
+    if (this.cReg?.key !== regKey) {
+      this.cReg = { key: regKey, value: addRegistration(clean.layers, clean.parts, s) };
+      this.runs.registration++;
+    }
+    const registered = this.cReg.value;
+    if (await checkpoint()) return null;
+
+    // ---- stage 6: kerf compensation (own stage: changing the kerf never re-slices) ----
+    const kerfKey = JSON.stringify([regKey, s.kerf]);
     if (this.cKerf?.key !== kerfKey) {
-      this.cKerf = { key: kerfKey, value: applyKerf(clean.parts, s.kerf) };
+      this.cKerf = { key: kerfKey, value: applyKerf(registered.parts, s.kerf) };
       this.runs.kerf++;
     }
     const kerfed = this.cKerf.value;
 
-    // ---- stage 6: nesting ----
+    // ---- stage 7: nesting ----
     const nestKey = JSON.stringify([kerfKey, s.sheetW, s.sheetH, s.partSpacing, s.sheetMargin]);
     if (this.cNest?.key !== nestKey) {
       this.cNest = { key: nestKey, value: nestParts(kerfed.parts, s) };
@@ -166,7 +177,7 @@ export class Pipeline {
     const nested = this.cNest.value;
     hooks.progress?.("Done", 1);
 
-    const warnings: Warning[] = [...this.meshWarnings(), ...sliced.warnings, ...clean.warnings, ...kerfed.warnings, ...nested.warnings];
+    const warnings: Warning[] = [...this.meshWarnings(), ...sliced.warnings, ...clean.warnings, ...registered.warnings, ...kerfed.warnings, ...nested.warnings];
     const result: RunResult = {
       layers: clean.layers,
       parts: kerfed.parts,
