@@ -130,7 +130,7 @@ export class Pipeline {
     done(STAGE_WEIGHT.modes);
 
     // ---- stage 4: cleanup, islands -> parts ----
-    const cleanKey = JSON.stringify([planKey, s.simplifyTol, s.minPartArea, s.minFeature]);
+    const cleanKey = JSON.stringify([planKey, s.smoothRadius, s.simplifyTol, s.minPartArea, s.minFeature]);
     if (this.cClean?.key !== cleanKey) {
       const warnings: Warning[] = [];
       const layers: Layer[] = [];

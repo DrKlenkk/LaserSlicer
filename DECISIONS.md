@@ -283,3 +283,25 @@ vertices (turning against the bend direction) and sub-0.2 mm edges per outline.
    coarse tessellation is faceted by construction (a 16-gon hole is a 16-gon); (d) vertices of one source that differ by more
    than the weld tolerance (1e-5 of the bbox diagonal) are not welded, the section opens and the repair joins gaps with straight lines
    (a warning is shown); (e) undersize intersections leave 5 to 10 micrometre steps where two samples swap edges (invisible).
+
+## Outline smoothing (`smoothRadius`)
+Setting `smoothRadius` (mm, 0 = off, project key, in the Slicing group) is applied first in `cleanupLayer` (before simplify), so the cleanup
+cache key contains it and nothing earlier re-runs; kerf, hollowing and nesting come after it, so a kerf change does not re-run it.
+- **Method: mode-aware morphology with round joins** (`src/core/smooth.ts`). Oversize = closing (offset +r, then -r), undersize = opening
+  (-r, +r), mid-plane = closing then opening. Closing only adds material and opening only removes it, so each mode's guarantee holds
+  exactly; the result is shifted by 6 micrometres (arc tolerance + 1 micrometre grid) in the permitted direction because the round-join
+  polygons cut up to the arc tolerance off a sharp tip. Arc tolerance is 5 micrometres (finer than the 10-20 micrometres asked for: the
+  simplifier thins the fillets again anyway), then micro-edges under 15 micrometres are merged (`cleanShapes`, which now also removes
+  hairline 180 degree spikes).
+- **What it cannot do, and why this is the chosen trade-off.** Steps and facets on *convex* arcs are outward bumps. In oversize they are
+  allowed material, so removing them would break "never inside the model"; a morphological filter only rounds the facet corners
+  (a few micrometres for a 5 to 20 degree turn). A curve fit that stays outside the outline was tried and dropped: it needs
+  an envelope over all samples with curvature limits, and it either bulges the part by the facet sagitta (up to 0.1 mm on R12) or
+  leaves kinks where the fit touches. So smoothing removes notches, steps into the part, wobbly inside corners and (undersize / mid-plane)
+  spikes and bumps. The tooltip says so.
+- **Failed-test review.** Two tests of the first draft failed and were wrong expectations, not bugs: (1) the mid-plane "notch" was
+  2 mm wide, wider than 2r = 1.5 mm, so a closing correctly keeps it; the notch is now 0.8 mm wide. (2) The pipeline guarantee test
+  compared the smoothed result with an unsmoothed run that was itself simplified (by up to 0.05 mm, in the other direction for
+  undersize); the guarantee is about the raw section, so the reference run now uses `simplifyTol: 0`, which is the stricter check.
+- Recommended radius: 0.5 to 1 mm for 4 mm material; never above a fifth of the thinnest wall. Features narrower than 2r go away
+  (slots in oversize, thin walls / islands in the others); a warning is issued if a whole layer vanishes.

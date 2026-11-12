@@ -76,6 +76,8 @@ export type Settings = {
   mode: "oversize" | "midplane" | "undersize";
   samplesPerLayer: number;
   roundHeightToLayers: boolean;
+  /** smoothing radius in mm (0 = off): closing in oversize, opening in undersize, both in mid-plane */
+  smoothRadius: number;
   simplifyTol: number;
   minPartArea: number;
   minFeature: number;

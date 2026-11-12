@@ -184,6 +184,7 @@ export function createPanel(root: HTMLElement, store: Store, actions: PanelActio
     h("small", { class: "hint" }, "Oversize: covers the model in each layer. Mid-plane: closest on average. Undersize: never sticks out."),
     numField("Samples per layer", "samplesPerLayer", { step: 1, min: 1, help: "samplesPerLayer" }),
     boolField("Round height to whole layers", "roundHeightToLayers", "roundHeightToLayers"),
+    numField("Smooth outlines (0 = off)", "smoothRadius", { step: 0.1, min: 0, unit: "mm", help: "smoothRadius" }),
     numField("Simplify tolerance", "simplifyTol", { step: 0.01, min: 0, unit: "mm", help: "simplifyTol" }),
     numField("Min part area", "minPartArea", { min: 0, unit: "mm²", help: "minPartArea" }),
     numField("Min feature (0 = off)", "minFeature", { min: 0, unit: "mm", help: "minFeature" }),

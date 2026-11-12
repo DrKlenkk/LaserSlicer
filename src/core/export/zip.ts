@@ -20,7 +20,7 @@ export function buildReadme(result: RunResult, s: Settings, model: string, files
   L.push(`  Axis: ${s.axis}, extra rotation steps (X,Y,Z): ${s.rotationSteps.join(",")}`);
   L.push(`  Scale: ${(result.info.scale * 100).toFixed(2)} %, model size ${result.info.size.map((v) => v.toFixed(2)).join(" x ")} mm`);
   L.push(`  Material thickness: ${s.thickness} mm, kerf: ${s.kerf} mm, part spacing: ${s.partSpacing} mm, sheet margin: ${s.sheetMargin} mm`);
-  L.push(`  Mode: ${s.mode}, samples per layer: ${s.samplesPerLayer}, simplify tolerance: ${s.simplifyTol} mm`);
+  L.push(`  Mode: ${s.mode}, samples per layer: ${s.samplesPerLayer}, simplify tolerance: ${s.simplifyTol} mm, smoothing radius: ${s.smoothRadius > 0 ? `${s.smoothRadius} mm` : "off"}`);
   L.push(`  Min part area: ${s.minPartArea} mm2, min feature: ${s.minFeature} mm`);
   L.push(`  Formats: ${s.formats.join(", ")}, files per ${s.perLayerFiles ? "layer" : "sheet"}`);
   if (s.formats.includes("png") || s.formats.includes("jpg"))

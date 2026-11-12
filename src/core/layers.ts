@@ -1,6 +1,7 @@
 // Layer heights, outline modes and cleanup (plan sections 3, 5, 6, 7).
 import type { Settings, Shape, Warning } from "./types";
 import { intersect, offset, ringArea, shapeArea, simplify, union } from "./poly";
+import { smoothShapes } from "./smooth";
 
 /** Margin that keeps sample planes off the layer faces (mm). */
 export const SAMPLE_EPS = 1e-4;
@@ -100,11 +101,19 @@ export function partIds(index: number, count: number): string[] {
 export function cleanupLayer(
   index: number,
   shapes: Shape[],
-  s: Pick<Settings, "mode" | "simplifyTol" | "minPartArea" | "minFeature">,
+  s: Pick<Settings, "mode" | "smoothRadius" | "simplifyTol" | "minPartArea" | "minFeature">,
   warnings: Warning[],
 ): Shape[] {
   let cur = shapes;
   if (cur.length === 0) return cur;
+  if (s.smoothRadius > 0) {
+    // First, before simplify: the filter works on the full-resolution outline and the simplifier then thins the fillets it adds.
+    cur = smoothShapes(cur, s.smoothRadius, s.mode);
+    if (cur.length === 0) {
+      warnings.push({ level: "warn", layer: index, message: `Smoothing with radius ${s.smoothRadius} mm removed everything in layer ${index} (every feature is narrower than twice the radius)` });
+      return cur;
+    }
+  }
   if (s.simplifyTol > 0) {
     // Oversize may only simplify where the outline is not pulled inwards, undersize only where it is not pushed out.
     cur = simplify(cur, s.simplifyTol, s.mode === "oversize" ? "outside" : s.mode === "undersize" ? "inside" : "none");

@@ -16,6 +16,7 @@ export const DEFAULT_SETTINGS: Settings = {
   mode: "oversize",
   samplesPerLayer: 3,
   roundHeightToLayers: false,
+  smoothRadius: 0,
   simplifyTol: 0.05,
   minPartArea: 4,
   minFeature: 0,
@@ -89,7 +90,7 @@ export function serializeProject(s: Settings): string {
 }
 
 const POSITIVE = ["thickness", "sheetW", "sheetH", "scale", "labelHeight", "dowelDiameter"] as const;
-const NON_NEGATIVE = ["kerf", "partSpacing", "sheetMargin", "simplifyTol", "minPartArea", "minFeature", "hollowWall", "solidCapLayers"] as const;
+const NON_NEGATIVE = ["kerf", "partSpacing", "sheetMargin", "smoothRadius", "simplifyTol", "minPartArea", "minFeature", "hollowWall", "solidCapLayers"] as const;
 const INTEGERS = ["samplesPerLayer", "solidCapLayers", "dowelCount"] as const;
 const ENUMS: Record<string, readonly string[]> = {
   axis: ["+X", "-X", "+Y", "-Y", "+Z", "-Z"],

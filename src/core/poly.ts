@@ -218,12 +218,27 @@ export const TINY_EDGE = 0.005;
  */
 function dropTinyEdges(shapes: Shape[], minLen: number): Shape[] {
   const clean = (r: Ring): Ring => {
-    const out: Ring = [];
-    for (const p of r) {
-      const l = out[out.length - 1];
-      if (!l || Math.hypot(p[0] - l[0], p[1] - l[1]) >= minLen) out.push(p);
+    let out = r;
+    // repeat: removing a spike tip can leave a new short edge
+    for (let pass = 0; pass < 4; pass++) {
+      const next: Ring = [];
+      for (const p of out) {
+        const l = next[next.length - 1];
+        if (!l || Math.hypot(p[0] - l[0], p[1] - l[1]) >= minLen) next.push(p);
+      }
+      while (next.length > 1 && Math.hypot(next[0][0] - next[next.length - 1][0], next[0][1] - next[next.length - 1][1]) < minLen) next.pop();
+      // hairline spikes: out and back along the same line (turn of about 180 degrees) enclose no area
+      const m = next.length;
+      const keep = next.filter((b, i) => {
+        const a = next[(i + m - 1) % m], c = next[(i + 1) % m];
+        const cross = (b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0]);
+        const dot = (b[0] - a[0]) * (c[0] - b[0]) + (b[1] - a[1]) * (c[1] - b[1]);
+        return !(dot < 0 && Math.abs(cross) < 1e-3 * Math.abs(dot)); // under 0.06 degrees from a full reversal
+      });
+      const changed = keep.length !== out.length;
+      out = keep;
+      if (!changed) break;
     }
-    while (out.length > 1 && Math.hypot(out[0][0] - out[out.length - 1][0], out[0][1] - out[out.length - 1][1]) < minLen) out.pop();
     return out;
   };
   const res: Shape[] = [];
@@ -233,6 +248,11 @@ function dropTinyEdges(shapes: Shape[], minLen: number): Shape[] {
     res.push({ outer, holes: s.holes.map(clean).filter((h) => h.length >= 3) });
   }
   return res;
+}
+
+/** Remove micro-edges (shorter than `minLen`, default 5 micrometres) and hairline spikes from every ring (see `dropTinyEdges`). */
+export function cleanShapes(shapes: Shape[], minLen = TINY_EDGE): Shape[] {
+  return dropTinyEdges(shapes, minLen);
 }
 
 /**
