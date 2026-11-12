@@ -2,10 +2,11 @@
 import type { Axis, Dim, Settings } from "../core/types";
 import type { Store } from "../state";
 import { h } from "./dom";
+import { createExportSection } from "./exportDialog";
 
 export type OrientInfo = { size: [number, number, number]; scale: number };
 
-export type PanelActions = { openFile(file: File): void };
+export type PanelActions = { openFile(file: File): void; exportZip(): Promise<void> };
 
 type NumKey = {
   [K in keyof Settings]: Settings[K] extends number ? K : never;
@@ -203,28 +204,8 @@ export function createPanel(root: HTMLElement, store: Store, actions: PanelActio
     numField("Dowel count", "dowelCount", { step: 1, min: 1 }),
   );
 
-  const formatBoxes = (["dxf", "svg", "png", "jpg"] as const).map((f) => {
-    const cb = h("input", { type: "checkbox", id: `fmt-${f}` });
-    cb.addEventListener("change", () => {
-      const cur = new Set(store.get().settings.formats);
-      if (cb.checked) cur.add(f);
-      else cur.delete(f);
-      store.updateSettings({ formats: (["dxf", "svg", "png", "jpg"] as const).filter((x) => cur.has(x)) });
-    });
-    syncers.push((s) => (cb.checked = s.formats.includes(f)));
-    return h("label", { class: "chip" }, cb, f.toUpperCase());
-  });
-  const summary = h("div", { class: "summary", id: "summary" }, "Load a model to slice it.");
-  const exportGroup = group(
-    "Export",
-    false,
-    h("div", { class: "chips" }, ...formatBoxes),
-    selectField("DPI", "dpi", [["254", "254"], ["300", "300"], ["600", "600"], ["1000", "1000"]]),
-    selectField("Raster style", "rasterStyle", [["filled", "Filled"], ["outline", "Outline"]]),
-    boolField("One file per layer", "perLayerFiles"),
-    summary,
-    h("button", { type: "button", class: "btn primary", disabled: true }, "Download all (ZIP)"),
-  );
+  const exportSection = createExportSection(store, actions.exportZip);
+  const exportGroup = group("Export", false, exportSection.el);
 
   root.append(
     h("div", { class: "brand" }, h("span", { class: "logo" }, "▤"), h("span", {}, "Laser Slicer")),
@@ -259,7 +240,10 @@ export function createPanel(root: HTMLElement, store: Store, actions: PanelActio
       fileInfo.textContent = text;
     },
     setSummary(text: string) {
-      summary.textContent = text;
+      exportSection.setSummary(text);
+    },
+    setExportReady(v: boolean) {
+      exportSection.setReady(v);
     },
   };
 }

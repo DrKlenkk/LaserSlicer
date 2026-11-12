@@ -31,8 +31,23 @@ export type Part = {
   id: string; // "L012" or "L012-b" for a second island
   layer: number;
   cut: Shape; // kerf-compensated cut outline
-  engrave: Vec2[][]; // open or closed polylines: next-layer outline, label strokes
+  /** Engrave polylines (next-layer outline). A polyline whose first and last point coincide is closed. */
+  engrave: Vec2[][];
+  /** Label stroke polylines (DXF layer LABEL), same closing convention. Filled from M6. */
+  label: Vec2[][];
   holes: { c: Vec2; d: number }[]; // dowel holes (cut)
+};
+
+/** One cutting sheet with the parts nested on it. */
+export type Sheet = {
+  index: number; // 0-based
+  w: number;
+  h: number;
+  partIds: string[];
+  /** summed part areas (outer minus holes, mm2) */
+  usedArea: number;
+  /** usedArea / (w * h) in percent */
+  usePct: number;
 };
 
 export type Placement = { partId: string; sheet: number; x: number; y: number; angleDeg: number };

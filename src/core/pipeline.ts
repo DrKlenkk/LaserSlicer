@@ -1,15 +1,17 @@
 // Staged slicing pipeline with per-stage caching. Pure (no DOM): runs in the worker and in Node tests.
 //
-//   orient -> slice (planes + rings -> shapes) -> modes -> cleanup/islands
+//   orient -> slice (planes + rings -> shapes) -> modes -> cleanup/islands -> kerf -> nesting
 //
 // Each stage result is cached under a key built from only the settings that affect it, so e.g.
 // changing minPartArea re-runs cleanup only, and changing the mode never re-orients the mesh.
-import type { Layer, Mesh, MeshStats, Part, Placement, Settings, Shape, Warning } from "./types";
+import type { Layer, Mesh, MeshStats, Part, Placement, Settings, Shape, Sheet, Warning } from "./types";
 import { computeBBox, bboxSize } from "./mesh";
 import { orientMesh } from "./transform";
 import { combineSamples, cleanupLayer, partIds, planLayers, roundHeightFactor, type LayerPlan } from "./layers";
 import { nudgeHeight, prepareMesh, slicePlanes, type PreparedMesh } from "./slice";
 import { unionEvenOdd } from "./poly";
+import { applyKerf } from "./kerf";
+import { nestParts, type NestResult } from "./nest";
 
 export type RunInfo = {
   layerCount: number;
@@ -27,7 +29,7 @@ export type RunResult = {
   layers: Layer[];
   parts: Part[];
   placements: Placement[];
-  sheets: unknown[]; // filled from M5
+  sheets: Sheet[];
   warnings: Warning[];
   info: RunInfo;
 };
@@ -55,10 +57,15 @@ export class Pipeline {
   private cSlice: Cached<SliceStage> | null = null;
   private cModes: Cached<Shape[][]> | null = null;
   private cClean: Cached<{ layers: Layer[]; parts: Part[]; warnings: Warning[] }> | null = null;
+  private cKerf: Cached<{ parts: Part[]; warnings: Warning[] }> | null = null;
+  private cNest: Cached<NestResult> | null = null;
   /** counters for tests: how many times each stage actually ran */
-  readonly runs = { orient: 0, slice: 0, modes: 0, cleanup: 0 };
+  readonly runs = { orient: 0, slice: 0, modes: 0, cleanup: 0, kerf: 0, nest: 0 };
+  /** the most recent completed run and the settings it used (for export) */
+  last: { result: RunResult; settings: Settings } | null = null;
 
   setMesh(mesh: Mesh | null, stats: MeshStats | null = null) {
+    this.last = null;
     this.mesh = mesh;
     this.stats = stats;
     this.meshVersion++;
@@ -132,7 +139,7 @@ export class Pipeline {
         }
         layers.push({ index: i, z0: spec.z0, z1: spec.z1, shapes });
         const ids = partIds(i, shapes.length);
-        shapes.forEach((cut, j) => parts.push({ id: ids[j], layer: i, cut, engrave: [], holes: [] }));
+        shapes.forEach((cut, j) => parts.push({ id: ids[j], layer: i, cut, engrave: [], label: [], holes: [] }));
         report("Cleanup", STAGE_WEIGHT.cleanup, (i + 1) / sliced.plan.count);
         if (i % 4 === 3 && (await checkpoint())) return null;
       }
@@ -140,14 +147,31 @@ export class Pipeline {
       this.runs.cleanup++;
     }
     const clean = this.cClean.value;
+    if (await checkpoint()) return null;
+
+    // ---- stage 5: kerf compensation (own stage: changing the kerf never re-slices) ----
+    const kerfKey = JSON.stringify([cleanKey, s.kerf]);
+    if (this.cKerf?.key !== kerfKey) {
+      this.cKerf = { key: kerfKey, value: applyKerf(clean.parts, s.kerf) };
+      this.runs.kerf++;
+    }
+    const kerfed = this.cKerf.value;
+
+    // ---- stage 6: nesting ----
+    const nestKey = JSON.stringify([kerfKey, s.sheetW, s.sheetH, s.partSpacing, s.sheetMargin]);
+    if (this.cNest?.key !== nestKey) {
+      this.cNest = { key: nestKey, value: nestParts(kerfed.parts, s) };
+      this.runs.nest++;
+    }
+    const nested = this.cNest.value;
     hooks.progress?.("Done", 1);
 
-    const warnings: Warning[] = [...this.meshWarnings(), ...sliced.warnings, ...clean.warnings];
-    return {
+    const warnings: Warning[] = [...this.meshWarnings(), ...sliced.warnings, ...clean.warnings, ...kerfed.warnings, ...nested.warnings];
+    const result: RunResult = {
       layers: clean.layers,
-      parts: clean.parts,
-      placements: [],
-      sheets: [],
+      parts: kerfed.parts,
+      placements: nested.placements,
+      sheets: nested.sheets,
       warnings,
       info: {
         layerCount: sliced.plan.count,
@@ -158,6 +182,8 @@ export class Pipeline {
         size: oriented.size,
       },
     };
+    this.last = { result, settings: s };
+    return result;
   }
 
   private meshWarnings(): Warning[] {

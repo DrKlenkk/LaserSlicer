@@ -119,3 +119,41 @@ clipper2-js returned a union smaller than either input for near-identical outlin
 301.31 and 301.31 mm²), a third clipper2-js defect to avoid; offsetting outward by `simplifyTol` was rejected because it
 grows exact shapes (20 mm cube becomes 20.1 mm). Consequence: in oversize mode only concave stretches lose vertices,
 convex arcs keep theirs (mid-plane simplifies as before).
+
+## Part gets a `label` field (M4)
+The plan's `Part` has only `engrave`, but the DXF needs ENGRAVE (next-layer outline) and LABEL (text strokes) on
+separate layers. `Part.label: Vec2[][]` was added (empty until M6). Polyline closing convention for `engrave` and
+`label`: a polyline whose first and last point coincide is closed (written as POLYLINE flag 70 = 1 without the
+repeated vertex, SVG `Z`); anything else is open.
+
+## Pipeline stages 5 and 6 (M4/M5)
+Kerf (`kerf.ts`) and nesting (`nest.ts`) are cached stages with keys [cleanup key, kerf] and [kerf key, sheet size,
+spacing, margin]. `RunResult.parts` holds the kerf-compensated parts; `layers[].shapes` stay uncompensated (the Layer
+tab shows the model, not the cut). A kerf offset that splits a part keeps the largest piece with a warning; one that
+makes it vanish drops the part with a warning. `Pipeline.last` keeps the latest result and its settings for export.
+Because the per-sheet export needs nesting, the M4 commit already contains `nest.ts`; the M5 commit adds the Sheets
+tab, the summary line and the nesting tests.
+
+## DXF details
+`$EXTMIN/$EXTMAX` are written as well (helps LibreCAD/LightBurn zoom to the drawing). Lines end with CRLF. Numbers
+have up to 4 decimals. The SHEET layer exists in the table; the border is only drawn when `writeDxf(..., {sheetBorder: true})`
+is called (plan: "off by default"); there is no UI toggle and no Settings key for it yet. Not verified in
+LightBurn or LibreCAD here (not available); only parsed with `dxf-parser`.
+Per-layer files place the layer's parts at their model coordinates moved so the lower-left corner is (0, 0); the
+SVG per layer is sized to that bounding box.
+
+## Export message and ZIP
+The worker `export` message returns one ZIP (`<model>_laser.zip`), always, even for a single file; the formats and
+"per layer" choice travel with the message, so they are never stale (they do not affect slicing). The plan's `dpi`
+field is for M7. Raster formats are disabled in the UI until M7 (the DPI and raster style inputs were removed from the
+panel for now). The ZIP is built in the worker and transferred, then saved from a Blob URL on the main thread.
+
+## Nesting details
+Each part is rotated to its minimum-area rectangle (rotating calipers over hull edges) with the long side horizontal;
+MaxRects may additionally turn it by 90 degrees. Spacing is added to every rectangle and to the bin (so edges keep
+`partSpacing` between parts and `sheetMargin` to the border). Parts are ordered by layer, then by rectangle area
+(largest first), and each is tried on all open sheets in order before a new one is opened, which fills early sheets
+better than only looking at the last sheet. `Placement.angleDeg` rotates CCW about the origin, then (x, y) translates;
+`applyPlacement` in `nest.ts` applies it to cut, engrave, label and dowel holes. The tight rectangle is not a
+true-shape nest: round parts waste material (a sphere uses about 13 % of a 600 x 400 sheet), v2 is optional in the plan.
+Sheets tab colours are close to, not identical to, the ACI colours (readable on light and dark backgrounds).

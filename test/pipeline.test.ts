@@ -15,13 +15,15 @@ describe("pipeline caching", () => {
   it("re-runs only the stages whose settings changed", async () => {
     const p = make();
     await p.run(settings());
-    expect(p.runs).toEqual({ orient: 1, slice: 1, modes: 1, cleanup: 1 });
-    await p.run(settings({ kerf: 0.3, labels: false })); // irrelevant to slicing
-    expect(p.runs).toEqual({ orient: 1, slice: 1, modes: 1, cleanup: 1 });
+    expect(p.runs).toEqual({ orient: 1, slice: 1, modes: 1, cleanup: 1, kerf: 1, nest: 1 });
+    await p.run(settings({ kerf: 0.3, labels: false })); // kerf and nesting only, never re-slices
+    expect(p.runs).toEqual({ orient: 1, slice: 1, modes: 1, cleanup: 1, kerf: 2, nest: 2 });
+    await p.run(settings({ kerf: 0.3, sheetW: 500 })); // nesting only
+    expect(p.runs).toEqual({ orient: 1, slice: 1, modes: 1, cleanup: 1, kerf: 2, nest: 3 });
     await p.run(settings({ minPartArea: 9 }));
-    expect(p.runs).toEqual({ orient: 1, slice: 1, modes: 1, cleanup: 2 });
+    expect(p.runs).toEqual({ orient: 1, slice: 1, modes: 1, cleanup: 2, kerf: 3, nest: 4 });
     await p.run(settings({ minPartArea: 9, mode: "undersize" }));
-    expect(p.runs).toEqual({ orient: 1, slice: 2, modes: 2, cleanup: 3 });
+    expect(p.runs).toEqual({ orient: 1, slice: 2, modes: 2, cleanup: 3, kerf: 4, nest: 5 });
     await p.run(settings({ minPartArea: 9, mode: "undersize", axis: "+X" }));
     expect(p.runs.orient).toBe(2);
   });
