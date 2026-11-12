@@ -39,6 +39,13 @@ describe("pipeline caching", () => {
     expect(p.runs).toMatchObject({ hollow: 2, registration: 3, kerf: 4 });
   });
 
+  it("reports an error when no part comes out (model smaller than the minimum part area)", async () => {
+    const p = make(box(1, 1, 1));
+    const r = await p.run(settings({ minPartArea: 4 }));
+    expect(r!.parts).toHaveLength(0);
+    expect(r!.warnings.some((w) => w.level === "error" && /No parts/.test(w.message))).toBe(true);
+  });
+
   it("slices along the chosen axis", async () => {
     const p = make(box(10, 20, 30));
     const z = await p.run(settings({ thickness: 5 }));

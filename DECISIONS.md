@@ -236,3 +236,14 @@ Layer tab is blue. The original model is drawn at 78 % opacity in the "Model" vi
   model/stacked, F fits the view, ? opens help. They are ignored while a text or number input, a select or the layer slider has
   focus. **Ctrl+S is deliberately not bound**: it is the browser's "save page" and the project buttons are in the panel.
 - Window-level `error` / `unhandledrejection` handlers put the message in the status bar, so a failure is never silent.
+
+## Performance and error handling (M9)
+- Measured in headless Chromium from `file://dist/index.html` (software GL), 499k-triangle binary STL sphere, 100 layers, oversize x3:
+  file input to result **2.3-2.5 s** (load, weld and edge statistics in the worker 0.9 s). Node: weld 0.62 s, edge stats 0.1 s, run 1.5 s.
+  Welding first checks the vertex's own hash cell and only then the 26 neighbours; `edgeStats` sorts a `Float64Array` of edge keys
+  instead of a `Map` (together 1.4 s -> 0.7 s).
+- UI responsiveness: with the Layer tab open the largest requestAnimationFrame gap during the run was 83 ms. With the 3D tab open there is one
+  stall of about 1 s right after the load, caused by the headless software GL rendering the 500k-triangle model; the same run with the 3D view
+  hidden has none. On a real GPU this should be negligible but was not measured.
+- Corrupt, empty, truncated, NaN and wrong-extension files each give one status-bar message and keep the app and the previous model.
+  A run with no parts at all gives an error warning. Verified for 9 sample files in Chromium.

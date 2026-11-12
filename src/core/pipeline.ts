@@ -189,6 +189,8 @@ export class Pipeline {
     hooks.progress?.("Done", 1);
 
     const warnings: Warning[] = [...this.meshWarnings(), ...sliced.warnings, ...clean.warnings, ...hollow.warnings, ...registered.warnings, ...kerfed.warnings, ...nested.warnings];
+    if (kerfed.parts.length === 0)
+      warnings.push({ level: "error", message: "No parts were produced: every layer is empty (the model may be too thin for this thickness, or Min part area is too large)" });
     const result: RunResult = {
       layers: hollow.layers,
       parts: kerfed.parts,

@@ -104,7 +104,12 @@ async function openFile(file: File) {
     let kind: "stl" | "obj" | "soup" = ext === "3mf" ? "soup" : (ext as "stl" | "obj");
     if (ext === "3mf") {
       // 3MFLoader needs DOMParser (not in workers): parse here, send the triangles on.
-      const soup = load3mfToSoup(buffer);
+      let soup: Float32Array;
+      try {
+        soup = load3mfToSoup(buffer);
+      } catch (e) {
+        throw new Error(e instanceof Error && /no triangles/.test(e.message) ? e.message : "This is not a valid 3MF file");
+      }
       buffer = soup.buffer as ArrayBuffer;
     }
     const r = await worker.load(buffer, kind);

@@ -2,7 +2,7 @@
 // dependencies that end up bundled into dist/index.html.
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 
-const pkgs = ["three", "clipper2-js", "polylabel", "fflate"];
+const pkgs = ["three", "clipper2-js", "polylabel", "tinyqueue", "fflate"]; // tinyqueue is polylabel's only dependency
 // clipper2-js ships no licence file; use the standard Boost Software License 1.0 text.
 const BOOST = `Clipper2 (c) Angus Johnson; clipper2-js is a TypeScript port of it.
 
@@ -39,5 +39,9 @@ for (const name of pkgs) {
   out += file ? readFileSync(file, "utf8").trim() : name === "clipper2-js" ? BOOST : `(no licence file found; licence: ${pj.license})`;
   out += "\n\n";
 }
+out += `==== Hershey single-stroke font (public domain format) ====
+The glyph encoding used in src/core/font/hershey.ts follows the Hershey vector font format (A. V. Hershey, US Naval Weapons
+Laboratory, public domain). The outlines in the file were redrawn for this project in the Simplex style; no licence applies.
+`;
 writeFileSync("THIRD_PARTY_LICENSES.txt", out);
 console.log("wrote THIRD_PARTY_LICENSES.txt");

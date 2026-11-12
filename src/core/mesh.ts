@@ -53,22 +53,35 @@ export function weldSoup(soup: Float32Array): { mesh: Mesh; degenerateRemoved: n
   for (let v = 0; v < triCount * 3; v++) {
     const x = soup[v * 3], y = soup[v * 3 + 1], z = soup[v * 3 + 2];
     const cx = Math.floor(x * inv), cy = Math.floor(y * inv), cz = Math.floor(z * inv);
+    // Almost every vertex of a soup is an exact repeat of an earlier one in the same cell: try that cell first and
+    // only look at the 26 neighbours when it has no match (cuts the hash lookups roughly fivefold on big meshes).
     let found = -1;
-    search: for (let dx = -1; dx <= 1; dx++) {
-      for (let dy = -1; dy <= 1; dy++) {
-        for (let dz = -1; dz <= 1; dz++) {
-          const bucket = cells.get(hash(cx + dx, cy + dy, cz + dz));
-          if (!bucket) continue;
-          for (const id of bucket) {
-            const ex = outPos[id * 3] - x, ey = outPos[id * 3 + 1] - y, ez = outPos[id * 3 + 2] - z;
-            if (ex * ex + ey * ey + ez * ez <= tol2) {
-              found = id;
-              break search;
+    const own = cells.get(hash(cx, cy, cz));
+    if (own)
+      for (const id of own) {
+        const ex = outPos[id * 3] - x, ey = outPos[id * 3 + 1] - y, ez = outPos[id * 3 + 2] - z;
+        if (ex * ex + ey * ey + ez * ez <= tol2) {
+          found = id;
+          break;
+        }
+      }
+    if (found < 0)
+      search: for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dz = -1; dz <= 1; dz++) {
+            if (dx === 0 && dy === 0 && dz === 0) continue;
+            const bucket = cells.get(hash(cx + dx, cy + dy, cz + dz));
+            if (!bucket) continue;
+            for (const id of bucket) {
+              const ex = outPos[id * 3] - x, ey = outPos[id * 3 + 1] - y, ez = outPos[id * 3 + 2] - z;
+              if (ex * ex + ey * ey + ez * ez <= tol2) {
+                found = id;
+                break search;
+              }
             }
           }
         }
       }
-    }
     if (found < 0) {
       found = outPos.length / 3;
       outPos.push(x, y, z);
@@ -97,20 +110,23 @@ export function weldSoup(soup: Float32Array): { mesh: Mesh; degenerateRemoved: n
 
 /** Count edges used by one triangle (open) and by more than two (non-manifold). */
 export function edgeStats(indices: Uint32Array, vertexCount: number): { openEdges: number; nonManifoldEdges: number } {
-  const counts = new Map<number, number>();
-  const add = (a: number, b: number) => {
-    const key = a < b ? a * vertexCount + b : b * vertexCount + a; // < 2^53 for any realistic V
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-  };
-  for (let t = 0; t < indices.length; t += 3) {
-    add(indices[t], indices[t + 1]);
-    add(indices[t + 1], indices[t + 2]);
-    add(indices[t + 2], indices[t]);
+  // One key per triangle edge, sorted; equal keys are the same edge (a sort of a typed array beats a 1.5M entry Map).
+  const keys = new Float64Array(indices.length);
+  for (let t = 0, k = 0; t < indices.length; t += 3) {
+    for (let e = 0; e < 3; e++, k++) {
+      const a = indices[t + e], b = indices[t + ((e + 1) % 3)];
+      keys[k] = a < b ? a * vertexCount + b : b * vertexCount + a; // < 2^53 for any realistic V
+    }
   }
+  keys.sort();
   let openEdges = 0, nonManifoldEdges = 0;
-  for (const c of counts.values()) {
+  for (let i = 0; i < keys.length; ) {
+    let j = i + 1;
+    while (j < keys.length && keys[j] === keys[i]) j++;
+    const c = j - i;
     if (c === 1) openEdges++;
     else if (c > 2) nonManifoldEdges++;
+    i = j;
   }
   return { openEdges, nonManifoldEdges };
 }
