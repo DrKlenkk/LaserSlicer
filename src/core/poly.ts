@@ -201,24 +201,71 @@ export function offset(shapes: Shape[], delta: number, join: JoinKind = "miter",
   return boolean(ClipType.Union, FillRule.NonZero, res, []);
 }
 
+export type SimplifyBias = "none" | "outside" | "inside";
+
 /**
- * Reduce vertices with Ramer-Douglas-Peucker: no removed vertex is further than `tol` mm from the
- * simplified outline. (Clipper's SimplifyPaths drops noticeably more area on small round sections,
- * about 1% vs 0.5% on a 4 mm radius circle at 0.05 mm, so the Clipper RDP is used instead.)
+ * Side-constrained Ramer-Douglas-Peucker on a closed ring (material on the left of every edge, which
+ * holds for outers CCW and holes CW). A vertex run is replaced by its chord only if every dropped vertex is
+ * within `tol` of the chord and, for bias "outside", lies on the material side of it (the chord then never
+ * cuts material away); for "inside" on the other side (the chord never adds material).
+ * Doing this with Clipper unions of near-identical outlines is not an option: clipper2-js loses area on them.
  */
-export function simplify(shapes: Shape[], tol: number): Shape[] {
+function simplifyRing(ring: Ring, tol: number, bias: SimplifyBias): Ring {
+  const n = ring.length;
+  if (n <= 3) return ring;
+  const eps = 1e-6;
+  // split a closed ring at vertex 0 and the vertex farthest from it
+  let far = 0, fd = -1;
+  for (let i = 1; i < n; i++) {
+    const d = Math.hypot(ring[i][0] - ring[0][0], ring[i][1] - ring[0][1]);
+    if (d > fd) { fd = d; far = i; }
+  }
+  const keep = new Uint8Array(n);
+  keep[0] = keep[far] = 1;
+  const stack: [number, number][] = [[0, far], [far, n]]; // chain i..j, j == n means back to vertex 0
+  while (stack.length) {
+    const [i, j] = stack.pop()!;
+    if (j - i < 2) continue;
+    const a = ring[i], b = ring[j % n];
+    const dx = b[0] - a[0], dy = b[1] - a[1];
+    const len = Math.hypot(dx, dy) || 1e-12;
+    let best = -1, bestScore = -1;
+    for (let k = i + 1; k < j; k++) {
+      const p = ring[k];
+      const d = (dx * (p[1] - a[1]) - dy * (p[0] - a[0])) / len; // signed: > 0 left (material side)
+      const bad = Math.abs(d) > tol || (bias === "outside" && d < -eps) || (bias === "inside" && d > eps);
+      if (bad && Math.abs(d) >= bestScore) { bestScore = Math.abs(d); best = k; }
+    }
+    if (best < 0) continue; // chord is acceptable for the whole chain
+    keep[best] = 1;
+    stack.push([i, best], [best, j]);
+  }
+  const out: Ring = [];
+  for (let i = 0; i < n; i++) if (keep[i]) out.push(ring[i]);
+  return out;
+}
+
+/**
+ * Reduce vertices (Ramer-Douglas-Peucker): no removed vertex is further than `tol` mm from the simplified
+ * outline. `bias` "outside" / "inside" additionally guarantees the result never lies inside / outside the input.
+ * (Clipper's SimplifyPaths drops noticeably more area on small round sections, about 1% vs 0.5% on a 4 mm
+ * radius circle at 0.05 mm, so Clipper's RDP is used for bias "none".)
+ */
+export function simplify(shapes: Shape[], tol: number, bias: SimplifyBias = "none"): Shape[] {
   if (tol <= 0 || shapes.length === 0) return shapes;
   const eps = tol * SCALE;
+  const ring = (r: Ring): Ring =>
+    bias === "none" ? fromPath(Clipper.ramerDouglasPeucker(toPath(r), eps)) : simplifyRing(r, tol, bias);
   const out: Shape[] = [];
   for (const s of shapes) {
-    const outer = Clipper.ramerDouglasPeucker(toPath(s.outer), eps);
+    const outer = ring(orient(s.outer, true));
     if (outer.length < 3) continue;
     const holes: Ring[] = [];
     for (const h of s.holes) {
-      const p = Clipper.ramerDouglasPeucker(toPath(h), eps);
-      if (p.length >= 3) holes.push(fromPath(p));
+      const p = ring(orient(h, false));
+      if (p.length >= 3) holes.push(p);
     }
-    out.push({ outer: fromPath(outer), holes });
+    out.push({ outer, holes });
   }
   // Simplifying can in rare cases create touching rings; resolve through one union.
   return union(out);

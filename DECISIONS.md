@@ -107,3 +107,15 @@ reported to the UI includes it).
 ## Not verified here (M2/M3)
 Layer tab and warnings list were checked in Chromium only (headless, software GL). Perf number was measured in
 Node on this build machine, not in a browser worker.
+
+## Simplification keeps the mode guarantees (M3 fix)
+RDP simplification pulls convex outlines inwards by up to `simplifyTol`, so oversize could undershoot the true
+section. `poly.simplify` now takes a `bias`: oversize uses `"outside"` and undersize `"inside"` (mid-plane `"none"`,
+the previous Clipper RDP). The biased variant is a side-constrained RDP written in `poly.ts`: a run of vertices is
+replaced by its chord only if all of them are within `simplifyTol` of it AND on the material side (oversize) or the
+other side (undersize) of the chord, so the chord never cuts material away (oversize) / adds material (undersize).
+Union/intersection with the unsimplified outline (the suggested approach) was tried first and abandoned:
+clipper2-js returned a union smaller than either input for near-identical outlines (301.27 mm² from inputs of
+301.31 and 301.31 mm²), a third clipper2-js defect to avoid; offsetting outward by `simplifyTol` was rejected because it
+grows exact shapes (20 mm cube becomes 20.1 mm). Consequence: in oversize mode only concave stretches lose vertices,
+convex arcs keep theirs (mid-plane simplifies as before).

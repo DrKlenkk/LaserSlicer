@@ -100,12 +100,15 @@ export function partIds(index: number, count: number): string[] {
 export function cleanupLayer(
   index: number,
   shapes: Shape[],
-  s: Pick<Settings, "simplifyTol" | "minPartArea" | "minFeature">,
+  s: Pick<Settings, "mode" | "simplifyTol" | "minPartArea" | "minFeature">,
   warnings: Warning[],
 ): Shape[] {
   let cur = shapes;
   if (cur.length === 0) return cur;
-  if (s.simplifyTol > 0) cur = simplify(cur, s.simplifyTol);
+  if (s.simplifyTol > 0) {
+    // Oversize may only simplify where the outline is not pulled inwards, undersize only where it is not pushed out.
+    cur = simplify(cur, s.simplifyTol, s.mode === "oversize" ? "outside" : s.mode === "undersize" ? "inside" : "none");
+  }
   if (s.minFeature > 0) {
     // Morphological opening: erode by r then dilate by r removes slivers and necks thinner than 2r.
     // Miter joins keep the sharp convex corners of the model (round joins would round them).

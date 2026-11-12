@@ -40,6 +40,17 @@ describe("sphere modes", () => {
     }
   });
 
+  it("oversize and undersize keep their guarantees at the default simplifyTol", async () => {
+    const t = 4;
+    const over = await slice(uvSphere(), { thickness: t, mode: "oversize" });
+    const under = await slice(uvSphere(), { thickness: t, mode: "undersize", minPartArea: 0 });
+    for (let i = 0; i < over.layers.length; i++) {
+      const { max, min } = await sectionRange(i, t);
+      expect(layerArea(over, i)).toBeGreaterThanOrEqual(max - 0.02);
+      expect(layerArea(under, i)).toBeLessThanOrEqual(min + 0.02);
+    }
+  });
+
   it("default simplification keeps oversize within 1% of the unsimplified area", async () => {
     const a = await slice(uvSphere(), { thickness: 4, simplifyTol: 0.001 });
     const b = await slice(uvSphere(), { thickness: 4 });
