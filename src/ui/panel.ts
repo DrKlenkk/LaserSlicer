@@ -214,7 +214,7 @@ export function createPanel(root: HTMLElement, store: Store, actions: PanelActio
     syncers.push((s) => (cb.checked = s.formats.includes(f)));
     return h("label", { class: "chip" }, cb, f.toUpperCase());
   });
-  const summary = h("div", { class: "summary", id: "summary" }, "Slicing starts in a later milestone");
+  const summary = h("div", { class: "summary", id: "summary" }, "Load a model to slice it.");
   const exportGroup = group(
     "Export",
     false,
@@ -257,6 +257,9 @@ export function createPanel(root: HTMLElement, store: Store, actions: PanelActio
     },
     setFileInfo(text: string) {
       fileInfo.textContent = text;
+    },
+    setSummary(text: string) {
+      summary.textContent = text;
     },
   };
 }

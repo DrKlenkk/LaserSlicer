@@ -1,9 +1,10 @@
 // Bootstrap: wires store <-> worker <-> UI.
 import "./style.css";
 import { Store } from "./state";
-import { WorkerClient } from "./worker/client";
+import { WorkerClient, StaleJobError } from "./worker/client";
 import { createPanel, type OrientInfo } from "./ui/panel";
 import { Viewport3D } from "./ui/viewport3d";
+import { LayerView2D } from "./ui/layerView2d";
 import { orientMesh, type Oriented } from "./core/transform";
 import { load3mfToSoup } from "./ui/load3mf";
 import { h } from "./ui/dom";
@@ -15,7 +16,7 @@ const app = document.getElementById("app")!;
 // ---------- layout ----------
 const panelEl = h("aside", { class: "panel", id: "panel" });
 const viewEl = h("div", { class: "view-3d", id: "view-3d" });
-const layerEl = h("div", { class: "placeholder", id: "view-layer", hidden: true }, h("p", {}, "Layer view: 2D outline of one layer with a slider."), h("small", {}, "Coming in milestone M2."));
+const layerEl = h("div", { id: "view-layer", hidden: true });
 const sheetsEl = h("div", { class: "placeholder", id: "view-sheets", hidden: true }, h("p", {}, "Sheets view: nested parts as they will be cut."), h("small", {}, "Coming in milestone M5."));
 const fitBtn = h("button", { type: "button", class: "btn small floating", id: "fit-btn", title: "Frame the model" }, "Fit view");
 const tabs: { id: Tab; label: string; el: HTMLElement }[] = [
@@ -31,7 +32,10 @@ const tabButtons = tabs.map((t) => {
 });
 const statusMsg = h("span", { class: "msg", id: "status-msg" }, "Starting…");
 const workerBadge = h("span", { class: "badge", id: "worker-status" }, "Worker: starting…");
-const statusBar = h("footer", { class: "statusbar" }, statusMsg, workerBadge);
+const progressBar = h("div", { class: "progress", id: "progress", hidden: true }, h("div", { class: "progress-fill", id: "progress-fill" }));
+const progressText = h("span", { class: "progress-text", id: "progress-text", hidden: true });
+const runSummary = h("span", { class: "run-summary", id: "run-summary" });
+const statusBar = h("footer", { class: "statusbar" }, progressBar, statusMsg, progressText, runSummary, workerBadge);
 const dropOverlay = h("div", { class: "drop-overlay", hidden: true }, "Drop model to load");
 
 app.append(
@@ -59,6 +63,7 @@ worker.ping().then(
 // ---------- UI parts ----------
 const viewport = new Viewport3D(viewEl);
 fitBtn.addEventListener("click", () => viewport.fit());
+const layerView = new LayerView2D(layerEl, (i) => store.set({ layer: i }));
 
 async function openFile(file: File) {
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
@@ -78,6 +83,8 @@ async function openFile(file: File) {
     const r = await worker.load(buffer, kind);
     store.set({
       model: { fileName: file.name, mesh: { positions: r.positions, indices: r.indices, bbox: r.bbox }, stats: r.stats },
+      result: null,
+      layer: 0,
     });
     lastFitModel = null; // fit camera for the new model
     const s = r.stats;
@@ -134,6 +141,8 @@ function refresh() {
   });
   fitBtn.hidden = tab !== "3d";
   if (tab === "3d") viewport.activate();
+  if (tab === "layer") layerView.activate();
+  layerView.setLayer(store.get().layer);
 
   // status
   statusMsg.textContent = status.text;
@@ -161,6 +170,67 @@ function refresh() {
     panel.setFileInfo(`${model.fileName} · ${model.stats.triangles.toLocaleString()} triangles`);
   }
 }
+
+// ---------- slicing runs: debounced, newest wins ----------
+const DEBOUNCE_MS = 300;
+let runTimer: ReturnType<typeof setTimeout> | undefined;
+let runSeq = 0;
+let resetLayerView = true;
+
+function showProgress(stage: string | null, fraction = 0) {
+  progressBar.hidden = progressText.hidden = stage === null;
+  if (stage === null) return;
+  (progressBar.firstElementChild as HTMLElement).style.width = `${Math.round(fraction * 100)}%`;
+  progressText.textContent = `${stage} ${Math.round(fraction * 100)}%`;
+}
+
+function scheduleRun(immediate: boolean) {
+  clearTimeout(runTimer);
+  if (!store.get().model) return;
+  runTimer = setTimeout(() => void startRun(), immediate ? 0 : DEBOUNCE_MS);
+}
+
+async function startRun() {
+  const { model, settings } = store.get();
+  if (!model) return;
+  const seq = ++runSeq;
+  showProgress("Starting", 0);
+  try {
+    const r = await worker.run(settings, (stage, f) => {
+      if (seq === runSeq) showProgress(stage, f);
+    });
+    if (seq !== runSeq) return;
+    const result = { layers: r.layers, parts: r.parts, placements: r.placements, sheets: r.sheets, warnings: r.warnings, info: r.info };
+    showProgress(null);
+    const layer = Math.min(store.get().layer, result.layers.length - 1);
+    store.set({ result, layer });
+    layerView.setResult(result, resetLayerView);
+    resetLayerView = false;
+  } catch (e) {
+    if (e instanceof StaleJobError || seq !== runSeq) return;
+    showProgress(null);
+    store.setStatus(`Slicing failed: ${e instanceof Error ? e.message : String(e)}`, "error");
+  }
+}
+
+let lastRunModel: object | null = null;
+store.subscribe((state, changed) => {
+  if (changed.has("model") && state.model !== lastRunModel) {
+    lastRunModel = state.model;
+    resetLayerView = true;
+    layerView.setResult(null, true);
+    runSummary.textContent = "";
+    scheduleRun(true);
+  } else if (changed.has("settings")) {
+    scheduleRun(false);
+  }
+  if (changed.has("result")) {
+    const r = state.result;
+    const text = r ? `${r.info.layerCount} layers · ${r.parts.length} parts` : "";
+    runSummary.textContent = text;
+    panel.setSummary(r ? text : "Load a model to slice it.");
+  }
+});
 
 store.subscribe(refresh);
 refresh();

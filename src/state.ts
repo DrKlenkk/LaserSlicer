@@ -1,5 +1,6 @@
 // Small observable store: settings (persisted) + model data (not persisted).
 import type { Mesh, MeshStats, Settings } from "./core/types";
+import type { RunResult } from "./core/pipeline";
 
 export const DEFAULT_SETTINGS: Settings = {
   axis: "+Z",
@@ -45,6 +46,10 @@ export type Tab = "3d" | "layer" | "sheets";
 export type AppState = {
   settings: Settings;
   model: Model | null;
+  /** latest slicing result for the current model and settings (not persisted) */
+  result: RunResult | null;
+  /** layer selected in the Layer tab */
+  layer: number;
   tab: Tab;
   /** transient status text and level for the status bar */
   status: { text: string; level: "info" | "warn" | "error" };
@@ -80,6 +85,8 @@ export class Store {
   private state: AppState = {
     settings: loadSettings(),
     model: null,
+    result: null,
+    layer: 0,
     tab: "3d",
     status: { text: "Starting…", level: "info" },
   };
