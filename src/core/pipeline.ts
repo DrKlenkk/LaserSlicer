@@ -10,6 +10,7 @@ import { orientMesh } from "./transform";
 import { combineSamples, cleanupLayer, partIds, planLayers, roundHeightFactor, type LayerPlan } from "./layers";
 import { nudgeHeight, prepareMesh, slicePlanes, type PreparedMesh } from "./slice";
 import { unionEvenOdd } from "./poly";
+import { hollowLayers } from "./hollow";
 import { addRegistration } from "./registration";
 import { applyKerf } from "./kerf";
 import { nestParts, type NestResult } from "./nest";
@@ -58,11 +59,12 @@ export class Pipeline {
   private cSlice: Cached<SliceStage> | null = null;
   private cModes: Cached<Shape[][]> | null = null;
   private cClean: Cached<{ layers: Layer[]; parts: Part[]; warnings: Warning[] }> | null = null;
+  private cHollow: Cached<{ layers: Layer[]; parts: Part[]; warnings: Warning[] }> | null = null;
   private cReg: Cached<{ parts: Part[]; warnings: Warning[] }> | null = null;
   private cKerf: Cached<{ parts: Part[]; warnings: Warning[] }> | null = null;
   private cNest: Cached<NestResult> | null = null;
   /** counters for tests: how many times each stage actually ran */
-  readonly runs = { orient: 0, slice: 0, modes: 0, cleanup: 0, registration: 0, kerf: 0, nest: 0 };
+  readonly runs = { orient: 0, slice: 0, modes: 0, cleanup: 0, hollow: 0, registration: 0, kerf: 0, nest: 0 };
   /** the most recent completed run and the settings it used (for export) */
   last: { result: RunResult; settings: Settings } | null = null;
 
@@ -151,10 +153,19 @@ export class Pipeline {
     const clean = this.cClean.value;
     if (await checkpoint()) return null;
 
-    // ---- stage 5: registration aids (next-layer engraving, labels); before kerf, so a kerf change keeps it ----
-    const regKey = JSON.stringify([cleanKey, s.engraveNextOutline, s.labels, s.labelHeight]);
+    // ---- stage 4b: hollowing (re-detects islands); a no-op that costs nothing when it is switched off ----
+    const hollowKey = JSON.stringify([cleanKey, s.hollowEnabled, s.hollowEnabled ? [s.hollowWall, s.solidCapLayers, s.minPartArea] : null]);
+    if (this.cHollow?.key !== hollowKey) {
+      this.cHollow = { key: hollowKey, value: hollowLayers(clean.layers, clean.parts, s) };
+      this.runs.hollow++;
+    }
+    const hollow = this.cHollow.value;
+    if (await checkpoint()) return null;
+
+    // ---- stage 5: registration aids (next-layer engraving, labels, dowel holes); before kerf, so a kerf change keeps it ----
+    const regKey = JSON.stringify([hollowKey, s.hollowEnabled, s.engraveNextOutline, s.labels, s.labelHeight, s.dowels, s.dowels ? [s.dowelDiameter, s.dowelCount] : null]);
     if (this.cReg?.key !== regKey) {
-      this.cReg = { key: regKey, value: addRegistration(clean.layers, clean.parts, s) };
+      this.cReg = { key: regKey, value: addRegistration(hollow.layers, hollow.parts, s) };
       this.runs.registration++;
     }
     const registered = this.cReg.value;
@@ -177,9 +188,9 @@ export class Pipeline {
     const nested = this.cNest.value;
     hooks.progress?.("Done", 1);
 
-    const warnings: Warning[] = [...this.meshWarnings(), ...sliced.warnings, ...clean.warnings, ...registered.warnings, ...kerfed.warnings, ...nested.warnings];
+    const warnings: Warning[] = [...this.meshWarnings(), ...sliced.warnings, ...clean.warnings, ...hollow.warnings, ...registered.warnings, ...kerfed.warnings, ...nested.warnings];
     const result: RunResult = {
-      layers: clean.layers,
+      layers: hollow.layers,
       parts: kerfed.parts,
       placements: nested.placements,
       sheets: nested.sheets,

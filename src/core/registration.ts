@@ -3,7 +3,7 @@
 // kerf never re-runs it (kerf only grows the cut outline outwards, so everything placed inside stays inside).
 import type { Layer, Part, Ring, Settings, Shape, Vec2, Warning } from "./types";
 import polylabel from "polylabel";
-import { difference, intersect, shapeArea, shapesArea } from "./poly";
+import { difference, intersect, offset, pointInShape, shapeArea, shapesArea } from "./poly";
 import { textToPolylines, textWidth } from "./font/hershey";
 
 /** Smallest label cap height (mm) before we give up on the joint area and fall back to the whole part. */
@@ -80,21 +80,167 @@ function placeText(text: string, height: number, rotate: boolean, c: Vec2): Vec2
   );
 }
 
+// ---------- dowel holes (plan section 9, third bullet) ----------
+
+/** Extra distance (mm) between a dowel hole and any outline, besides its radius. */
+const DOWEL_EDGE = 3;
+/** Upper bound on grid candidates per run (the 1 mm grid coarsens for very large cores). */
+const MAX_CANDIDATES = 40000;
+
+export type DowelRun = { first: number; last: number; points: Vec2[] };
+
+/** Grid points (multiples of `step` mm) inside the shapes, by scanline (even-odd over all rings of the core). */
+function gridPointsIn(shapes: Shape[]): Vec2[] {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const sh of shapes)
+    for (const [x, y] of sh.outer) {
+      minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+    }
+  if (!(minX <= maxX)) return [];
+  let step = 1;
+  const cells = ((maxX - minX) / step + 1) * ((maxY - minY) / step + 1);
+  if (cells > MAX_CANDIDATES) step = Math.ceil(Math.sqrt(cells / MAX_CANDIDATES));
+  const rings: Ring[] = shapes.flatMap((sh) => [sh.outer, ...sh.holes]);
+  const pts: Vec2[] = [];
+  for (let y = Math.ceil(minY / step) * step; y <= maxY; y += step) {
+    const xs: number[] = [];
+    for (const r of rings)
+      for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+        const [xi, yi] = r[i], [xj, yj] = r[j];
+        if (yi > y !== yj > y) xs.push(((xj - xi) * (y - yi)) / (yj - yi) + xi);
+      }
+    xs.sort((a, b) => a - b);
+    for (let k = 0; k + 1 < xs.length; k += 2)
+      for (let x = Math.ceil(xs[k] / step) * step; x <= xs[k + 1]; x += step) pts.push([x, y]);
+  }
+  return pts;
+}
+
 /**
- * Fills `engrave` and `label` of every part. `layers[i].shapes` are the cleaned (uncompensated) outlines that
+ * Picks `count` points in a core as far apart as possible: the first is the candidate farthest from the centroid,
+ * every further one the candidate farthest from all points chosen so far (farthest-point sampling).
+ */
+export function pickDowelPoints(core: Shape[], count: number): Vec2[] {
+  const cand = gridPointsIn(core);
+  if (cand.length === 0) {
+    const pole = bestPole(core); // tiny core without a grid point: its most interior point
+    return pole ? [pole.c] : [];
+  }
+  let cx = 0, cy = 0;
+  for (const [x, y] of cand) { cx += x; cy += y; }
+  cx /= cand.length; cy /= cand.length;
+  const dist = new Float64Array(cand.length); // squared distance to the nearest chosen point
+  const chosen: Vec2[] = [];
+  let ref: Vec2 = [cx, cy];
+  for (let k = 0; k < count && k < cand.length; k++) {
+    let best = -1, bd = -1;
+    for (let i = 0; i < cand.length; i++) {
+      const d = k === 0 ? (cand[i][0] - ref[0]) ** 2 + (cand[i][1] - ref[1]) ** 2 : dist[i];
+      if (d > bd) { bd = d; best = i; }
+    }
+    ref = cand[best];
+    chosen.push(ref);
+    for (let i = 0; i < cand.length; i++) {
+      const d = (cand[i][0] - ref[0]) ** 2 + (cand[i][1] - ref[1]) ** 2;
+      dist[i] = k === 0 ? d : Math.min(dist[i], d);
+    }
+    if (bd <= 0 && k > 0) { chosen.pop(); break; }
+  }
+  return chosen;
+}
+
+/**
+ * Runs of consecutive layers that share a core: the intersection over the run of every layer's shapes shrunk by
+ * `dowelDiameter / 2 + 3 mm` (so a dowel centred anywhere in the core stays 3 mm clear of every outline and cavity).
+ * Greedy: a run grows while the core stays non-empty. Runs of one layer get no holes (nothing to join) and a warning.
+ */
+export function planDowels(layers: Layer[], s: Settings): { runs: DowelRun[]; warnings: Warning[] } {
+  const warnings: Warning[] = [];
+  const runs: DowelRun[] = [];
+  const reach = s.dowelDiameter / 2 + DOWEL_EDGE;
+  const shrunk = layers.map((l) => offset(l.shapes, -reach, "miter", 2));
+  const tooSmall: number[] = [];
+  const area = (sh: Shape[]) => shapesArea(sh);
+  for (let i = 0; i < layers.length; ) {
+    if (area(shrunk[i]) < 1e-3) {
+      if (layers[i].shapes.length) tooSmall.push(i);
+      i++;
+      continue;
+    }
+    let core = shrunk[i];
+    let j = i;
+    while (j + 1 < layers.length) {
+      const c = intersect(core, shrunk[j + 1]);
+      if (area(c) < 1e-3) break;
+      core = c;
+      j++;
+    }
+    if (j === i) {
+      warnings.push({ level: "warn", layer: i, message: `Dowel run at layer ${i} is shorter than 2 layers (the next layer shares no room for a ${s.dowelDiameter} mm dowel); no dowel holes there` });
+    } else {
+      const points = pickDowelPoints(core, s.dowelCount);
+      if (points.length < s.dowelCount)
+        warnings.push({ level: "info", layer: i, message: `Layers ${i} to ${j}: room for only ${points.length} of ${s.dowelCount} dowels` });
+      runs.push({ first: i, last: j, points });
+    }
+    i = j + 1;
+  }
+  if (tooSmall.length)
+    warnings.push({ level: "info", layer: tooSmall[0], message: `Too small for dowel holes: layer${tooSmall.length > 1 ? "s" : ""} ${compact(tooSmall)}` });
+  if (runs.length === 0 && layers.some((l) => l.shapes.length))
+    warnings.push({ level: "warn", message: "Dowels are on, but no stretch of two or more layers has room for a dowel hole" });
+  return { runs, warnings };
+}
+
+function compact(ix: number[]): string {
+  const out: string[] = [];
+  for (let k = 0; k < ix.length; ) {
+    let e = k;
+    while (e + 1 < ix.length && ix[e + 1] === ix[e] + 1) e++;
+    out.push(e > k ? `${ix[k]}-${ix[e]}` : String(ix[k]));
+    k = e + 1;
+  }
+  return out.join(", ");
+}
+
+/** Circle as a polygon, used to keep other features clear of a hole. */
+function circleShape(c: Vec2, r: number, n = 32): Shape {
+  const outer: Ring = [];
+  for (let i = 0; i < n; i++) outer.push([c[0] + r * Math.cos((2 * Math.PI * i) / n), c[1] + r * Math.sin((2 * Math.PI * i) / n)]);
+  return { outer, holes: [] };
+}
+
+/** Free space (mm) kept between a dowel hole and a label. */
+const LABEL_HOLE_CLEARANCE = 1;
+
+/**
+ * Fills `engrave`, `label` and dowel `holes` of every part. `layers[i].shapes` are the cleaned (uncompensated) outlines that
  * `parts` were made from. Returns new parts (inputs are not mutated).
  */
 export function addRegistration(layers: Layer[], parts: Part[], s: Settings): { parts: Part[]; warnings: Warning[] } {
   const warnings: Warning[] = [];
   const out: Part[] = [];
-  for (const p of parts) {
+  const dowels = s.dowels ? planDowels(layers, s) : null;
+  if (dowels) warnings.push(...dowels.warnings);
+  // With hollowing the cavity edges are not interesting as engrave lines (they are cut anyway), so only outer rings count.
+  const solid = (sh: Shape[]): Shape[] => (s.hollowEnabled ? sh.map((x) => ({ outer: x.outer, holes: [] })) : sh);
+  for (const p0 of parts) {
+    const holes: Part["holes"] = [];
+    for (const run of dowels?.runs ?? [])
+      if (p0.layer >= run.first && p0.layer <= run.last)
+        for (const c of run.points) if (pointInShape(c, p0.cut)) holes.push({ c, d: s.dowelDiameter });
+    const p = { ...p0, holes };
+    const avoid: Shape[] = holes.map((hl) => circleShape(hl.c, hl.d / 2 + LABEL_HOLE_CLEARANCE));
+    const clearOfHoles = (region: Shape[]) => (avoid.length ? difference(region, avoid) : region);
     const next = layers[p.layer + 1]?.shapes ?? [];
-    const joint = next.length ? intersect([p.cut], next) : [];
+    const jointFull = next.length ? intersect([p.cut], next) : [];
+    const joint = clearOfHoles(jointFull);
     let engrave: Vec2[][] = [];
-    if (s.engraveNextOutline && joint.length) {
+    if (s.engraveNextOutline && jointFull.length) {
       // When the next layer covers the whole part (the stack grows upwards) the joint outline is the part's own
       // edge: engraving it would only retrace the cut line, so the part gets no engrave line (see DECISIONS.md).
-      if (shapesArea(joint) < shapeArea(p.cut) * 0.999) engrave = ringsOf(joint);
+      const j = solid(jointFull);
+      if (shapesArea(j) < shapeArea(solid([p.cut])[0]) * 0.999) engrave = ringsOf(j);
     }
     let label: Vec2[][] = [];
     if (s.labels) {
@@ -108,9 +254,10 @@ export function addRegistration(layers: Layer[], parts: Part[], s: Settings): { 
       }
       if (!fit) {
         // Top layer, or the joint area is too small / empty: anywhere inside the part.
-        const own = bestPole([p.cut]);
+        const ownRegion = clearOfHoles([p.cut]);
+        const own = bestPole(ownRegion);
         if (own) {
-          const f = fitText(text, own, [p.cut], start);
+          const f = fitText(text, own, ownRegion, start);
           if (f) fit = { pole: own, fit: f };
           else {
             // Not even 3 mm fits: shrink to what the inscribed circle allows, or skip when it is unreadable.
@@ -129,7 +276,7 @@ export function addRegistration(layers: Layer[], parts: Part[], s: Settings): { 
       }
       if (fit) label = placeText(text, fit.fit.height, fit.fit.rotate, fit.pole.c);
     }
-    out.push({ ...p, engrave, label });
+    out.push({ ...p, engrave, label, holes });
   }
   return { parts: out, warnings };
 }

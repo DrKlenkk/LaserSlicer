@@ -219,6 +219,19 @@ export class LayerView2D {
         for (const line of p.label)
           line.forEach(([x, y], i) => (i ? ctx.lineTo(v.ox + x * v.scale, v.oy - y * v.scale) : ctx.moveTo(v.ox + x * v.scale, v.oy - y * v.scale)));
     ctx.stroke();
+
+    // Dowel holes (cut circles, kerf-compensated size) of this layer's parts.
+    ctx.strokeStyle = cut;
+    ctx.lineWidth = 1.75;
+    ctx.beginPath();
+    for (const p of r.parts)
+      if (p.layer === this.layer)
+        for (const c of p.holes) {
+          const rad = (c.d / 2) * v.scale;
+          ctx.moveTo(v.ox + c.c[0] * v.scale + rad, v.oy - c.c[1] * v.scale);
+          ctx.arc(v.ox + c.c[0] * v.scale, v.oy - c.c[1] * v.scale, rad, 0, Math.PI * 2);
+        }
+    ctx.stroke();
   }
 
   /** Light 10 mm / 50 mm grid so zoom level is readable. */

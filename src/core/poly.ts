@@ -271,6 +271,17 @@ export function simplify(shapes: Shape[], tol: number, bias: SimplifyBias = "non
   return union(out);
 }
 
+/** True when the point is inside the shape (outer minus holes); boundary points are arbitrary. */
+export function pointInShape(pt: Vec2, s: Shape): boolean {
+  if (!pointInRing(pt, s.outer)) return false;
+  for (const h of s.holes) if (pointInRing(pt, h)) return false;
+  return true;
+}
+
+export function pointInShapes(pt: Vec2, shapes: Shape[]): boolean {
+  return shapes.some((s) => pointInShape(pt, s));
+}
+
 /** Bounding box of a set of shapes, or null if empty. */
 export function shapesBounds(shapes: Shape[]): { minX: number; minY: number; maxX: number; maxY: number } | null {
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;

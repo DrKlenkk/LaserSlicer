@@ -192,3 +192,26 @@ Sheets tab colours are close to, not identical to, the ACI colours (readable on 
 - PNG and JPG are stored (not deflated) inside the ZIP. A 600 x 400 sheet at 1000 DPI is refused (23622 px wide), as the plan intends.
 - The export runs asynchronously in the worker now (`exportJob`); errors, including the size refusal, come back as the normal
   `error` message and appear under the Download button.
+
+## Hollowing and dowels (M8)
+- **Stages.** `core/hollow.ts` is a cached stage between cleanup and registration (key: cleanup key + wall, cap layers,
+  minPartArea; switched off it is a pass-through that does no geometry). It rebuilds the parts of hollowed layers (shapes sorted by
+  area, ids re-assigned with `partIds`). `RunResult.layers` are the hollowed layers (the plan's "after hollowing"), so the Layer tab,
+  next-layer outline and the 3D stack show the cavities. Dowels live in `registration.ts` and are part of the registration stage
+  (key includes `dowels`, diameter, count), computed on the hollowed layers.
+- **Cavity closed to the outside.** A cavity is always fully enclosed (a hole in the part, 15 mm from the edge by default), so
+  the hollow model is sealed; there is no vent hole. The cap layers are solid by `solidCapLayers` (both ends), and a layer without a
+  neighbour is never hollowed even with `solidCapLayers = 0`.
+- **Engrave with hollowing.** When hollowing is on only the outer rings of `part ∩ next layer` are engraved (the cavity edges
+  would only trace lines that are cut or hidden anyway). With hollowing off, hole rings (e.g. a torus) are engraved as before.
+  Labels use the full joint region, so with hollowing a label sits in the wall ring.
+- **Dowel runs.** Per layer the shapes are shrunk by `dowelDiameter/2 + 3 mm`; a run grows greedily while the intersection stays
+  non-empty (area above 0.001 mm²). A run of **one layer gets no holes** (a hole in a single layer joins nothing) and a warning
+  "shorter than 2 layers"; layers too small for any dowel are listed in one info warning. With hollowing, the core is computed after
+  hollowing, so dowels land in the wall ring and only where consecutive wall rings overlap (on a sphere that is usually a short band
+  of the ring, so expect few or no dowels on strongly curved hollow models).
+- **Point choice.** Candidates are the 1 mm grid points (multiples of 1 mm in model coordinates) inside the core, found by scanline.
+  Cores larger than 40 000 grid cells coarsen the grid to whole-mm multiples to stay fast. First point: farthest candidate from
+  the mean of the candidates (the centroid); then farthest-point sampling. A core without any grid point (tiny) uses its polylabel point.
+- **Labels avoid dowel holes**: the label region is the joint minus circles of radius `d/2 + 1 mm` around the part's holes. Engrave
+  lines are not routed around holes (they may cross them).
