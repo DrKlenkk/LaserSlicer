@@ -2,6 +2,8 @@
 import type { Axis, Dim, Settings } from "../core/types";
 import { parseProject, serializeProject, type Store } from "../state";
 import { h } from "./dom";
+import type { HelpKey } from "./helpText";
+import { infoIcon } from "./tooltip";
 import { createExportSection, downloadBytes } from "./exportDialog";
 
 export type OrientInfo = { size: [number, number, number]; scale: number };
@@ -25,7 +27,7 @@ export function createPanel(root: HTMLElement, store: Store, actions: PanelActio
   const infoSyncers: (() => void)[] = [];
 
   // ---------- field helpers ----------
-  function numField(label: string, key: NumKey, opts: { step?: number; min?: number; unit?: string; hint?: string } = {}) {
+  function numField(label: string, key: NumKey, opts: { step?: number; min?: number; unit?: string; hint?: string; help?: HelpKey } = {}) {
     const input = h("input", { type: "number", step: opts.step ?? "any", min: opts.min, id: `f-${key}` });
     input.addEventListener("change", () => {
       const v = parseFloat(input.value);
@@ -35,24 +37,24 @@ export function createPanel(root: HTMLElement, store: Store, actions: PanelActio
     syncers.push((s) => {
       if (document.activeElement !== input) input.value = String(s[key]);
     });
-    return h("label", { class: "field" }, h("span", { class: "lbl" }, label), h("span", { class: "ctl" }, input, opts.unit ? h("span", { class: "unit" }, opts.unit) : null), opts.hint ? h("small", { class: "hint" }, opts.hint) : null);
+    return h("label", { class: "field" }, h("span", { class: "lbl" }, label, opts.help ? infoIcon(opts.help) : null), h("span", { class: "ctl" }, input, opts.unit ? h("span", { class: "unit" }, opts.unit) : null), opts.hint ? h("small", { class: "hint" }, opts.hint) : null);
   }
 
-  function boolField(label: string, key: BoolKey, hint?: string) {
+  function boolField(label: string, key: BoolKey, help?: HelpKey, hint?: string) {
     const input = h("input", { type: "checkbox", id: `f-${key}` });
     input.addEventListener("change", () => store.updateSettings({ [key]: input.checked } as Partial<Settings>));
     syncers.push((s) => (input.checked = s[key]));
-    return h("label", { class: "field check" }, input, h("span", { class: "lbl" }, label), hint ? h("small", { class: "hint" }, hint) : null);
+    return h("label", { class: "field check" }, input, h("span", { class: "lbl" }, label, help ? infoIcon(help) : null), hint ? h("small", { class: "hint" }, hint) : null);
   }
 
-  function selectField<K extends "mode" | "dpi" | "rasterStyle">(label: string, key: K, options: [string, string][]) {
+  function selectField<K extends "mode" | "dpi" | "rasterStyle">(label: string, key: K, options: [string, string][], help?: HelpKey) {
     const sel = h("select", { id: `f-${key}` }, ...options.map(([v, t]) => h("option", { value: v }, t)));
     sel.addEventListener("change", () => {
       const raw = sel.value;
       store.updateSettings({ [key]: key === "dpi" ? Number(raw) : raw } as Partial<Settings>);
     });
     syncers.push((s) => (sel.value = String(s[key])));
-    return h("label", { class: "field" }, h("span", { class: "lbl" }, label), h("span", { class: "ctl" }, sel));
+    return h("label", { class: "field" }, h("span", { class: "lbl" }, label, help ? infoIcon(help) : null), h("span", { class: "ctl" }, sel));
   }
 
   function group(title: string, open: boolean, ...body: (Node | null)[]) {
@@ -152,12 +154,12 @@ export function createPanel(root: HTMLElement, store: Store, actions: PanelActio
     fileInfo,
     h("div", { class: "row-label" }, "Size (mm)"),
     sizeReadout,
-    h("label", { class: "field" }, h("span", { class: "lbl" }, "Scale"), h("span", { class: "ctl" }, scaleInput, h("span", { class: "unit" }, "%"))),
-    h("label", { class: "field" }, h("span", { class: "lbl" }, "Target size along one axis"), h("span", { class: "ctl" }, dimSelect, targetInput, h("span", { class: "unit" }, "mm"))),
+    h("label", { class: "field" }, h("span", { class: "lbl" }, "Scale", infoIcon("scale")), h("span", { class: "ctl" }, scaleInput, h("span", { class: "unit" }, "%"))),
+    h("label", { class: "field" }, h("span", { class: "lbl" }, "Target size along one axis", infoIcon("targetSize")), h("span", { class: "ctl" }, dimSelect, targetInput, h("span", { class: "unit" }, "mm"))),
     h("div", { class: "rotrow" }, resetScale, h("small", { class: "hint" }, "Proportions stay locked. STL has no units; mm assumed.")),
-    h("div", { class: "row-label" }, "Slicing axis (points up)"),
+    h("div", { class: "row-label" }, "Slicing axis (points up)", infoIcon("axis")),
     axisRow,
-    h("div", { class: "row-label" }, "Rotate"),
+    h("div", { class: "row-label" }, "Rotate", infoIcon("rotate")),
     rotRow,
     rotInfo,
   );
@@ -166,10 +168,10 @@ export function createPanel(root: HTMLElement, store: Store, actions: PanelActio
   const materialGroup = group(
     "Material",
     true,
-    numField("Thickness", "thickness", { step: 0.05, min: 0.1, unit: "mm", hint: "Measure with calipers; nominal 4 mm is often 3.7–3.9 mm." }),
-    h("div", { class: "grid2" }, numField("Sheet W", "sheetW", { min: 10, unit: "mm" }), numField("Sheet H", "sheetH", { min: 10, unit: "mm" })),
-    numField("Kerf", "kerf", { step: 0.01, min: 0, unit: "mm" }),
-    h("div", { class: "grid2" }, numField("Part spacing", "partSpacing", { min: 0, unit: "mm" }), numField("Sheet margin", "sheetMargin", { min: 0, unit: "mm" })),
+    numField("Thickness", "thickness", { step: 0.05, min: 0.1, unit: "mm", hint: "Measure with calipers; nominal 4 mm is often 3.7–3.9 mm.", help: "thickness" }),
+    h("div", { class: "grid2" }, numField("Sheet W", "sheetW", { min: 10, unit: "mm", help: "sheetSize" }), numField("Sheet H", "sheetH", { min: 10, unit: "mm" })),
+    numField("Kerf", "kerf", { step: 0.01, min: 0, unit: "mm", help: "kerf" }),
+    h("div", { class: "grid2" }, numField("Part spacing", "partSpacing", { min: 0, unit: "mm", help: "partSpacing" }), numField("Sheet margin", "sheetMargin", { min: 0, unit: "mm", help: "sheetMargin" })),
   );
   const slicingGroup = group(
     "Slicing",
@@ -178,31 +180,31 @@ export function createPanel(root: HTMLElement, store: Store, actions: PanelActio
       ["oversize", "Oversize (sand down)"],
       ["midplane", "Mid-plane"],
       ["undersize", "Undersize"],
-    ]),
+    ], "mode"),
     h("small", { class: "hint" }, "Oversize: covers the model in each layer. Mid-plane: closest on average. Undersize: never sticks out."),
-    numField("Samples per layer", "samplesPerLayer", { step: 1, min: 1 }),
-    boolField("Round height to whole layers", "roundHeightToLayers"),
-    numField("Simplify tolerance", "simplifyTol", { step: 0.01, min: 0, unit: "mm" }),
-    numField("Min part area", "minPartArea", { min: 0, unit: "mm²" }),
-    numField("Min feature (0 = off)", "minFeature", { min: 0, unit: "mm" }),
+    numField("Samples per layer", "samplesPerLayer", { step: 1, min: 1, help: "samplesPerLayer" }),
+    boolField("Round height to whole layers", "roundHeightToLayers", "roundHeightToLayers"),
+    numField("Simplify tolerance", "simplifyTol", { step: 0.01, min: 0, unit: "mm", help: "simplifyTol" }),
+    numField("Min part area", "minPartArea", { min: 0, unit: "mm²", help: "minPartArea" }),
+    numField("Min feature (0 = off)", "minFeature", { min: 0, unit: "mm", help: "minFeature" }),
   );
   const hollowGroup = group(
     "Hollowing",
     false,
-    boolField("Hollow inner layers", "hollowEnabled"),
-    numField("Wall", "hollowWall", { min: 0, unit: "mm" }),
-    numField("Solid cap layers", "solidCapLayers", { step: 1, min: 0 }),
+    boolField("Hollow inner layers", "hollowEnabled", "hollowEnabled"),
+    numField("Wall", "hollowWall", { min: 0, unit: "mm", help: "hollowWall" }),
+    numField("Solid cap layers", "solidCapLayers", { step: 1, min: 0, help: "solidCapLayers" }),
   );
   const gluingGroup = group(
     "Gluing aids",
     false,
-    boolField("Engrave next-layer outline", "engraveNextOutline"),
-    boolField("Layer labels", "labels"),
-    numField("Label height", "labelHeight", { min: 3, unit: "mm", hint: "Shrinks to fit (down to 3 mm); placed where the next layer will cover it." }),
+    boolField("Engrave next-layer outline", "engraveNextOutline", "engraveNextOutline"),
+    boolField("Layer labels", "labels", "labels"),
+    numField("Label height", "labelHeight", { min: 3, unit: "mm", hint: "Shrinks to fit (down to 3 mm); placed where the next layer will cover it.", help: "labelHeight" }),
     h("small", { class: "hint", id: "stack-note" }, "Cut face-up, stack bottom-up without flipping, align each part to the engraved line."),
-    boolField("Dowel holes", "dowels"),
-    numField("Dowel diameter", "dowelDiameter", { min: 1, unit: "mm" }),
-    numField("Dowel count", "dowelCount", { step: 1, min: 1 }),
+    boolField("Dowel holes", "dowels", "dowels"),
+    numField("Dowel diameter", "dowelDiameter", { min: 1, unit: "mm", help: "dowelDiameter" }),
+    numField("Dowel count", "dowelCount", { step: 1, min: 1, help: "dowelCount" }),
   );
 
   const exportSection = createExportSection(store, actions.exportZip);

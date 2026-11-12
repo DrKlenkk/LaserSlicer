@@ -215,3 +215,26 @@ button.warn-item:hover { background: var(--accent-soft); }
 .help-keys kbd { font: 12px ui-monospace, Menlo, Consolas, monospace; padding: 1px 6px; border: 1px solid var(--border); border-radius: 4px; background: var(--panel); white-space: nowrap; }
 .tabs .spacer { flex: 1; }
 .tabs button.help-btn { padding: 4px 10px; margin: 0 0 4px; border: 1px solid var(--border); border-radius: 999px; font-weight: 600; }
+
+/* info icon + tooltip (ui/tooltip.ts) */
+.tip { display: inline-flex; vertical-align: middle; margin-left: 5px; }
+.tip-icon {
+  width: 15px; height: 15px; padding: 0; border-radius: 50%; border: 1px solid var(--muted); background: transparent;
+  color: var(--muted); font: 600 10px/1 var(--font); cursor: help; display: inline-grid; place-items: center;
+}
+.tip-icon:hover, .tip-icon:focus-visible { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.tip-bubble {
+  position: fixed; z-index: 100; box-sizing: border-box; max-width: 320px; padding: 9px 11px; border-radius: 8px;
+  background: var(--surface); color: var(--text); border: 1px solid var(--accent); font: 12.5px/1.45 var(--font);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3); pointer-events: none; text-align: left; font-weight: 400;
+}
+.tip-bubble[hidden] { display: none; }
+.view-toggle { align-items: center; }
+.view-toggle .tip { margin-left: 8px; }
+.view-toggle .tip-icon { background: var(--panel); }
+.view-toggle .tip-icon {
+  width: 15px; height: 15px; padding: 0; border: 1px solid var(--muted); border-radius: 50%; background: var(--panel);
+  color: var(--muted); font: 600 10px/1 var(--font); display: inline-grid;
+}
+.view-toggle .tip-icon:hover, .view-toggle .tip-icon:focus-visible { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }

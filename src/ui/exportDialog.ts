@@ -2,6 +2,7 @@
 import type { Settings } from "../core/types";
 import type { Store } from "../state";
 import { h } from "./dom";
+import { infoIcon } from "./tooltip";
 
 const FORMATS = ["dxf", "svg", "png", "jpg"] as const;
 const DPI_PRESETS = [254, 300, 600, 1000];
@@ -54,9 +55,9 @@ export function createExportSection(store: Store, onDownload: () => Promise<void
   const rasterBox = h(
     "div",
     { class: "raster-options", id: "raster-options" },
-    h("label", { class: "field" }, h("span", { class: "lbl" }, "Resolution"), h("span", { class: "ctl" }, dpiSel, dpiCustom)),
-    h("label", { class: "field" }, h("span", { class: "lbl" }, "Image style"), h("span", { class: "ctl" }, styleSel)),
-    h("label", { class: "field check" }, engraveCb, h("span", { class: "lbl" }, "Engrave lines and labels (grey)")),
+    h("label", { class: "field" }, h("span", { class: "lbl" }, "Resolution", infoIcon("dpi")), h("span", { class: "ctl" }, dpiSel, dpiCustom)),
+    h("label", { class: "field" }, h("span", { class: "lbl" }, "Image style", infoIcon("rasterStyle")), h("span", { class: "ctl" }, styleSel)),
+    h("label", { class: "field check" }, engraveCb, h("span", { class: "lbl" }, "Engrave lines and labels (grey)", infoIcon("rasterEngrave"))),
     h("small", { class: "hint" }, "PNG is better for sharp edges; JPG (quality 95) is smaller. The DPI is stored in the file so it imports at true size."),
     h("small", { class: "hint" }, "Raster images are not suitable for cutting without tracing."),
   );
@@ -94,8 +95,9 @@ export function createExportSection(store: Store, onDownload: () => Promise<void
   const el = h(
     "div",
     { class: "export-section" },
+    h("div", { class: "row-label" }, "Formats", infoIcon("formats")),
     h("div", { class: "chips" }, ...chips),
-    h("label", { class: "field" }, h("span", { class: "lbl" }, "Files"), h("span", { class: "ctl" }, mode)),
+    h("label", { class: "field" }, h("span", { class: "lbl" }, "Files", infoIcon("perLayerFiles")), h("span", { class: "ctl" }, mode)),
     h("small", { class: "hint" }, "DXF is the file to cut with (R12, mm, layers CUT red, ENGRAVE blue, LABEL green). SVG is a second vector option."),
     rasterBox,
     h("small", { class: "hint" }, "Cut every part face-up and stack bottom-up without flipping."),

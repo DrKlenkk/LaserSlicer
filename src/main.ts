@@ -1,4 +1,5 @@
 // Bootstrap: wires store <-> worker <-> UI.
+import { infoIcon } from "./ui/tooltip";
 import "./style.css";
 import { Store } from "./state";
 import { WorkerClient, StaleJobError } from "./worker/client";
@@ -40,7 +41,7 @@ const tabButtons = tabs.map((t) => {
 tabBar.append(h("span", { class: "spacer" }), h("button", { type: "button", class: "help-btn", id: "help-btn", title: "Help and keyboard shortcuts (?)", onclick: () => help.toggle() }, "?"));
 const btnModel = h("button", { type: "button", id: "view-model", class: "active", onclick: () => setViewMode("model") }, "Model");
 const btnStack = h("button", { type: "button", id: "view-stack", disabled: true, title: "The sliced layers stacked (M)", onclick: () => setViewMode("stack") }, "Stacked result");
-const viewToggle = h("div", { class: "view-toggle", id: "view-toggle", role: "group", "aria-label": "3D view" }, btnModel, btnStack);
+const viewToggle = h("div", { class: "view-toggle", id: "view-toggle", role: "group", "aria-label": "3D view" }, btnModel, btnStack, infoIcon("viewToggle"));
 const statusMsg = h("span", { class: "msg", id: "status-msg" }, "Starting…");
 const workerBadge = h("span", { class: "badge", id: "worker-status" }, "Worker: starting…");
 const progressBar = h("div", { class: "progress", id: "progress", hidden: true }, h("div", { class: "progress-fill", id: "progress-fill" }));
