@@ -8,6 +8,8 @@ plywood that is stacked and glued into the shape. It is one offline HTML file: n
 ![Sheets tab zoomed in: holding bridges (magenta) on the straight edges of the parts](docs/screenshots/bridges.png)
 ![Stacked 3D result with the selected layer highlighted](docs/screenshots/stacked-3d.png)
 
+Full technical documentation (features, settings, pipeline, output formats, architecture, limitations): [docs/TECHNICAL.md](docs/TECHNICAL.md).
+
 ## Build
 
 ```
