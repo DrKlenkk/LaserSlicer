@@ -33,7 +33,7 @@ export function createExportSection(store: Store, onDownload: () => Promise<void
   });
 
   // Layers in the files (independent of the legend checkboxes, which only change the view).
-  const LAYER_KEYS = [["exportCut", "CUT"], ["exportEngrave", "ENGRAVE"], ["exportLabel", "LABEL"], ["exportSheet", "SHEET border"]] as const;
+  const LAYER_KEYS = [["exportCut", "CUT"], ["exportEngrave", "ENGRAVE"], ["exportLabel", "LABEL"], ["exportBridge", "BRIDGE"], ["exportSheet", "SHEET border"]] as const;
   const layerChips = LAYER_KEYS.map(([key, text]) => {
     const cb = h("input", { type: "checkbox", id: `lay-${key}` });
     cb.addEventListener("change", () => store.updateSettings({ [key]: cb.checked }));
@@ -103,7 +103,7 @@ export function createExportSection(store: Store, onDownload: () => Promise<void
   let ready = false;
   const updateButton = () => {
     const s = store.get().settings;
-    const none = !(s.exportCut || s.exportEngrave || s.exportLabel || s.exportSheet);
+    const none = !(s.exportCut || s.exportEngrave || s.exportLabel || s.exportBridge || s.exportSheet);
     layerHint.hidden = !none && s.exportCut;
     layerHint.textContent = none ? "No layer selected: choose at least one to download." : "CUT is not included: the files will not cut the parts out.";
     button.disabled = !ready || none;
@@ -118,7 +118,7 @@ export function createExportSection(store: Store, onDownload: () => Promise<void
     h("div", { class: "chips", id: "export-layers" }, ...layerChips),
     layerHint,
     h("label", { class: "field" }, h("span", { class: "lbl" }, "Files", infoIcon("perLayerFiles")), h("span", { class: "ctl" }, mode)),
-    h("small", { class: "hint" }, "DXF is the file to cut with (R12, mm, layers CUT red, ENGRAVE blue, LABEL green). SVG is a second vector option."),
+    h("small", { class: "hint" }, "DXF is the file to cut with (R12, mm, layers CUT red, ENGRAVE blue, LABEL green, BRIDGE magenta). SVG is a second vector option."),
     rasterBox,
     h("small", { class: "hint" }, "Cut every part face-up and stack bottom-up without flipping."),
     summary,

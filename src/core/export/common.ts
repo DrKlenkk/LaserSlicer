@@ -1,13 +1,20 @@
 // Shared by the vector writers: a flat drawing (sheet or single layer) in mm, Y up, origin lower-left.
 import type { Part, Ring, Vec2 } from "../types";
 import { applyPlacement } from "../nest";
+import { cutPaths } from "../bridges";
 import type { Placement } from "../types";
 
 export type Drawing = {
   width: number;
   height: number;
-  /** one entry per cut shape: [outer, ...holes] (closed rings, last point != first) */
+  /** one entry per cut shape: [outer, ...holes] (closed rings, last point != first); rings that carry bridges are not in here but in `cutOpen` */
   cut: Ring[][];
+  /** the complete closed shapes, bridged or not (for filled images); defaults to `cut` */
+  fill?: Ring[][];
+  /** open cut polylines of bridged rings (ring without its gaps), drawn on CUT */
+  cutOpen?: Vec2[][];
+  /** the gaps of bridged rings, drawn on BRIDGE (or left empty if that layer is not exported) */
+  bridge?: Vec2[][];
   /** dowel holes (cut layer) */
   circles: { c: Vec2; d: number }[];
   engrave: Vec2[][];
@@ -15,22 +22,32 @@ export type Drawing = {
 };
 
 /** Which traces go into an exported file (the SHEET border is off by default). */
-export type ExportLayers = { cut: boolean; engrave: boolean; label: boolean; sheet: boolean };
-export const DEFAULT_EXPORT_LAYERS: ExportLayers = { cut: true, engrave: true, label: true, sheet: false };
+export type ExportLayers = { cut: boolean; engrave: boolean; label: boolean; bridge: boolean; sheet: boolean };
+export const DEFAULT_EXPORT_LAYERS: ExportLayers = { cut: true, engrave: true, label: true, bridge: true, sheet: false };
 
 /** The export layer flags of a settings object (missing flags take their defaults). */
-export function exportLayersOf(s: { exportCut?: boolean; exportEngrave?: boolean; exportLabel?: boolean; exportSheet?: boolean }): ExportLayers {
+export function exportLayersOf(s: { exportCut?: boolean; exportEngrave?: boolean; exportLabel?: boolean; exportBridge?: boolean; exportSheet?: boolean }): ExportLayers {
   return {
     cut: s.exportCut ?? DEFAULT_EXPORT_LAYERS.cut,
     engrave: s.exportEngrave ?? DEFAULT_EXPORT_LAYERS.engrave,
     label: s.exportLabel ?? DEFAULT_EXPORT_LAYERS.label,
+    bridge: s.exportBridge ?? DEFAULT_EXPORT_LAYERS.bridge,
     sheet: s.exportSheet ?? DEFAULT_EXPORT_LAYERS.sheet,
   };
 }
 
 /** Copy of the drawing without the excluded layers (dowel holes belong to CUT). The sheet border is not part of a drawing. */
-export function filterDrawing(d: Drawing, l: Pick<ExportLayers, "cut" | "engrave" | "label">): Drawing {
-  return { ...d, cut: l.cut ? d.cut : [], circles: l.cut ? d.circles : [], engrave: l.engrave ? d.engrave : [], label: l.label ? d.label : [] };
+export function filterDrawing(d: Drawing, l: Pick<ExportLayers, "cut" | "engrave" | "label"> & Partial<Pick<ExportLayers, "bridge">>): Drawing {
+  // Without BRIDGE the gaps are simply not drawn: the open CUT polylines stay open, which leaves uncut tabs.
+  return {
+    ...d,
+    cut: l.cut ? d.cut : [],
+    cutOpen: l.cut ? d.cutOpen : [],
+    circles: l.cut ? d.circles : [],
+    engrave: l.engrave ? d.engrave : [],
+    label: l.label ? d.label : [],
+    bridge: l.bridge ?? true ? d.bridge : [],
+  };
 }
 
 /** A polyline is closed when its first and last point coincide (the repeated point is dropped). */
@@ -50,9 +67,13 @@ export function num(n: number): string {
 
 /** Parts already positioned in sheet coordinates -> drawing. */
 export function drawingOf(parts: Part[], width: number, height: number): Drawing {
-  const d: Drawing = { width, height, cut: [], circles: [], engrave: [], label: [] };
+  const d: Drawing = { width, height, cut: [], fill: [], cutOpen: [], bridge: [], circles: [], engrave: [], label: [] };
   for (const p of parts) {
-    d.cut.push([p.cut.outer, ...p.cut.holes]);
+    const { closed, open, gaps } = cutPaths(p);
+    d.fill!.push([p.cut.outer, ...p.cut.holes]);
+    if (closed.length) d.cut.push(closed);
+    d.cutOpen!.push(...open);
+    d.bridge!.push(...gaps);
     d.circles.push(...p.holes);
     d.engrave.push(...p.engrave);
     d.label.push(...p.label);

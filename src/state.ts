@@ -29,6 +29,12 @@ export const DEFAULT_SETTINGS: Settings = {
   dowels: false,
   dowelDiameter: 6,
   dowelCount: 2,
+  bridgesEnabled: false,
+  bridgeCount: 2,
+  bridgeWidth: 0.5,
+  bridgeMinLength: 40,
+  bridgeHoles: false,
+  bridgeMaxSpacing: 0,
   formats: ["dxf"],
   dpi: 300,
   rasterStyle: "filled",
@@ -36,6 +42,7 @@ export const DEFAULT_SETTINGS: Settings = {
   exportCut: true,
   exportEngrave: true,
   exportLabel: true,
+  exportBridge: true,
   exportSheet: false,
   perLayerFiles: false,
 };
@@ -93,9 +100,9 @@ export function serializeProject(s: Settings): string {
   return JSON.stringify({ format: PROJECT_FORMAT, version: 1, settings: s }, null, 2) + "\n";
 }
 
-const POSITIVE = ["thickness", "sheetW", "sheetH", "scale", "labelHeight", "dowelDiameter"] as const;
-const NON_NEGATIVE = ["kerf", "partSpacing", "sheetMargin", "smoothRadius", "simplifyTol", "minPartArea", "minFeature", "hollowWall", "solidCapLayers"] as const;
-const INTEGERS = ["samplesPerLayer", "solidCapLayers", "dowelCount"] as const;
+const POSITIVE = ["thickness", "sheetW", "sheetH", "scale", "labelHeight", "dowelDiameter", "bridgeWidth"] as const;
+const NON_NEGATIVE = ["kerf", "partSpacing", "sheetMargin", "smoothRadius", "simplifyTol", "minPartArea", "minFeature", "hollowWall", "solidCapLayers", "bridgeMinLength", "bridgeMaxSpacing"] as const;
+const INTEGERS = ["samplesPerLayer", "solidCapLayers", "dowelCount", "bridgeCount"] as const;
 const ENUMS: Record<string, readonly string[]> = {
   axis: ["+X", "-X", "+Y", "-Y", "+Z", "-Z"],
   mode: ["oversize", "midplane", "undersize"],
@@ -142,6 +149,7 @@ export function parseProject(text: string): Settings {
       if ((INTEGERS as readonly string[]).includes(k) && !Number.isInteger(v)) bad(k);
       if (k === "samplesPerLayer" && (v as number) < 1) bad(k);
       if (k === "dowelCount" && (v as number) < 1) bad(k);
+      if (k === "bridgeCount" && ((v as number) < 1 || (v as number) > 8)) bad(k);
       if (k === "dpi" && ((v as number) < 1 || (v as number) > 4800)) bad(k);
     } else if (typeof v !== typeof def) bad(k);
     out[k] = src[k];

@@ -65,6 +65,20 @@ export const HELP = {
   dowelCount:
     "How many dowel holes per run of layers. They are placed as far apart from each other as possible. Use 2 to lock rotation; 1 only keeps position and lets the layers swivel. If the layers have room for fewer holes, you get fewer and a notice. More holes make assembling slower.",
 
+  // ----- Holding bridges -----
+  bridgesEnabled:
+    "Leaves a few short uncut bridges (tabs) on every long outline so a cut part stays attached to the sheet and does not fall, tilt or get blown into the beam while the rest is still being cut; you break it out by hand afterwards and sand the small stub. The gap is a separate DXF layer, BRIDGE (magenta): run it at low power or high speed so it only scores the plywood and the web stays, or leave BRIDGE out of the export to get plain uncut tabs. Bridges go on straight edges where possible, spaced evenly along the outline. Off by default.",
+  bridgeCount:
+    "How many bridges each outline gets, 1 to 8, spread evenly along the outline (2 puts them on opposite sides, 4 on each side of a square) and moved onto straight edges away from corners. 2 or 3 hold a small part; use 4 or more for large or heavy parts that would tilt. An outline too short for that many bridges gets fewer, with a notice.",
+  bridgeWidth:
+    "How much material each bridge leaves, in mm, measured after the laser's kerf. The gap in the cut path is this width plus the kerf (the beam burns half a kerf past each end of the path), so the web that remains is exactly this wide. 0.5 mm is typical for 3 to 4 mm plywood: strong enough to hold the part, easy to snap. Wider bridges hold better but need more sanding; with BRIDGE scored instead of left out, you can use more.",
+  bridgeMinLength:
+    "Outlines with a perimeter shorter than this (mm) get no bridges, so small holes, dowel-sized cut-outs and tiny parts are not weakened or left hanging. Dowel holes never get bridges anyway. The perimeter is measured on the kerf-compensated cut line. 40 mm is about a 10 mm square or a 13 mm circle; raise it if small parts should be cut free.",
+  bridgeHoles:
+    "Also puts bridges on the inner outlines of a part (the scrap inside holes, such as hollow cavities), which keeps that scrap from dropping out and jamming or getting burned. Off by default because the scrap is waste anyway and the bridges then have to be broken out. Dowel holes never get bridges, and holes shorter than the minimum outline length are skipped.",
+  bridgeMaxSpacing:
+    "Optional (0 = off). If an outline is long, it gets more bridges than the count above so that the nominal spacing along the outline is at most this many mm (bridges may slide up to a quarter of the spacing to reach a straight edge). Use it so large plates do not end up with a few widely spaced bridges, for example 150 mm. Up to 64 bridges per outline.",
+
   // ----- Export -----
   formats:
     "Which files go in the ZIP. DXF is the file to cut with (mm, red CUT, blue ENGRAVE, green LABEL layers) and works in most laser software. SVG is the same drawing as 1 unit = 1 mm. PNG and JPG are pictures for engraving, previewing or tracing, not for cutting directly. You can pick several.",
@@ -85,7 +99,7 @@ export const HELP = {
   viewTraces:
     "The checkbox in front of each legend row shows or hides that trace in the Sheets and Layer tabs, for example to look at the cut lines without the blue glue lines. The choice is shared by both tabs, remembered in this browser and only changes what you see: it does not re-slice and it does not change the export. What goes into the files is chosen separately under Export, 'Layers in the files'.",
   exportLayers:
-    "Chooses which traces are written into the exported DXF, SVG, PNG and JPG files. CUT = part outlines and dowel holes, ENGRAVE = the next-layer outline for gluing, LABEL = the layer text, SHEET border = a frame around the sheet (off by default; DXF layer SHEET, SVG group SHEET, grey frame in images). Use it, for example, to make a file with the cut lines only and a second one with the engraving only. Without CUT the files do not cut the parts out. These boxes are independent of the legend checkboxes in the views, which only change what you see. At least one layer must stay selected.",
+    "Chooses which traces are written into the exported DXF, SVG, PNG and JPG files. CUT = part outlines and dowel holes, ENGRAVE = the next-layer outline for gluing, LABEL = the layer text, BRIDGE = the gaps of the holding bridges (without it the gaps stay uncut tabs), SHEET border = a frame around the sheet (off by default; DXF layer SHEET, SVG group SHEET, grey frame in images). Use it, for example, to make a file with the cut lines only and a second one with the engraving only. Without CUT the files do not cut the parts out. These boxes are independent of the legend checkboxes in the views, which only change what you see. At least one layer must stay selected.",
 } as const;
 
 export type HelpKey = keyof typeof HELP;

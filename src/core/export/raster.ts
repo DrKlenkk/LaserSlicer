@@ -7,11 +7,12 @@ import { exportDrawings, type ExportFile } from "./files";
 import { checkRasterSize, insertPngPhys, patchJpegDpi, MM_PER_INCH } from "./rasterBytes";
 
 export type RasterFormat = "png" | "jpg";
-/** `engrave` = draw the ENGRAVE lines; `label` (default: same as `engrave`) the labels; `cut` (default on) the parts and dowel holes; `sheet` (default off) the sheet border. */
-export type RasterOptions = { dpi: number; style: "filled" | "outline"; engrave: boolean; label?: boolean; cut?: boolean; sheet?: boolean };
+/** `engrave` = draw the ENGRAVE lines; `label` (default: same as `engrave`) the labels; `cut` (default on) the parts and dowel holes; `bridge` (default on) the bridge gaps in outline style (excluded: the gaps are left open; filled images always show the whole part); `sheet` (default off) the sheet border. */
+export type RasterOptions = { dpi: number; style: "filled" | "outline"; engrave: boolean; label?: boolean; cut?: boolean; bridge?: boolean; sheet?: boolean };
 
 const JPEG_QUALITY = 0.95;
 const GREY = "#808080";
+const MAGENTA = "#d000d0";
 
 /** Draw the drawing (mm, Y up) into a 2D context scaled to `k` pixels per mm. */
 export function paintDrawing(ctx: OffscreenCanvasRenderingContext2D, d: Drawing, k: number, o: RasterOptions, heightPx: number) {
@@ -35,7 +36,7 @@ export function paintDrawing(ctx: OffscreenCanvasRenderingContext2D, d: Drawing,
     /* parts excluded */
   } else if (o.style === "filled") {
     ctx.fillStyle = "#000";
-    for (const shape of d.cut) {
+    for (const shape of d.fill ?? d.cut) {
       ctx.beginPath();
       trace(shape);
       ctx.fill("evenodd"); // holes stay white
@@ -53,6 +54,14 @@ export function paintDrawing(ctx: OffscreenCanvasRenderingContext2D, d: Drawing,
     ctx.beginPath();
     for (const shape of d.cut) trace(shape);
     for (const c of d.circles) circle(c.c, c.d);
+    for (const l of d.cutOpen ?? []) l.forEach(([x, y], i) => (i ? ctx.lineTo(X(x), Y(y)) : ctx.moveTo(X(x), Y(y))));
+    ctx.stroke();
+  }
+  if ((o.bridge ?? true) && o.style === "outline" && (d.bridge ?? []).length) {
+    ctx.strokeStyle = MAGENTA;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (const l of d.bridge ?? []) l.forEach(([x, y], i) => (i ? ctx.lineTo(X(x), Y(y)) : ctx.moveTo(X(x), Y(y))));
     ctx.stroke();
   }
   const lines = [...(o.engrave ? d.engrave : []), ...((o.label ?? o.engrave) ? d.label : [])];
@@ -103,7 +112,7 @@ export function checkRasterLimits(result: RunResult, perLayer: boolean, dpi: num
 /** PNG and/or JPG files of every sheet (or layer). Browser only. */
 export async function buildRasterFiles(
   result: RunResult,
-  settings: Pick<Settings, "formats" | "perLayerFiles" | "dpi" | "rasterStyle" | "rasterEngrave"> & Partial<Pick<Settings, "exportCut" | "exportEngrave" | "exportLabel" | "exportSheet">>,
+  settings: Pick<Settings, "formats" | "perLayerFiles" | "dpi" | "rasterStyle" | "rasterEngrave"> & Partial<Pick<Settings, "exportCut" | "exportEngrave" | "exportLabel" | "exportBridge" | "exportSheet">>,
   model: string,
 ): Promise<ExportFile[]> {
   const formats = settings.formats.filter((f): f is RasterFormat => f === "png" || f === "jpg");
@@ -111,7 +120,7 @@ export async function buildRasterFiles(
   checkRasterLimits(result, settings.perLayerFiles, settings.dpi);
   const L = exportLayersOf(settings);
   // `rasterEngrave` (older projects, "Engrave lines and labels (grey)") stays a raster-only extra switch: engrave lines and labels need both it and their layer checkbox
-  const opts: RasterOptions = { dpi: settings.dpi, style: settings.rasterStyle, engrave: settings.rasterEngrave && L.engrave, label: settings.rasterEngrave && L.label, cut: L.cut, sheet: L.sheet };
+  const opts: RasterOptions = { dpi: settings.dpi, style: settings.rasterStyle, engrave: settings.rasterEngrave && L.engrave, label: settings.rasterEngrave && L.label, cut: L.cut, bridge: L.bridge, sheet: L.sheet };
   const files: ExportFile[] = [];
   for (const { stem, drawing } of exportDrawings(result, settings.perLayerFiles, model))
     for (const f of formats)

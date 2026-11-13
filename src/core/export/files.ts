@@ -50,7 +50,7 @@ export function exportDrawings(result: RunResult, perLayer: boolean, model: stri
  */
 export function buildExportFiles(
   result: RunResult,
-  settings: Pick<Settings, "formats" | "perLayerFiles"> & Partial<Pick<Settings, "exportCut" | "exportEngrave" | "exportLabel" | "exportSheet">>,
+  settings: Pick<Settings, "formats" | "perLayerFiles"> & Partial<Pick<Settings, "exportCut" | "exportEngrave" | "exportLabel" | "exportBridge" | "exportSheet">>,
   model: string,
 ): ExportFile[] {
   const formats = settings.formats.filter((f): f is VectorFormat => f === "dxf" || f === "svg");

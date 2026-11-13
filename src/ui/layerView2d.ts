@@ -1,5 +1,6 @@
 // Layer tab: canvas view of one layer with a slider and arrow keys, wheel zoom and drag pan.
 import type { Layer, Shape } from "../core/types";
+import { cutPaths } from "../core/bridges";
 import type { RunResult } from "../core/pipeline";
 import { h } from "./dom";
 import { createLegend } from "./legend";
@@ -30,6 +31,7 @@ export class LayerView2D {
         { trace: "cut", layer: "CUT", text: "this layer's outline, dowel holes: cut through", color: css("--cut") },
         { trace: "engrave", layer: "ENGRAVE", text: "next-layer outline (dashed), glue alignment line", color: css("--engrave"), dash: true },
         { trace: "label", layer: "LABEL", text: "layer label text: engraved", color: css("--label") },
+        { trace: "bridge", layer: "BRIDGE", text: "holding bridges (gaps in the cut): score only, or leave out", color: css("--bridge") },
         { trace: "ghost", layer: "Previous", text: "previous layer: reference only", color: css("--ghost"), fill: true },
       ],
       "Colours map to the DXF layers, so you can assign them to cut / engrave in LightBurn and similar software.",
@@ -164,6 +166,7 @@ export class LayerView2D {
     const ghost = css.getPropertyValue("--ghost").trim() || "#8a7f72";
     const engrave = css.getPropertyValue("--engrave").trim() || "#2a55ff";
     const labelCol = css.getPropertyValue("--label").trim() || "#009a2c";
+    const bridgeCol = css.getPropertyValue("--bridge").trim() || "#d000d0";
     const v = this.view;
     const trace = (shapes: Shape[]) => {
       ctx.beginPath();
@@ -195,6 +198,32 @@ export class LayerView2D {
       ctx.strokeStyle = cut;
       ctx.lineWidth = 1.75;
       ctx.lineJoin = "round";
+      // Bridged parts: stroke their cut paths (rings open at the gaps) instead of the closed layer outline.
+      const bridged = r.parts.filter((p) => p.layer === this.layer && p.bridges?.length);
+      if (bridged.length === 0) ctx.stroke();
+      else {
+        const sx = (x: number) => v.ox + x * v.scale, sy = (y: number) => v.oy - y * v.scale;
+        ctx.beginPath();
+        for (const p of r.parts) {
+          if (p.layer !== this.layer) continue;
+          const cp = cutPaths(p);
+          for (const ring of cp.closed) {
+            ring.forEach(([x, y], i) => (i ? ctx.lineTo(sx(x), sy(y)) : ctx.moveTo(sx(x), sy(y))));
+            ctx.closePath();
+          }
+          for (const l of cp.open) l.forEach(([x, y], i) => (i ? ctx.lineTo(sx(x), sy(y)) : ctx.moveTo(sx(x), sy(y))));
+        }
+        ctx.stroke();
+      }
+    }
+    if (vis.visible("bridge")) {
+      ctx.strokeStyle = bridgeCol;
+      ctx.lineWidth = 5;
+      ctx.lineCap = "butt";
+      ctx.beginPath();
+      for (const p of r.parts)
+        if (p.layer === this.layer)
+          for (const l of cutPaths(p).gaps) l.forEach(([x, y], i) => (i ? ctx.lineTo(v.ox + x * v.scale, v.oy - y * v.scale) : ctx.moveTo(v.ox + x * v.scale, v.oy - y * v.scale)));
       ctx.stroke();
     }
 

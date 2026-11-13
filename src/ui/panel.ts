@@ -27,11 +27,11 @@ export function createPanel(root: HTMLElement, store: Store, actions: PanelActio
   const infoSyncers: (() => void)[] = [];
 
   // ---------- field helpers ----------
-  function numField(label: string, key: NumKey, opts: { step?: number; min?: number; unit?: string; hint?: string; help?: HelpKey } = {}) {
-    const input = h("input", { type: "number", step: opts.step ?? "any", min: opts.min, id: `f-${key}` });
+  function numField(label: string, key: NumKey, opts: { step?: number; min?: number; max?: number; unit?: string; hint?: string; help?: HelpKey } = {}) {
+    const input = h("input", { type: "number", step: opts.step ?? "any", min: opts.min, max: opts.max, id: `f-${key}` });
     input.addEventListener("change", () => {
       const v = parseFloat(input.value);
-      if (Number.isFinite(v) && (opts.min === undefined || v >= opts.min)) store.updateSettings({ [key]: v } as Partial<Settings>);
+      if (Number.isFinite(v) && (opts.min === undefined || v >= opts.min) && (opts.max === undefined || v <= opts.max)) store.updateSettings({ [key]: v } as Partial<Settings>);
       else input.value = String(store.get().settings[key]);
     });
     syncers.push((s) => {
@@ -173,6 +173,16 @@ export function createPanel(root: HTMLElement, store: Store, actions: PanelActio
     numField("Kerf", "kerf", { step: 0.01, min: 0, unit: "mm", help: "kerf" }),
     h("div", { class: "grid2" }, numField("Part spacing", "partSpacing", { min: 0, unit: "mm", help: "partSpacing" }), numField("Sheet margin", "sheetMargin", { min: 0, unit: "mm", help: "sheetMargin" })),
   );
+  const bridgeGroup = group(
+    "Holding bridges",
+    false,
+    boolField("Add holding bridges", "bridgesEnabled", "bridgesEnabled", "Short uncut tabs keep each part attached to the sheet until you break it out. Separate DXF layer BRIDGE."),
+    numField("Bridges per outline", "bridgeCount", { step: 1, min: 1, max: 8, help: "bridgeCount" }),
+    numField("Bridge width", "bridgeWidth", { step: 0.1, min: 0.1, unit: "mm", hint: "Material left after the kerf; the cut gap is this plus the kerf.", help: "bridgeWidth" }),
+    numField("Min outline length", "bridgeMinLength", { min: 0, unit: "mm", help: "bridgeMinLength" }),
+    boolField("Also bridge inner holes", "bridgeHoles", "bridgeHoles"),
+    numField("Max spacing (0 = off)", "bridgeMaxSpacing", { min: 0, unit: "mm", help: "bridgeMaxSpacing" }),
+  );
   const slicingGroup = group(
     "Slicing",
     false,
@@ -246,6 +256,7 @@ export function createPanel(root: HTMLElement, store: Store, actions: PanelActio
     h("div", { class: "brand" }, h("span", { class: "logo" }, "▤"), h("span", {}, "Laser Slicer")),
     modelGroup,
     materialGroup,
+    bridgeGroup,
     slicingGroup,
     hollowGroup,
     gluingGroup,

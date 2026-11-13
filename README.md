@@ -5,6 +5,7 @@ plywood that is stacked and glued into the shape. It is one offline HTML file: n
 
 ![Layer tab: hollowed sphere with dowel holes, label and next-layer outline](docs/screenshots/layer-tab.png)
 ![Sheets tab with the colour legend](docs/screenshots/sheets-legend.png)
+![Sheets tab zoomed in: holding bridges (magenta) on the straight edges of the parts](docs/screenshots/bridges.png)
 ![Stacked 3D result with the selected layer highlighted](docs/screenshots/stacked-3d.png)
 
 ## Build
@@ -27,10 +28,16 @@ Open `dist/index.html` by double-click (`file://` works; nothing is fetched). Co
 4. Choose an outline mode, optionally hollowing and dowels, and look at the result in the tabs: **3D** (original model or
    stacked layers), **Layer** (one layer: cut red, next layer blue dashed, labels green, dowel holes) and **Sheets** (the nested sheets).
    The **Sheets** and **Layer** tabs have a small legend (bottom right, collapsible): the trace colours are the DXF layers
-   `CUT` (red), `ENGRAVE` (blue) and `LABEL` (green), so they can be assigned to cut / engrave in LightBurn and similar software.
+   `CUT` (red), `ENGRAVE` (blue), `LABEL` (green) and, with holding bridges, `BRIDGE` (magenta), so they can be assigned to cut / engrave in LightBurn and similar software.
    The checkbox in front of each legend row shows or hides that trace in both tabs (view only: it does not re-slice and
    does not change the files; remembered in the browser).
-5. Export: pick formats, the layers that go into the files (CUT, ENGRAVE, LABEL and, off by default, a SHEET border; applies
+5. Optional **Holding bridges** (panel group of that name): short uncut tabs that keep each part attached to the sheet until you
+   break it out, so it cannot fall or tilt mid-cut. Set bridges per outline (1-8), width, minimum outline length, optionally inner holes
+   and a maximum spacing. They sit on straight edges, evenly spaced; the gaps are on the separate `BRIDGE` layer. In LightBurn give
+   `BRIDGE` a low power / fast speed so it only scores the plywood (the web stays and snaps), or leave `BRIDGE` out of the export
+   for plain uncut tabs. Width is the material left after the kerf (the gap in the path is width + kerf). The screenshot above uses
+   a 1.5 mm width for visibility; the default is 0.5 mm.
+6. Export: pick formats, the layers that go into the files (CUT, ENGRAVE, LABEL, BRIDGE and, off by default, a SHEET border; applies
    to DXF, SVG, PNG and JPG, independent of the legend checkboxes) and "Download all (ZIP)". Warnings are in the status bar; click one to jump to its layer.
 
 **Auto-update preview** (checkbox in the tab bar, on by default) re-slices after every change. For large models turn it off:
@@ -65,6 +72,7 @@ Dowels put holes at identical positions in every layer of a run so a rod aligns 
 - **DXF** (R12, mm, Y up) is the file to cut with: layers `CUT` (red, outlines and dowel `CIRCLE`s), `ENGRAVE` (blue), `LABEL` (green, polylines, no text entities).
 - **SVG**: 1 unit = 1 mm, same three groups. **PNG/JPG**: rendered at the chosen DPI with the DPI stored in the file; for engraving or reference, not for cutting without tracing.
 - Per sheet (default) or per layer. The ZIP also has a `README.txt` with the settings, stacking order and warnings.
+- Bridged outlines are open polylines on `CUT` plus one short open polyline per gap on `BRIDGE`. PNG/JPG: outline style draws the gaps magenta (or leaves them open without BRIDGE); filled style always shows the whole part.
 - Kerf is applied to the cut outlines only (holes shrink, outlines grow); engrave lines are never offset.
 
 ## Limitations

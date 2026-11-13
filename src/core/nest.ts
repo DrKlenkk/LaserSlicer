@@ -109,6 +109,7 @@ export function applyPlacement(part: Part, pl: Pick<Placement, "x" | "y" | "angl
     engrave: part.engrave.map(t),
     label: part.label.map(t),
     holes: part.holes.map((h) => ({ c: t([h.c])[0], d: h.d })),
+    ...(part.bridges ? { bridges: part.bridges.map((b) => ({ ring: b.ring, cut: b.cut.map(t), gaps: b.gaps.map(t) })) } : {}),
   };
 }
 

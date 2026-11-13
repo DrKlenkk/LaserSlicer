@@ -25,9 +25,16 @@ export function buildReadme(result: RunResult, s: Settings, model: string, files
   L.push(`  Min part area: ${s.minPartArea} mm2, min feature: ${s.minFeature} mm`);
   L.push(`  Formats: ${s.formats.join(", ")}, files per ${s.perLayerFiles ? "layer" : "sheet"}`);
   const EL = exportLayersOf(s);
-  const incl = ([["CUT", EL.cut], ["ENGRAVE", EL.engrave], ["LABEL", EL.label], ["SHEET border", EL.sheet]] as const).filter(([, on]) => on).map(([n]) => n);
-  const excl = ([["CUT", EL.cut], ["ENGRAVE", EL.engrave], ["LABEL", EL.label], ["SHEET border", EL.sheet]] as const).filter(([, on]) => !on).map(([n]) => n);
+  const layerList = [["CUT", EL.cut], ["ENGRAVE", EL.engrave], ["LABEL", EL.label], ...(s.bridgesEnabled ? [["BRIDGE", EL.bridge] as const] : []), ["SHEET border", EL.sheet]] as const;
+  const incl = layerList.filter(([, on]) => on).map(([n]) => n);
+  const excl = layerList.filter(([, on]) => !on).map(([n]) => n);
   L.push(`  Layers included: ${incl.join(", ") || "none"}${excl.length ? ` (left out: ${excl.join(", ")})` : ""}`);
+  if (s.bridgesEnabled) {
+    const gap = s.bridgeWidth + Math.max(0, s.kerf);
+    const nb = result.parts.reduce((n, p) => n + (p.bridges ?? []).reduce((m, b) => m + b.gaps.length, 0), 0);
+    L.push(`  Holding bridges: ${nb} (${s.bridgeCount} per outline, ${s.bridgeWidth} mm of material left after the kerf = gap of ${gap.toFixed(2)} mm in the cut path, outlines of at least ${s.bridgeMinLength} mm${s.bridgeHoles ? ", inner holes included" : ""}${s.bridgeMaxSpacing > 0 ? `, at most ${s.bridgeMaxSpacing} mm apart` : ""})`);
+    L.push(EL.bridge ? "  Bridges are on DXF layer BRIDGE (SVG group BRIDGE): run it at low power / high speed so it scores but does not cut through, or leave the layer out for plain uncut tabs." : "  BRIDGE is not included: the gaps are left out, so the cut outlines have uncut tabs.");
+  }
   if (!EL.cut) L.push("  Note: CUT is not included, so these files do not cut the parts out.");
   if (s.formats.includes("png") || s.formats.includes("jpg"))
     L.push(`  Raster images: ${s.dpi} DPI, ${s.rasterStyle} style${s.rasterEngrave && (EL.engrave || EL.label) ? ", engrave and labels in grey" : ""}; not suitable for cutting without tracing`);
@@ -36,7 +43,7 @@ export function buildReadme(result: RunResult, s: Settings, model: string, files
   L.push(`  Cut every part face-up and stack bottom-up without flipping: ${layerLabel(0)} is the bottom layer${n > 1 ? `, ${layerLabel(n - 1)} the top` : ""}.`);
   L.push("  Glue each layer onto the one below it; align it to the engraved outline of the next layer where one exists.");
   L.push("");
-  L.push("DXF layers: CUT (red), ENGRAVE (blue), LABEL (green), SHEET (grey). Units: mm, Y up, R12 (AC1009).");
+  L.push(`DXF layers: CUT (red), ENGRAVE (blue), LABEL (green), ${s.bridgesEnabled ? "BRIDGE (magenta), " : ""}SHEET (grey). Units: mm, Y up, R12 (AC1009).`);
   L.push("");
   L.push("Files");
   for (const f of files) L.push(`  ${f.name}`);

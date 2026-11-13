@@ -3,17 +3,19 @@
 import type { Part, Ring, Vec2 } from "../core/types";
 import type { RunResult } from "../core/pipeline";
 import { applyPlacement } from "../core/nest";
+import { cutPaths } from "../core/bridges";
 import { h } from "./dom";
 import { createLegend } from "./legend";
 import { traceVisibility as vis, traceVisibility } from "../traceVisibility";
 
 type View = { scale: number; ox: number; oy: number }; // screen = o + world * (scale, -scale)
-type Placed = { part: Part; sheet: number; ox: number; path: Path2D; minX: number; minY: number; maxX: number; maxY: number };
+/** `path` = closed cut shape (hover fill, hit-test), `cutPath` = what is stroked (bridged rings open), `bridgePath` = the gaps */
+type Placed = { part: Part; sheet: number; ox: number; path: Path2D; cutPath: Path2D; bridgePath: Path2D | null; minX: number; minY: number; maxX: number; maxY: number };
 
 const GAP = 20; // mm between sheets
 export const COLORS = {
-  light: { cut: "#e02020", engrave: "#2a55ff", label: "#009a2c", sheet: "#8a8a8a" },
-  dark: { cut: "#ff5c50", engrave: "#6f8dff", label: "#37d067", sheet: "#9a9a9a" },
+  light: { cut: "#e02020", engrave: "#2a55ff", label: "#009a2c", bridge: "#d000d0", sheet: "#8a8a8a" },
+  dark: { cut: "#ff5c50", engrave: "#6f8dff", label: "#37d067", bridge: "#f060f0", sheet: "#9a9a9a" },
 };
 
 export function sheetColors() {
@@ -51,6 +53,7 @@ export class SheetView {
         { trace: "cut", layer: "CUT", text: "kerf-compensated outlines, dowel holes: cut through", color: () => col().cut },
         { trace: "engrave", layer: "ENGRAVE", text: "next-layer outline, glue alignment line", color: () => col().engrave },
         { trace: "label", layer: "LABEL", text: "layer label text: engraved", color: () => col().label },
+        { trace: "bridge", layer: "BRIDGE", text: "holding bridges (gaps in the cut): score only, or leave out", color: () => col().bridge },
         { trace: "sheet", layer: "SHEET", text: "sheet border: not exported by default", color: () => col().sheet, thin: true },
         { layer: "Hover", text: "part under the pointer (click: open its layer)", color: () => col().cut, fill: true },
       ],
@@ -109,10 +112,19 @@ export class SheetView {
         const path = new Path2D();
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
         for (const ring of [part.cut.outer, ...part.cut.holes]) trace(path, ring, ox);
+        const cp = cutPaths(part);
+        let cutPath = path, bridgePath: Path2D | null = null;
+        if (cp.gaps.length) {
+          cutPath = new Path2D();
+          for (const ring of cp.closed) trace(cutPath, ring, ox);
+          for (const l of cp.open) openTrace(cutPath, l, ox);
+          bridgePath = new Path2D();
+          for (const l of cp.gaps) openTrace(bridgePath, l, ox);
+        }
         for (const [x, y] of part.cut.outer) {
           minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y);
         }
-        this.placed.push({ part, sheet: pl.sheet, ox, path, minX, minY, maxX, maxY });
+        this.placed.push({ part, sheet: pl.sheet, ox, path, cutPath, bridgePath, minX, minY, maxX, maxY });
       }
       for (const s of r.sheets) {
         this.sheetsW = s.index * (s.w + GAP) + s.w;
@@ -235,7 +247,12 @@ export class SheetView {
       if (vis.visible("cut")) {
         ctx.strokeStyle = col.cut;
         ctx.lineWidth = Math.max(px * 1.25, 0.1);
-        ctx.stroke(p.path);
+        ctx.stroke(p.cutPath);
+      }
+      if (p.bridgePath && vis.visible("bridge")) {
+        ctx.strokeStyle = col.bridge;
+        ctx.lineWidth = Math.max(px * 4, 0.3); // wider than the cut line so the (tiny) gaps stay visible
+        ctx.stroke(p.bridgePath);
       }
       ctx.lineWidth = Math.max(px, 0.1);
       if (vis.visible("engrave")) {
@@ -270,6 +287,10 @@ export class SheetView {
 function trace(path: Path2D, ring: Ring, ox: number) {
   ring.forEach(([x, y], i) => (i ? path.lineTo(ox + x, y) : path.moveTo(ox + x, y)));
   path.closePath();
+}
+
+function openTrace(path: Path2D, l: Vec2[], ox: number) {
+  l.forEach(([x, y], i) => (i ? path.lineTo(ox + x, y) : path.moveTo(ox + x, y)));
 }
 
 function strokeLine(ctx: CanvasRenderingContext2D, l: Vec2[], ox: number) {

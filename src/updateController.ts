@@ -6,7 +6,7 @@ import type { Settings } from "./core/types";
 export type RunAction = "none" | "debounced" | "immediate";
 
 /** Settings that only affect the export step, never the slicing result. Changing them leaves the preview current. */
-const EXPORT_ONLY = ["formats", "perLayerFiles", "dpi", "rasterStyle", "rasterEngrave", "exportCut", "exportEngrave", "exportLabel", "exportSheet"] as const;
+const EXPORT_ONLY = ["formats", "perLayerFiles", "dpi", "rasterStyle", "rasterEngrave", "exportCut", "exportEngrave", "exportLabel", "exportBridge", "exportSheet"] as const;
 
 /** Stable key of the settings that affect slicing; equal keys mean the same result. */
 export function slicingKey(s: Settings): string {

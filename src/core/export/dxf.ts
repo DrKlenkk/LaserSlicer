@@ -1,6 +1,7 @@
 // ASCII DXF R12 writer (plan "DXF (primary)"). Structure: HEADER, TABLES (LTYPE CONTINUOUS + LAYER),
 // ENTITIES, EOF. R12 has no handles. Coordinates in mm, Y up, sheet lower-left = (0, 0).
 // Closed outlines are POLYLINE (70 = 1) + VERTEX + SEQEND, open engrave lines the same with 70 = 0, dowel holes CIRCLE.
+// Bridged rings: the ring without its gaps is a set of open polylines on CUT, each gap an open polyline on BRIDGE (magenta).
 // Labels are polylines, never TEXT entities.
 import type { Vec2 } from "../types";
 import { filterDrawing, num, polyline, type Drawing, type ExportLayers } from "./common";
@@ -9,6 +10,7 @@ export const DXF_LAYERS = [
   { name: "CUT", color: 1 },
   { name: "ENGRAVE", color: 5 },
   { name: "LABEL", color: 3 },
+  { name: "BRIDGE", color: 6 },
   { name: "SHEET", color: 8 },
 ] as const;
 
@@ -20,7 +22,7 @@ export type DxfOptions = {
 };
 
 export function writeDxf(src: Drawing, opts: DxfOptions = {}): string {
-  const L = { cut: true, engrave: true, label: true, sheet: !!opts.sheetBorder, ...opts.layers };
+  const L = { cut: true, engrave: true, label: true, bridge: true, sheet: !!opts.sheetBorder, ...opts.layers };
   const d = filterDrawing(src, L);
   const out: string[] = [];
   const g = (code: number, value: string | number) => out.push(String(code).padStart(3, " "), typeof value === "number" ? num(value) : value);
@@ -35,6 +37,8 @@ export function writeDxf(src: Drawing, opts: DxfOptions = {}): string {
       minX = Math.min(minX, p[0]); maxX = Math.max(maxX, p[0]); minY = Math.min(minY, p[1]); maxY = Math.max(maxY, p[1]);
     };
     for (const sh of d.cut) for (const r of sh) r.forEach(grow);
+    for (const l of d.cutOpen ?? []) l.forEach(grow);
+    for (const l of d.bridge ?? []) l.forEach(grow);
     for (const l of d.engrave) l.forEach(grow);
     for (const l of d.label) l.forEach(grow);
     for (const c of d.circles) {
@@ -79,6 +83,8 @@ export function writeDxf(src: Drawing, opts: DxfOptions = {}): string {
   if (L.sheet)
     poly("SHEET", [[0, 0], [d.width, 0], [d.width, d.height], [0, d.height]], true);
   for (const sh of d.cut) for (const r of sh) poly("CUT", r, true);
+  for (const l of d.cutOpen ?? []) poly("CUT", l, false);
+  for (const l of d.bridge ?? []) poly("BRIDGE", l, false);
   for (const c of d.circles) {
     out.push("  0", "CIRCLE", "  8", "CUT"); g(10, c.c[0]); g(20, c.c[1]); g(30, 0); g(40, c.d / 2);
   }

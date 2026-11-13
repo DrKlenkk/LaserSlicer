@@ -1,6 +1,7 @@
 // Staged slicing pipeline with per-stage caching. Pure (no DOM): runs in the worker and in Node tests.
 //
 //   orient -> slice (planes + rings -> shapes) -> modes -> cleanup/islands -> registration -> kerf -> nesting
+//                                                                                         \-> bridges (after kerf; nesting does not depend on it)
 //
 // Each stage result is cached under a key built from only the settings that affect it, so e.g.
 // changing minPartArea re-runs cleanup only, and changing the mode never re-orients the mesh.
@@ -13,6 +14,7 @@ import { unionEvenOdd } from "./poly";
 import { hollowLayers } from "./hollow";
 import { addRegistration } from "./registration";
 import { applyKerf } from "./kerf";
+import { addBridges } from "./bridges";
 import { nestParts, type NestResult } from "./nest";
 
 export type RunInfo = {
@@ -63,8 +65,9 @@ export class Pipeline {
   private cReg: Cached<{ parts: Part[]; warnings: Warning[] }> | null = null;
   private cKerf: Cached<{ parts: Part[]; warnings: Warning[] }> | null = null;
   private cNest: Cached<NestResult> | null = null;
+  private cBridges: Cached<{ parts: Part[]; warnings: Warning[] }> | null = null;
   /** counters for tests: how many times each stage actually ran */
-  readonly runs = { orient: 0, slice: 0, modes: 0, cleanup: 0, hollow: 0, registration: 0, kerf: 0, nest: 0 };
+  readonly runs = { orient: 0, slice: 0, modes: 0, cleanup: 0, hollow: 0, registration: 0, kerf: 0, nest: 0, bridges: 0 };
   /** the most recent completed run and the settings it used (for export) */
   last: { result: RunResult; settings: Settings } | null = null;
 
@@ -186,14 +189,26 @@ export class Pipeline {
       this.runs.nest++;
     }
     const nested = this.cNest.value;
+
+    // ---- stage 8: holding bridges (cut geometry is final after kerf; part extents do not change, so nesting is independent) ----
+    let bridged: { parts: Part[]; warnings: Warning[] };
+    if (!s.bridgesEnabled) bridged = { parts: kerfed.parts, warnings: [] }; // nothing to compute or cache
+    else {
+      const bridgeKey = JSON.stringify([kerfKey, s.bridgeCount, s.bridgeWidth, s.bridgeMinLength, s.bridgeHoles, s.bridgeMaxSpacing]);
+      if (this.cBridges?.key !== bridgeKey) {
+        this.cBridges = { key: bridgeKey, value: addBridges(kerfed.parts, s) };
+        this.runs.bridges++;
+      }
+      bridged = this.cBridges.value;
+    }
     hooks.progress?.("Done", 1);
 
-    const warnings: Warning[] = [...this.meshWarnings(), ...sliced.warnings, ...clean.warnings, ...hollow.warnings, ...registered.warnings, ...kerfed.warnings, ...nested.warnings];
+    const warnings: Warning[] = [...this.meshWarnings(), ...sliced.warnings, ...clean.warnings, ...hollow.warnings, ...registered.warnings, ...kerfed.warnings, ...nested.warnings, ...bridged.warnings];
     if (kerfed.parts.length === 0)
       warnings.push({ level: "error", message: "No parts were produced: every layer is empty (the model may be too thin for this thickness, or Min part area is too large)" });
     const result: RunResult = {
       layers: hollow.layers,
-      parts: kerfed.parts,
+      parts: bridged.parts,
       placements: nested.placements,
       sheets: nested.sheets,
       warnings,

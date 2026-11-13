@@ -45,8 +45,8 @@ describe("DXF", () => {
 
   it("round-trips layers, colours and vertex coordinates", () => {
     const layers = (dxf.tables as { layer: { layers: Record<string, { colorIndex: number }> } }).layer.layers;
-    expect(Object.keys(layers).sort()).toEqual(["CUT", "ENGRAVE", "LABEL", "SHEET"]);
-    expect([layers.CUT.colorIndex, layers.ENGRAVE.colorIndex, layers.LABEL.colorIndex, layers.SHEET.colorIndex]).toEqual([1, 5, 3, 8]);
+    expect(Object.keys(layers).sort()).toEqual(["BRIDGE", "CUT", "ENGRAVE", "LABEL", "SHEET"]);
+    expect([layers.CUT.colorIndex, layers.ENGRAVE.colorIndex, layers.LABEL.colorIndex, layers.SHEET.colorIndex, layers.BRIDGE.colorIndex]).toEqual([1, 5, 3, 8, 6]);
 
     const ents = dxf.entities as any[];
     const cut = ents.filter((e) => e.layer === "CUT" && e.type === "POLYLINE");
@@ -181,7 +181,7 @@ describe("export layer selection", () => {
   it("DXF: excluded layers have no entities (the LAYER table still lists all four)", () => {
     const dxf = writeDxf(d, { layers: { engrave: false, label: false } });
     expect(layersOf(dxf)).toEqual(new Set(["CUT"])); // outlines + dowel circle
-    expect(Object.keys(parse(dxf).tables.layer.layers).sort()).toEqual(["CUT", "ENGRAVE", "LABEL", "SHEET"]);
+    expect(Object.keys(parse(dxf).tables.layer.layers).sort()).toEqual(["BRIDGE", "CUT", "ENGRAVE", "LABEL", "SHEET"]);
     expect(layersOf(writeDxf(d, { layers: { cut: false } }))).toEqual(new Set(["ENGRAVE", "LABEL"]));
     expect((parse(writeDxf(d, { layers: { cut: false } })).entities as any[]).some((e) => e.type === "CIRCLE")).toBe(false); // dowel holes are CUT
     expect(layersOf(writeDxf(d, { layers: { cut: false, engrave: false, label: false } })).size).toBe(0);

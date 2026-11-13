@@ -20,6 +20,7 @@
   --cut: #d32f2f;
   --engrave: #2a55ff;
   --label: #009a2c;
+  --bridge: #d000d0;
   --ghost: #6f655a;
   --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
@@ -45,6 +46,7 @@
     --cut: #ff6b5e;
     --engrave: #6f8dff;
     --label: #37d067;
+    --bridge: #f060f0;
     --ghost: #b0a597;
   }
 }

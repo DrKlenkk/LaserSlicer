@@ -36,7 +36,20 @@ export type Part = {
   /** Label stroke polylines (DXF layer LABEL), same closing convention. Filled from M6. */
   label: Vec2[][];
   holes: { c: Vec2; d: number }[]; // dowel holes (cut)
+  /**
+   * Holding bridges (stage `bridges`, after kerf). Absent or empty = no bridges. All points are in the same coordinates as
+   * `cut`, so applyPlacement transforms them like everything else. `cut` itself stays the closed shape (hit-testing, area,
+   * fills); the writers draw the rings listed here as open polylines with gaps instead.
+   */
+  bridges?: BridgedRing[];
 };
+
+/**
+ * One cut ring that carries bridges: `cut` are the open polylines of the ring without the gaps (what the laser cuts through),
+ * `gaps` the gap polylines (what the BRIDGE layer holds). `ring` is 0 for the outer ring, 1.. for `cut.holes[ring - 1]`.
+ * Walking `gaps[0]`, `cut[0]`, `gaps[1]`, `cut[1]`, ... in ring order closes the ring.
+ */
+export type BridgedRing = { ring: number; cut: Vec2[][]; gaps: Vec2[][] };
 
 /** One cutting sheet with the parts nested on it. */
 export type Sheet = {
@@ -92,6 +105,18 @@ export type Settings = {
   dowels: boolean;
   dowelDiameter: number;
   dowelCount: number;
+  // Holding bridges (tabs): keep each part attached to the sheet until it is broken out
+  bridgesEnabled: boolean;
+  /** bridges per outline (1..8) */
+  bridgeCount: number;
+  /** material left between the cut ends, measured after the beam's kerf (mm); the gap in the path is this plus the kerf */
+  bridgeWidth: number;
+  /** outlines with a shorter perimeter get no bridges (mm) */
+  bridgeMinLength: number;
+  /** also bridge the inner holes (the scrap inside); dowel holes never get bridges */
+  bridgeHoles: boolean;
+  /** if > 0, long outlines get more bridges so that no gap between neighbours exceeds this arc length (mm); 0 = off */
+  bridgeMaxSpacing: number;
   // Export
   formats: ("dxf" | "svg" | "png" | "jpg")[];
   dpi: number;
@@ -102,6 +127,8 @@ export type Settings = {
   exportCut: boolean;
   exportEngrave: boolean;
   exportLabel: boolean;
+  /** the bridge gaps (DXF layer BRIDGE); left out, the gaps stay uncut material */
+  exportBridge: boolean;
   /** sheet border (DXF layer SHEET, SVG group SHEET, grey frame in images), off by default */
   exportSheet: boolean;
   perLayerFiles: boolean;

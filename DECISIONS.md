@@ -324,3 +324,21 @@ cache key contains it and nothing earlier re-runs; kerf, hollowing and nesting c
 - **`rasterEngrave` kept** (backward compatible with saved projects/prefs): it stays a raster-only extra switch, "Engrave lines and
   labels (grey)", and engrave lines / labels are drawn in images only if both it and the layer checkbox are on. The ZIP/README text
   follows that.
+
+## Holding bridges (`core/bridges.ts`)
+- **Stage and cache.** Pipeline stage `bridges` after kerf, keyed on kerf key + bridge settings; nesting does not depend on it (bridges
+  never change a part's extent), so a bridge change re-runs only this stage. Disabled = parts pass through, not counted or cached.
+- **Data.** `Part.cut` stays the closed shape (hit-testing, area, fills, material use unchanged). `Part.bridges` lists bridged rings
+  with open `cut` polylines and `gaps` polylines, all in part-local coordinates; `applyPlacement` transforms them, so the plan is
+  rotation invariant (it only reads ring geometry). Drawings carry `fill` (closed shapes), `cutOpen`, `bridge`.
+- **Gap = bridgeWidth + kerf.** The cut ring is the beam-centre path; the beam burns kerf/2 past each end of an open path, so the web
+  left is gap - kerf = bridgeWidth. The BRIDGE polyline covers exactly the gap. Clearance each side: max(1.5 mm, width).
+- **Placement.** Candidates scored on a <= 0.5 mm grid: straightness 1/(1+(turning in window/6 deg)^2) times a corner factor
+  (0.5..1, free distance from window to nearest > 25 deg vertex, saturating at max(12 mm, 4 clearance, spacing/4)). N bridges at
+  offset + k P/N, 48 offsets, each sliding up to min(P/N/4, (P/N - minSep)/2) (minSep = gap + 2 clearance, so gaps can never
+  overlap); offset score = (mean + worst)/2 - 0.05 slide, times a spatial-crowding factor. Circles fall back to even spacing on the curve.
+  Too short for N: N reduced, one info warning per run. `bridgeMaxSpacing` raises N (max 64) so P/N <= spacing (nominal spacing; slide +-25 %).
+- **Export.** New layer BRIDGE (DXF ACI 6, SVG #d000d0, screen #d000d0 / dark #f060f0), export checkbox `exportBridge` (default on, export-only,
+  in the slicing key exclusion list), legend row + view toggle `bridge`. Without BRIDGE the CUT polylines stay open = uncut tabs. The DXF LAYER table
+  always lists BRIDGE; README/SVG mention it only when bridges exist. Layer tab draws bridged parts from the (kerfed) part cut paths.
+- **Not done / unverified.** Not tried in LightBurn. Bridges of the 3D stacked view are not shown (by design).

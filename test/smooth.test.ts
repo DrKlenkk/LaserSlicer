@@ -113,11 +113,11 @@ describe("smoothing in the pipeline", () => {
     const p = new Pipeline();
     p.setMesh(mesh, stats);
     await p.run(settings({ smoothRadius: 0.5 }));
-    expect(p.runs).toEqual({ orient: 1, slice: 1, modes: 1, cleanup: 1, hollow: 1, registration: 1, kerf: 1, nest: 1 });
+    expect(p.runs).toEqual({ orient: 1, slice: 1, modes: 1, cleanup: 1, hollow: 1, registration: 1, kerf: 1, nest: 1, bridges: 0 });
     await p.run(settings({ smoothRadius: 1 }));
-    expect(p.runs).toEqual({ orient: 1, slice: 1, modes: 1, cleanup: 2, hollow: 2, registration: 2, kerf: 2, nest: 2 });
+    expect(p.runs).toEqual({ orient: 1, slice: 1, modes: 1, cleanup: 2, hollow: 2, registration: 2, kerf: 2, nest: 2, bridges: 0 });
     await p.run(settings({ smoothRadius: 1, kerf: 0.3 }));
-    expect(p.runs).toEqual({ orient: 1, slice: 1, modes: 1, cleanup: 2, hollow: 2, registration: 2, kerf: 3, nest: 3 });
+    expect(p.runs).toEqual({ orient: 1, slice: 1, modes: 1, cleanup: 2, hollow: 2, registration: 2, kerf: 3, nest: 3, bridges: 0 });
     await p.run(settings({ smoothRadius: 0, kerf: 0.3 }));
     expect(p.runs.slice).toBe(1);
     expect(p.runs.cleanup).toBe(3);

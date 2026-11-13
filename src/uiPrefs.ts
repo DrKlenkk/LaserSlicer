@@ -1,7 +1,7 @@
 // View preferences kept in the browser (not part of the project file, which holds slicing settings only).
 
 /** The traces that can be hidden in the Sheets and Layer views (legend toggles). `ghost` is the previous layer of the Layer tab. */
-export const TRACES = ["cut", "engrave", "label", "sheet", "ghost"] as const;
+export const TRACES = ["cut", "engrave", "label", "bridge", "sheet", "ghost"] as const;
 export type TraceId = (typeof TRACES)[number];
 
 export type UiPrefs = { autoUpdate: boolean; hiddenTraces: TraceId[] };
