@@ -57,8 +57,8 @@ updates first, so the files always match the settings you see. The checkbox is r
 the project file.
 
 Press `?` in the app for the shortcuts: 1/2/3 tabs, arrows / PgUp / PgDn / Home / End step layers, M toggles model and stacked
-result, F frames the model, U updates the preview (auto-update off). "Project" in the panel saves and loads the settings as a `.json` file (the model is not stored);
-the last settings are also kept in the browser.
+result, F frames the model, U updates the preview (auto-update off). "Project" in the panel saves and loads the settings as a `.json` file; tick "Include the model in the project file" to embed the model too (the file grows by about a third of the model size), and loading it brings back model and settings together.
+The last settings and the last model are also kept in this browser, so reloading the page brings you back to where you were (switch off with "Restore the last model when the page opens"; models over 50 MB are not remembered).
 
 ### Modes
 

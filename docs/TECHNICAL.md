@@ -33,7 +33,7 @@ below.
 | One offline HTML file | `npm run build` produces `dist/index.html` (about 1 MB) with all JS, CSS and the worker inlined (`vite-plugin-singlefile`, worker as an inline Blob, `?worker&inline`). It runs from `file://` by double-click. |
 | No network | Nothing is fetched at run time. `npm run check` (`scripts/check-dist.mjs`) fails the build if `dist/` holds anything but `index.html` or contains network URLs outside comments and XML namespace names. |
 | Worker | All heavy geometry (parsing, welding, slicing, nesting, export, image rendering) runs in one Web Worker. The main thread does UI, 3D rendering, 3MF parsing and the cheap orientation for the 3D preview. |
-| No install, no server | State lives in the page and in `localStorage`; the model itself is never stored. |
+| No install, no server | State lives in the page, in `localStorage` and in IndexedDB (the last model, see 2.7); nothing leaves the browser. |
 | Tested browser | **Chromium only** (headless Playwright, software GL). Firefox, Safari and Edge, and `file://` behaviour there, are untested. |
 | Units | Millimetres everywhere after import. STL and OBJ carry no units, so the *Import unit* setting says what the file is in (default millimetres); 3MF declares its unit and sets that setting on load. Y axis up in all outputs. |
 
@@ -57,7 +57,7 @@ Collapsible groups, in this order. Model and Material start open, the rest colla
 | **Hollowing** | Enable, wall, solid cap layers. |
 | **Gluing aids** | Engrave next-layer outline, layer labels, label height, dowel holes, diameter, count. |
 | **Export** | Format chips (DXF, SVG, PNG, JPG), "Layers in the files" chips (CUT, ENGRAVE, LABEL, BRIDGE, SHEET border), one file per sheet / per layer, raster options (DPI preset or custom, image style, grey engrave lines), summary line, **Download all (ZIP)**. |
-| **Project** | "Save settings..." and "Load settings..." (JSON). |
+| **Project** | "Save settings..." and "Load settings..." (JSON), the checkbox "Include the model in the project file", and the preference "Restore the last model when the page opens". |
 
 Dropping a file anywhere on the page also loads it (an overlay says "Drop model to load"). Loading a new model resets the
 selected layer to 0 and frames the camera; the settings are kept.
@@ -142,13 +142,18 @@ while a text/number input, a select or the layer slider has focus. `Ctrl+S` is d
 | What | Where | Content |
 |---|---|---|
 | Settings | `localStorage` key `laserslicer.settings.v1` | The full settings object, saved on every change, merged over defaults on load (new keys get defaults). |
-| UI prefs | `laserslicer.ui.v1` | `autoUpdate`, `hiddenTraces`. Not in the project file. |
+| UI prefs | `laserslicer.ui.v1` | `autoUpdate`, `hiddenTraces`, `restoreSession` (default on). Not in the project file. |
+| Last model | IndexedDB database `laserslicer.session`, record `last` | `{ name, bytes, savedAt }`: the original file bytes of the last model that loaded, at most 50 MB (`SESSION_MAX_BYTES`). Written after a successful load, loaded again at start-up when `restoreSession` is on. |
 | Legend state | `laserslicer.legend.collapsed` | Legend collapsed or not. |
-| Project file | `laser-slicer-project.json` (download) | `{ "format": "laser-slicer-project", "version": 1, "settings": {...} }`. Settings only; **the model is not stored**. |
+| Project file | `laser-slicer-project.json` (download) | `{ "format": "laser-slicer-project", "version": 2, "settings": {...}, "model": { "name": "part.stl", "data": "<base64>" } }`. `model` is present only when the checkbox was ticked: the original file bytes, byte for byte. Version 1 files (settings only) load as before. |
 
 All `localStorage` access is wrapped in try/catch; if storage is blocked the app works with defaults. Loading a project validates
 every key (type, range, enum) and rejects a bad value with one sentence naming the key; keys missing from the file take their
 default; unknown keys are ignored.
+
+**Model in the project file.** A version 2 file with a `model` loads the model first, through the normal load path (STL, OBJ or 3MF parsing in the worker or, for 3MF, on the main thread), and the project's settings are applied in the same store update as the model, so there is one orient and one run, and (later) one undo step. The project's own `importUnit` wins over a unit declared inside an embedded 3MF. If the embedded data is damaged (bad base64, empty, a name without an STL/OBJ/3MF extension) or the model does not parse, one message is shown (status bar and Project group) and neither the current model nor the current settings change. A `model` key in a version 1 file is ignored; later versions are read like version 2.
+
+**Session restore.** The main thread keeps the original bytes and name of the last loaded model (a copy; the worker receives another copy because transferred buffers are detached), used for the checkbox and for the IndexedDB record. At start-up, once the worker answers, the record is loaded through the same path if the preference is on and no model has been loaded meanwhile. A restore never changes settings (not even the unit of a 3MF): the settings are already remembered in `localStorage`. A record that cannot be loaded produces only a status-bar note and is deleted. Files over 50 MB are not stored (and the previous record is removed). Turning the preference off deletes the record. All IndexedDB access (`src/sessionStore.ts`) is in try/catch with a 4 s timeout, and returns null or false on any problem, so the app works unchanged when IndexedDB is missing, blocked or full.
 
 ---
 
@@ -250,6 +255,7 @@ not included: the files will not cut the parts out."
 | Pref | Default | Where |
 |---|---|---|
 | Auto-update preview (`autoUpdate`) | on | `laserslicer.ui.v1` |
+| Restore the last model at start-up (`restoreSession`) | on | `laserslicer.ui.v1` (the model itself is in IndexedDB) |
 | Hidden traces (`hiddenTraces`: cut, engrave, label, bridge, sheet, ghost) | none | `laserslicer.ui.v1` |
 | Legend collapsed | expanded | `laserslicer.legend.collapsed` |
 | 3D view mode, selected tab, selected layer | Model, 3D, 0 | memory only |
@@ -594,7 +600,7 @@ and a DPI that works (rounded down to a multiple of 10). A 600 x 400 mm sheet at
 
 ### 5.6 Project file
 
-See 2.7. Plain JSON, pretty-printed, one `settings` object with every key of section 3 (except UI prefs).
+See 2.7. Plain JSON, pretty-printed, one `settings` object with every key of section 3 (except UI prefs) and optionally one `model` object. The model adds about 4/3 of the model file size (base64); a 20 MB STL gives a 27 MB project file.
 
 ---
 
@@ -634,9 +640,11 @@ A crashed worker sets the badge to `Worker error: ...`.
 | Path | Role |
 |---|---|
 | `index.html`, `src/main.ts` | Page shell; bootstrap wiring store, worker, panel, views, shortcuts, run scheduling. |
-| `src/state.ts` | Defaults, observable `Store`, `localStorage` persistence, project file (de)serialisation and validation. |
+| `src/state.ts` | Defaults, observable `Store`, `localStorage` persistence, project file (de)serialisation and validation (including the embedded model). |
+| `src/sessionStore.ts` | IndexedDB record of the last model; every call guarded, with timeout. |
+| `src/core/base64.ts` | Chunked base64 encode/decode for the model in the project file. |
 | `src/updateController.ts` | DOM-free state machine for auto/stale/running and run ids; `slicingKey`. |
-| `src/uiPrefs.ts`, `src/traceVisibility.ts` | Persisted view prefs; shared trace-visibility state. |
+| `src/uiPrefs.ts`, `src/traceVisibility.ts` | Persisted view prefs (auto-update, hidden traces, restore last model); shared trace-visibility state. |
 | `src/core/types.ts` | `Settings`, `Mesh`, `Shape`, `Part`, `Layer`, `Sheet`, `Placement`, `Warning`. |
 | `src/core/loaders.ts`, `mesh.ts` | STL/OBJ/soup parsing; welding, bbox, edge statistics. |
 | `src/core/transform.ts` | Axis rotations, quarter turns, import unit, scale, drop to Z = 0. |
@@ -739,7 +747,7 @@ GitHub Actions (`.github/workflows/build.yml`): on every push, pull request, man
 | Bridges | `bridges` | placement (straight edges, N, spacing, short rings), gap maths with kerf, splitting, pipeline stage |
 | Nesting | `nest` | hull, minimum rectangle, no overlaps, margins/spacing, oversize parts, multiple sheets |
 | Estimates | `estimates` | lengths, area before kerf, bridged rings without gaps, hollow volume, pricing and 0 = not set, README block, the four settings are not in the slicing key, project defaults and validation |
-| Export | `export`, `raster`, `project` | DXF and SVG structure (parsed with `dxf-parser`), file naming, ZIP and README, export layer selection; CRC-32, PNG `pHYs`, JPEG JFIF, size limits, painting through a mock canvas; project file round trip and validation |
+| Export | `export`, `raster`, `project`, `base64`, `sessionStore` | DXF and SVG structure (parsed with `dxf-parser`), file naming, ZIP and README, export layer selection; CRC-32, PNG `pHYs`, JPEG JFIF, size limits, painting through a mock canvas; project file round trip, validation, version 2 with an embedded model (odd lengths, corrupt data); base64 against Node's encoder; the IndexedDB wrapper with no, throwing, hanging, failing and in-memory fake storage |
 | UI logic | `updateController`, `helpText` | auto/manual state machine, `slicingKey`, UI prefs; every tooltip key used and non-empty, tooltip placement |
 | Performance | `perf` | 500k-triangle smoke test |
 
@@ -771,6 +779,8 @@ checked by hand in Chromium).
 * **Limits:** at most 5000 layers; about 94 million vertices; images at most 16384 px per side and 200 MP.
 * **Hollowing, bridges and the 3D view:** the stacked 3D view does not show bridges or dowel holes (it extrudes layer outlines).
 * **Estimates are approximate.** The time ignores travel moves, acceleration, passes and the BRIDGE layer speed; the weight ignores dowel holes and rods and any glue; cost counts partial sheets whole and ignores waste beyond that. Not compared with a real job.
+* **Session restore needs IndexedDB.** Under `file://` Chromium allows it, other browsers may not; then nothing is restored and nothing is reported. Only the last model is kept, files over 50 MB are not stored. Not verified in Firefox or Safari.
+* **Project files with a model are large** (base64, a third bigger than the model) and are built in memory; a model of several hundred MB would not work well.
 * **STL and OBJ have no units;** the Import unit setting (default millimetres) is the only information, and a model in the wrong unit loads at the wrong size until it is changed. 3MF units are read from the `unit` attribute of the model part (default millimeter when absent); the same unit also applies to an STL or OBJ loaded afterwards.
 * **3MF** is parsed on the main thread (one-off cost per load); all objects are merged into one soup.
 * **Milestone M10** (a Tauri `.exe` wrapper in the plan) was **not done**; the product is the single HTML file.

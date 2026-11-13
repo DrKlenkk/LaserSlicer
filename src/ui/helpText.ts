@@ -112,6 +112,10 @@ export const HELP = {
     "Your laser's engraving speed in mm/s, used only for the rough time estimate (engrave length / speed, engrave lines and label strokes together). 0 = not set: engraving is then left out of the time. The same limits as for the cut speed apply (no travel moves, no acceleration). It does not re-slice.",
   pricePerSheet:
     "What one sheet of your material costs, in any currency (no symbol is shown). The material cost is this price times the number of sheets the nesting uses, and a partly used sheet counts as a whole one. 0 = not set: the cost is then not shown. It does not re-slice.",
+  projectModel:
+    "Also stores the model in the project file: the original STL, OBJ or 3MF file, copied byte for byte (base64 text, so the project file becomes about a third bigger than the model) together with its name. Loading such a file brings back the model and all settings in one step, including the import unit saved with them. Leave it off for a small settings-only file that works with any model. Needs a loaded model. A damaged model in a project file is reported and nothing is changed.",
+  restoreSession:
+    "When on (default), the last model you loaded is kept in this browser (IndexedDB, models up to 50 MB) and loaded again when the page opens, together with the settings the browser already remembers, so a reload brings you back to where you were. Turning it off also deletes the stored copy. If the browser blocks or fills its storage, nothing is restored and the app works as usual. The slicing result is not stored, it is computed again.",
   calibration:
     "Downloads a small ZIP (DXF, SVG and a README) to cut from a scrap of your plywood, about 160 x 80 mm; it works without a model. Kerf test: seven loose 20 mm squares and matching square holes, each pair drawn for a kerf from 0 to 0.30 mm and labelled. The pair that fits snugly shows your kerf: enter it in the Kerf field. Dowel test: five round holes around the current Dowel diameter (plus and minus 0.2 mm), labelled with the value to enter once your rod fits. The dowel holes are drawn smaller by the current Kerf, so do the kerf test first. Use the same laser settings as for the real job.",
 } as const;
@@ -119,4 +123,4 @@ export const HELP = {
 export type HelpKey = keyof typeof HELP;
 
 /** Keys that cover one control rather than a single Settings field. */
-export const EXTRA_HELP_KEYS: readonly HelpKey[] = ["rotate", "sheetSize", "viewToggle", "autoUpdate", "viewTraces", "exportLayers", "calibration"];
+export const EXTRA_HELP_KEYS: readonly HelpKey[] = ["rotate", "sheetSize", "viewToggle", "autoUpdate", "viewTraces", "exportLayers", "calibration", "projectModel", "restoreSession"];

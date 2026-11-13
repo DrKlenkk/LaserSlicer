@@ -4,15 +4,16 @@
 export const TRACES = ["cut", "engrave", "label", "bridge", "sheet", "ghost"] as const;
 export type TraceId = (typeof TRACES)[number];
 
-export type UiPrefs = { autoUpdate: boolean; hiddenTraces: TraceId[] };
+export type UiPrefs = { autoUpdate: boolean; hiddenTraces: TraceId[]; /** load the last model again at start-up */ restoreSession: boolean };
 
 const KEY = "laserslicer.ui.v1";
 
 export function parseUiPrefs(raw: string | null): UiPrefs {
-  const prefs: UiPrefs = { autoUpdate: true, hiddenTraces: [] };
+  const prefs: UiPrefs = { autoUpdate: true, hiddenTraces: [], restoreSession: true };
   try {
     const o = raw ? (JSON.parse(raw) as Partial<UiPrefs> | null) : null;
     if (o && typeof o.autoUpdate === "boolean") prefs.autoUpdate = o.autoUpdate;
+    if (o && typeof o.restoreSession === "boolean") prefs.restoreSession = o.restoreSession;
     if (o && Array.isArray(o.hiddenTraces)) prefs.hiddenTraces = TRACES.filter((t) => (o.hiddenTraces as unknown[]).includes(t));
   } catch {
     /* corrupt: defaults */

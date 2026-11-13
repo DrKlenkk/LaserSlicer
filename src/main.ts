@@ -1,7 +1,7 @@
 // Bootstrap: wires store <-> worker <-> UI.
 import { infoIcon } from "./ui/tooltip";
 import "./style.css";
-import { Store } from "./state";
+import { Store, parseProjectFile, type ProjectModel } from "./state";
 import { WorkerClient, StaleJobError } from "./worker/client";
 import { createPanel, type OrientInfo } from "./ui/panel";
 import { Viewport3D } from "./ui/viewport3d";
@@ -19,6 +19,8 @@ import type { ViewMode } from "./ui/viewport3d";
 import type { Tab } from "./state";
 import { UpdateController, slicingKey, type RunAction } from "./updateController";
 import { loadUiPrefs, saveUiPrefs } from "./uiPrefs";
+import { SessionStore } from "./sessionStore";
+import type { Settings } from "./core/types";
 import { exportLayersOf } from "./core/export/common";
 import { estimate, estimateLines, estimateSettingsOf, estimateSummary } from "./core/estimates";
 
@@ -83,6 +85,7 @@ worker.ping().then(
     workerBadge.textContent = `Worker: ready (ping ${ms.toFixed(1)} ms)`;
     workerBadge.className = "badge ok";
     store.setStatus("Ready. Load an STL, OBJ or 3MF model.");
+    void restoreSession();
   },
   (e: Error) => {
     workerBadge.textContent = `Worker: ${e.message}`;
@@ -105,6 +108,71 @@ function setViewMode(m: ViewMode) {
   viewport.setMode(m);
 }
 
+// ---------- loading models (file, project file, restored session) ----------
+const session = new SessionStore();
+/** Original bytes and name of the last model that loaded: embedded by "Save settings" and remembered for the next start.
+ *  The worker gets a copy (a transferred buffer is detached), so this stays valid; it costs one copy of the file in memory. */
+let lastSource: ProjectModel | null = null;
+
+type LoadOpts = {
+  /** project load: these settings (including their import unit) replace the current ones in the same store update as the model */
+  settings?: Settings;
+  /** session restore: leave all settings alone, even a 3MF's unit (the saved settings already hold the user's choice) */
+  restored?: boolean;
+};
+
+/** Loads model bytes through the normal path. Throws on failure after the store has been left as it was. */
+async function loadModelBytes(name: string, bytes: Uint8Array, opts: LoadOpts = {}): Promise<void> {
+  const ext = name.split(".").pop()?.toLowerCase() ?? "";
+  try {
+    let kind: "stl" | "obj" | "soup" = ext === "3mf" ? "soup" : (ext as "stl" | "obj");
+    let declared: ImportUnit | null = null; // unit declared by a 3MF file
+    let buffer: ArrayBuffer;
+    if (ext === "3mf") {
+      declared = read3mfUnit(bytes);
+      // 3MFLoader needs DOMParser (not in workers): parse here, send the triangles on.
+      const whole = bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength ? (bytes.buffer as ArrayBuffer) : (bytes.slice().buffer as ArrayBuffer);
+      let soup: Float32Array;
+      try {
+        soup = load3mfToSoup(whole);
+      } catch (e) {
+        throw new Error(e instanceof Error && /no triangles/.test(e.message) ? e.message : "This is not a valid 3MF file");
+      }
+      buffer = soup.buffer as ArrayBuffer;
+    } else {
+      buffer = bytes.slice().buffer as ArrayBuffer; // a copy: the worker takes ownership of what it gets
+    }
+    const r = await worker.load(buffer, kind);
+    if (opts.restored && store.get().model) return; // the user loaded something while the restore was running
+    // A 3MF file is authoritative about its unit: set it in the same update as the model (one orient, one run).
+    // STL and OBJ keep whatever unit is set (it is a project setting). A project's own unit wins over the 3MF's, and a restore changes nothing.
+    const unitChanged = !opts.settings && !opts.restored && declared !== null && declared !== store.get().settings.importUnit;
+    lastSource = { name, bytes };
+    store.set({
+      model: { fileName: name, mesh: { positions: r.positions, indices: r.indices, bbox: r.bbox }, stats: r.stats },
+      ...(opts.settings ? { settings: opts.settings } : unitChanged ? { settings: { ...store.get().settings, importUnit: declared! } } : {}),
+      result: null,
+      layer: 0,
+    });
+    if (!opts.restored && loadUiPrefs().restoreSession) void session.save(name, bytes);
+    const unitNote = unitChanged ? ` 3MF declares ${THREEMF_UNIT_PLURAL[declared!]} — import unit set to ${THREEMF_UNIT_NAME[declared!]}.` : "";
+    lastFitModel = null; // fit camera for the new model
+    const s = r.stats;
+    const problems: string[] = [];
+    if (s.openEdges) problems.push(`${s.openEdges} open edges`);
+    if (s.nonManifoldEdges) problems.push(`${s.nonManifoldEdges} non-manifold edges`);
+    if (s.degenerateRemoved) problems.push(`${s.degenerateRemoved} degenerate triangles removed`);
+    const lead = opts.restored ? "Restored the last model. " : "";
+    store.setStatus(
+      lead + (problems.length ? `Loaded ${name}: mesh problems (${problems.join(", ")}); slicing will try to repair.` : `Loaded ${name}: ${s.triangles.toLocaleString()} triangles, closed mesh.`) + unitNote,
+      problems.length ? "warn" : "info",
+    );
+  } catch (e) {
+    if (ctl.auto && ctl.stale) scheduleRun(true); // the load cancelled a run in flight; the old model is still there
+    throw e;
+  }
+}
+
 async function openFile(file: File) {
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
   if (!["stl", "obj", "3mf"].includes(ext)) {
@@ -113,49 +181,50 @@ async function openFile(file: File) {
   }
   store.setStatus(`Loading ${file.name}…`);
   try {
-    let buffer = await file.arrayBuffer();
-    let kind: "stl" | "obj" | "soup" = ext === "3mf" ? "soup" : (ext as "stl" | "obj");
-    let declared: ImportUnit | null = null; // unit declared by a 3MF file
-    if (ext === "3mf") {
-      declared = read3mfUnit(new Uint8Array(buffer)); // before the buffer is replaced by the soup
-      // 3MFLoader needs DOMParser (not in workers): parse here, send the triangles on.
-      let soup: Float32Array;
-      try {
-        soup = load3mfToSoup(buffer);
-      } catch (e) {
-        throw new Error(e instanceof Error && /no triangles/.test(e.message) ? e.message : "This is not a valid 3MF file");
-      }
-      buffer = soup.buffer as ArrayBuffer;
-    }
-    const r = await worker.load(buffer, kind);
-    // A 3MF file is authoritative about its unit: set it in the same update as the model (one orient, one run).
-    // STL and OBJ keep whatever unit is set (it is a project setting).
-    const unitChanged = declared !== null && declared !== store.get().settings.importUnit;
-    store.set({
-      model: { fileName: file.name, mesh: { positions: r.positions, indices: r.indices, bbox: r.bbox }, stats: r.stats },
-      ...(unitChanged ? { settings: { ...store.get().settings, importUnit: declared! } } : {}),
-      result: null,
-      layer: 0,
-    });
-    const unitNote = unitChanged ? ` 3MF declares ${THREEMF_UNIT_PLURAL[declared!]} — import unit set to ${THREEMF_UNIT_NAME[declared!]}.` : "";
-    lastFitModel = null; // fit camera for the new model
-    const s = r.stats;
-    const problems: string[] = [];
-    if (s.openEdges) problems.push(`${s.openEdges} open edges`);
-    if (s.nonManifoldEdges) problems.push(`${s.nonManifoldEdges} non-manifold edges`);
-    if (s.degenerateRemoved) problems.push(`${s.degenerateRemoved} degenerate triangles removed`);
-    store.setStatus(
-      (problems.length ? `Loaded ${file.name}: mesh problems (${problems.join(", ")}); slicing will try to repair.` : `Loaded ${file.name}: ${s.triangles.toLocaleString()} triangles, closed mesh.`) + unitNote,
-      problems.length ? "warn" : "info",
-    );
+    await loadModelBytes(file.name, new Uint8Array(await file.arrayBuffer()));
   } catch (e) {
     store.setStatus(`Could not load ${file.name}: ${e instanceof Error ? e.message : String(e)}`, "error");
-    if (ctl.auto && ctl.stale) scheduleRun(true); // the load cancelled a run in flight; the old model is still there
+  }
+}
+
+/** Loads a project file's text. Resolves with a status sentence; throws one clear message and changes nothing on failure. */
+async function loadProject(text: string, fileName: string): Promise<string> {
+  const { settings, model } = parseProjectFile(text);
+  if (!model) {
+    store.replaceSettings(settings);
+    return `Loaded settings from ${fileName}`;
+  }
+  store.setStatus(`Loading ${model.name} from ${fileName}…`);
+  try {
+    await loadModelBytes(model.name, model.bytes, { settings });
+  } catch (e) {
+    throw new Error(`The model stored in ${fileName} could not be loaded (${e instanceof Error ? e.message : String(e)}); the current model and settings were kept`);
+  }
+  return `Loaded ${model.name} and the settings from ${fileName}`;
+}
+
+/** At start-up: bring back the last model when the preference is on and a record exists. Failure is only a status note. */
+async function restoreSession() {
+  if (!loadUiPrefs().restoreSession) return;
+  const rec = await session.load(); // null on any storage problem
+  if (!rec || store.get().model) return;
+  try {
+    await loadModelBytes(rec.name, rec.bytes, { restored: true });
+  } catch (e) {
+    store.setStatus(`Could not restore ${rec.name} from the last session (${e instanceof Error ? e.message : String(e)}); it was forgotten.`, "warn");
+    void session.clear();
   }
 }
 
 const panel = createPanel(panelEl, store, {
   openFile,
+  loadProject,
+  getModelSource: () => lastSource,
+  setRestoreSession(on) {
+    saveUiPrefs({ ...loadUiPrefs(), restoreSession: on });
+    if (!on) void session.clear();
+    else if (lastSource) void session.save(lastSource.name, lastSource.bytes);
+  },
   async exportZip() {
     const m = store.get().model;
     if (!m) throw new Error("No model loaded");

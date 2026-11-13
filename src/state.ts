@@ -2,6 +2,7 @@
 import type { Mesh, MeshStats, Settings } from "./core/types";
 import type { RunResult } from "./core/pipeline";
 import { IMPORT_UNITS } from "./core/units";
+import { decodeBase64, encodeBase64 } from "./core/base64";
 
 export const DEFAULT_SETTINGS: Settings = {
   axis: "+Z",
@@ -99,12 +100,21 @@ function saveSettings(s: Settings) {
   }
 }
 
-// ---------- project file (settings only; the model is not stored) ----------
+// ---------- project file (settings, optionally the original model file) ----------
 
 export const PROJECT_FORMAT = "laser-slicer-project";
+/** Version 1: settings only. Version 2: the same plus an optional `model: { name, data }` (data = base64 of the original file). */
+export const PROJECT_VERSION = 2;
+/** File types a project's embedded model may have (same as the Choose file dialog). */
+const MODEL_EXTENSIONS = ["stl", "obj", "3mf"];
 
-export function serializeProject(s: Settings): string {
-  return JSON.stringify({ format: PROJECT_FORMAT, version: 1, settings: s }, null, 2) + "\n";
+export type ProjectModel = { name: string; bytes: Uint8Array };
+
+/** Serialises the settings; with `model` the original model file is embedded (base64) and the file is version 2 with a model. */
+export function serializeProject(s: Settings, model?: ProjectModel | null): string {
+  const o: Record<string, unknown> = { format: PROJECT_FORMAT, version: PROJECT_VERSION, settings: s };
+  if (model) o.model = { name: model.name, data: encodeBase64(model.bytes) };
+  return JSON.stringify(o, null, 2) + "\n";
 }
 
 const POSITIVE = ["thickness", "sheetW", "sheetH", "scale", "labelHeight", "dowelDiameter", "bridgeWidth"] as const;
@@ -122,13 +132,22 @@ const ENUMS: Record<string, readonly string[]> = {
  * are ignored). Throws an Error with one clear sentence when the file is not a project or a value is unusable.
  */
 export function parseProject(text: string): Settings {
+  return parseProjectFile(text, false).settings;
+}
+
+/**
+ * Parses a project file into its settings and, when it is version 2 or later and has one, its embedded model (decoded).
+ * Version 1 files never have a model (a `model` key in one is ignored). Throws an Error with one clear sentence on a bad
+ * file, a bad setting or a corrupt model; nothing is returned partially, so the caller can keep its current state.
+ */
+export function parseProjectFile(text: string, withModel = true): { settings: Settings; model: ProjectModel | null } {
   let data: unknown;
   try {
     data = JSON.parse(text);
   } catch {
     throw new Error("This is not a valid project file (it is not JSON)");
   }
-  const obj = data as { format?: unknown; settings?: unknown } | null;
+  const obj = data as { format?: unknown; version?: unknown; settings?: unknown; model?: unknown } | null;
   if (!obj || typeof obj !== "object" || obj.format !== PROJECT_FORMAT || typeof obj.settings !== "object" || obj.settings === null)
     throw new Error("This is not a Laser Slicer project file");
   const src = obj.settings as Record<string, unknown>;
@@ -162,7 +181,22 @@ export function parseProject(text: string): Settings {
     } else if (typeof v !== typeof def) bad(k);
     out[k] = src[k];
   }
-  return out as unknown as Settings;
+  const settings = out as unknown as Settings;
+  const version = typeof obj.version === "number" ? obj.version : 1;
+  if (!withModel || version < 2 || obj.model === undefined || obj.model === null) return { settings, model: null };
+  const m = obj.model as { name?: unknown; data?: unknown };
+  const corrupt = () => new Error("The model stored in this project file is damaged; nothing was loaded");
+  if (typeof m !== "object" || typeof m.name !== "string" || typeof m.data !== "string" || !m.name) throw corrupt();
+  const ext = m.name.split(".").pop()?.toLowerCase() ?? "";
+  if (!MODEL_EXTENSIONS.includes(ext)) throw new Error(`The model stored in this project file has an unsupported type ".${ext}"; nothing was loaded`);
+  let bytes: Uint8Array;
+  try {
+    bytes = decodeBase64(m.data);
+  } catch {
+    throw corrupt();
+  }
+  if (bytes.length === 0) throw corrupt();
+  return { settings, model: { name: m.name, bytes } };
 }
 
 export type Listener = (state: AppState, changed: ReadonlySet<keyof AppState>) => void;
@@ -205,7 +239,7 @@ export class Store {
     this.set({ status: { text, level } });
   }
 
-  /** Replace all settings (project load). */
+  /** Replace all settings (project load without a model). */
   replaceSettings(s: Settings) {
     this.set({ settings: s });
   }

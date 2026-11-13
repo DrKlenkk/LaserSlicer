@@ -1,6 +1,7 @@
 // Parameter panel: collapsible groups of inputs bound to Settings in the store.
 import type { Axis, Dim, Settings } from "../core/types";
-import { parseProject, serializeProject, type Store } from "../state";
+import { serializeProject, type ProjectModel, type Store } from "../state";
+import { loadUiPrefs } from "../uiPrefs";
 import { h } from "./dom";
 import type { HelpKey } from "./helpText";
 import { infoIcon } from "./tooltip";
@@ -10,7 +11,15 @@ import { IMPORT_UNIT_OPTIONS } from "../core/units";
 
 export type OrientInfo = { size: [number, number, number]; scale: number };
 
-export type PanelActions = { openFile(file: File): void; exportZip(): Promise<void> };
+export type PanelActions = {
+  openFile(file: File): void;
+  exportZip(): Promise<void>;
+  /** Loads a project file's text (settings, and the model if it holds one); resolves with a status sentence, throws one clear message. */
+  loadProject(text: string, fileName: string): Promise<string>;
+  /** The original file of the loaded model, or null without a model. */
+  getModelSource(): ProjectModel | null;
+  setRestoreSession(on: boolean): void;
+};
 
 type NumKey = {
   [K in keyof Settings]: Settings[K] extends number ? K : never;
@@ -240,7 +249,7 @@ export function createPanel(root: HTMLElement, store: Store, actions: PanelActio
   const exportSection = createExportSection(store, actions.exportZip);
   const exportGroup = group("Export", false, exportSection.el);
 
-  // ---------- Project (settings as a .json file) ----------
+  // ---------- Project (settings, optionally the model, as a .json file) ----------
   const projectStatus = h("small", { class: "hint", id: "project-status", role: "status" });
   const projectInput = h("input", { type: "file", accept: ".json,application/json", id: "project-input", hidden: true });
   projectInput.addEventListener("change", async () => {
@@ -248,12 +257,29 @@ export function createPanel(root: HTMLElement, store: Store, actions: PanelActio
     projectInput.value = "";
     if (!f) return;
     try {
-      store.replaceSettings(parseProject(await f.text()));
-      projectStatus.textContent = `Loaded settings from ${f.name}`;
+      projectStatus.textContent = await actions.loadProject(await f.text(), f.name);
     } catch (e) {
-      projectStatus.textContent = e instanceof Error ? e.message : String(e);
+      const msg = e instanceof Error ? e.message : String(e);
+      projectStatus.textContent = msg;
+      store.setStatus(msg, "error"); // the Project group may be collapsed
     }
   });
+  const withModelCb = h("input", { type: "checkbox", id: "project-with-model" });
+  const withModelLabel = h("label", { class: "field check" }, withModelCb, h("span", { class: "lbl" }, "Include the model in the project file", infoIcon("projectModel")));
+  const restoreCb = h("input", { type: "checkbox", id: "restore-session" });
+  restoreCb.checked = loadUiPrefs().restoreSession;
+  restoreCb.addEventListener("change", () => actions.setRestoreSession(restoreCb.checked));
+  const restoreLabel = h("label", { class: "field check" }, restoreCb, h("span", { class: "lbl" }, "Restore the last model when the page opens", infoIcon("restoreSession")));
+  function syncProject() {
+    const has = !!store.get().model && !!actions.getModelSource();
+    withModelCb.disabled = !has;
+    if (!has) withModelCb.checked = false;
+    withModelLabel.title = has ? "" : "Load a model first";
+  }
+  store.subscribe((_s, changed) => {
+    if (changed.has("model")) syncProject();
+  });
+  syncProject();
   const projectGroup = group(
     "Project",
     false,
@@ -261,13 +287,16 @@ export function createPanel(root: HTMLElement, store: Store, actions: PanelActio
       h("button", {
         type: "button", class: "btn small", id: "project-save",
         onclick: () => {
-          downloadBytes("laser-slicer-project.json", "application/json", new TextEncoder().encode(serializeProject(store.get().settings)));
-          projectStatus.textContent = "Saved laser-slicer-project.json";
+          const model = withModelCb.checked ? actions.getModelSource() : null;
+          downloadBytes("laser-slicer-project.json", "application/json", new TextEncoder().encode(serializeProject(store.get().settings, model)));
+          projectStatus.textContent = model ? `Saved laser-slicer-project.json with the model ${model.name}` : "Saved laser-slicer-project.json";
         },
       }, "Save settings…"),
       h("button", { type: "button", class: "btn small", id: "project-load", onclick: () => projectInput.click() }, "Load settings…"),
       projectInput),
-    h("small", { class: "hint" }, "A project file holds the settings only, not the model. The last settings are also remembered in this browser."),
+    withModelLabel,
+    h("small", { class: "hint" }, "Without the checkbox the file holds the settings only. With it, loading the file brings back the model too. The last settings are also remembered in this browser."),
+    restoreLabel,
     projectStatus,
   );
 
