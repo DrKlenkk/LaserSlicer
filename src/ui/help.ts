@@ -9,6 +9,8 @@ export const SHORTCUTS: [string, string][] = [
   ["M", "3D tab: switch between original model and stacked result"],
   ["F", "3D tab: frame the model"],
   ["U", "update the preview (when auto-update is off)"],
+  ["Ctrl+Z / Cmd+Z", "undo the last settings change (not while typing in a field)"],
+  ["Ctrl+Y / Ctrl+Shift+Z", "redo (Cmd+Shift+Z on a Mac)"],
   ["?", "show or hide this help"],
   ["Esc", "close help or the warnings list"],
 ];

@@ -52,7 +52,13 @@ const autoLabel = h("label", { class: "auto-update" }, autoCb, h("span", {}, "Au
 const updateNote = h("span", { class: "update-note", id: "update-note" }, "● settings changed");
 const updateBtn = h("button", { type: "button", class: "btn primary", id: "update-preview", title: "Slice with the current settings (U)" }, "Update preview");
 const updateWrap = h("div", { class: "update-wrap", id: "update-wrap", hidden: true }, updateNote, updateBtn);
-tabBar.append(h("span", { class: "spacer" }), autoLabel, h("button", { type: "button", class: "help-btn", id: "help-btn", title: "Help and keyboard shortcuts (?)", onclick: () => help.toggle() }, "?"));
+const undoBtn = h("button", { type: "button", class: "help-btn", id: "undo-btn", title: "Undo the last settings change (Ctrl+Z)", "aria-label": "Undo", onclick: () => store.undo() }, "↶");
+const redoBtn = h("button", { type: "button", class: "help-btn", id: "redo-btn", title: "Redo (Ctrl+Y or Ctrl+Shift+Z)", "aria-label": "Redo", onclick: () => store.redo() }, "↷");
+function renderHistory() {
+  undoBtn.disabled = !store.canUndo;
+  redoBtn.disabled = !store.canRedo;
+}
+tabBar.append(h("span", { class: "spacer" }), undoBtn, redoBtn, autoLabel, h("button", { type: "button", class: "help-btn", id: "help-btn", title: "Help and keyboard shortcuts (?)", onclick: () => help.toggle() }, "?"));
 const btnModel = h("button", { type: "button", id: "view-model", class: "active", onclick: () => setViewMode("model") }, "Model");
 const btnStack = h("button", { type: "button", id: "view-stack", disabled: true, title: "The sliced layers stacked (M)", onclick: () => setViewMode("stack") }, "Stacked result");
 const viewToggle = h("div", { class: "view-toggle", id: "view-toggle", role: "group", "aria-label": "3D view" }, btnModel, btnStack, infoIcon("viewToggle"));
@@ -153,7 +159,7 @@ async function loadModelBytes(name: string, bytes: Uint8Array, opts: LoadOpts = 
       ...(opts.settings ? { settings: opts.settings } : unitChanged ? { settings: { ...store.get().settings, importUnit: declared! } } : {}),
       result: null,
       layer: 0,
-    });
+    }, opts.settings ? "step" : "silent"); // a project is one undo step; a 3MF's unit rides along with the model (not a step)
     if (!opts.restored && loadUiPrefs().restoreSession) void session.save(name, bytes);
     const unitNote = unitChanged ? ` 3MF declares ${THREEMF_UNIT_PLURAL[declared!]} — import unit set to ${THREEMF_UNIT_NAME[declared!]}.` : "";
     lastFitModel = null; // fit camera for the new model
@@ -447,13 +453,33 @@ store.subscribe((state, changed) => {
 
 store.subscribe(refresh);
 refresh();
+store.subscribe((_s, changed) => {
+  if (changed.has("settings")) renderHistory();
+});
+renderHistory();
 
 // ---------- keyboard shortcuts ----------
 const TEXT_INPUT_TYPES = new Set(["text", "number", "search", "email", "url", "password", "tel"]);
+/** Focus is somewhere the browser's own undo/typing must keep working (text-like inputs, select, textarea, editable). */
+function typingTarget(t: HTMLElement | null): boolean {
+  if (!t) return false;
+  if (t.tagName === "SELECT" || t.tagName === "TEXTAREA" || t.isContentEditable) return true;
+  return t.tagName === "INPUT" && TEXT_INPUT_TYPES.has((t as HTMLInputElement).type);
+}
 window.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && help.open) {
     help.close();
     return;
+  }
+  // Undo / redo of settings. Checkboxes, buttons and the layer slider do not use these keys themselves, so they are intercepted there.
+  if ((e.ctrlKey || e.metaKey) && !e.altKey && !typingTarget(e.target as HTMLElement | null)) {
+    const k = e.key.toLowerCase();
+    if (k === "z" || k === "y") {
+      e.preventDefault();
+      if (k === "y" || e.shiftKey) store.redo();
+      else store.undo();
+      return;
+    }
   }
   if (e.ctrlKey || e.metaKey || e.altKey) return; // leave browser shortcuts alone
   const t = e.target as HTMLElement | null;

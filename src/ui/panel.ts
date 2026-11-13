@@ -8,6 +8,7 @@ import { infoIcon } from "./tooltip";
 import { createExportSection, downloadBytes } from "./exportDialog";
 import { buildCalibrationZip } from "../core/calibration";
 import { IMPORT_UNIT_OPTIONS } from "../core/units";
+import { PresetStore, STARTER_PRESETS, applyPreset, matchesPreset, normalizeName, presetValuesOf } from "../presets";
 
 export type OrientInfo = { size: [number, number, number]; scale: number };
 
@@ -188,9 +189,64 @@ export function createPanel(root: HTMLElement, store: Store, actions: PanelActio
       calibrationStatus.textContent = `Calibration sheet failed: ${e instanceof Error ? e.message : String(e)}`;
     }
   }
+  // ---------- material presets (browser storage, own key; applying one is a single undo step) ----------
+  const presets = new PresetStore();
+  const presetSel = h("select", { id: "preset-select", title: "Apply a saved set of material values" });
+  const presetSave = h("button", { type: "button", class: "btn small", id: "preset-save", title: "Save the material values below under a name" }, "Save…");
+  const presetDelete = h("button", { type: "button", class: "btn small", id: "preset-delete" }, "Delete");
+  const presetNote = h("small", { class: "hint", id: "preset-note", role: "status" });
+  function renderPresets() {
+    presetSel.replaceChildren(
+      h("option", { value: "" }, "Choose preset…"),
+      h("optgroup", { label: "Starting points" }, ...STARTER_PRESETS.map((p) => h("option", { value: p.name }, p.name))),
+      ...(presets.list().length ? [h("optgroup", { label: "My presets" }, ...presets.list().map((p) => h("option", { value: p.name }, p.name)))] : []),
+    );
+    syncPresets(store.get().settings);
+  }
+  function syncPresets(s: Settings) {
+    // keep the selected preset while it still matches (two presets can hold the same values); else prefer my presets over starters
+    const cur = presets.find(presetSel.value);
+    const m = cur && matchesPreset(s, cur) ? cur : [...presets.list(), ...STARTER_PRESETS].find((p) => matchesPreset(s, p));
+    presetSel.value = m ? m.name : "";
+    const user = !!m && presets.isUser(m.name);
+    presetDelete.disabled = !user;
+    presetDelete.title = user ? `Delete the preset "${m!.name}"` : m ? "Starting points cannot be deleted" : "Select one of your presets to delete it";
+  }
+  syncers.push(syncPresets);
+  presetSel.addEventListener("change", () => {
+    const p = presets.find(presetSel.value);
+    if (!p) return;
+    store.updateSettings(applyPreset(store.get().settings, p), "step");
+    const starter = !presets.isUser(p.name);
+    presetNote.textContent = `Applied "${p.name}"${starter ? ". Starting points: check kerf and thickness with your own material and laser." : "."}`;
+  });
+  presetSave.addEventListener("click", () => {
+    const sel = presets.find(presetSel.value);
+    const name = normalizeName(window.prompt("Name for this material preset (the same name replaces that preset):", sel && presets.isUser(sel.name) ? sel.name : "") ?? "");
+    if (!name) return;
+    if (presets.exists(name) && !window.confirm(`Replace the preset "${name}"?`)) return;
+    const err = presets.save(name, presetValuesOf(store.get().settings));
+    if (err) {
+      presetNote.textContent = err;
+      return;
+    }
+    renderPresets();
+    presetNote.textContent = presets.persisted ? `Saved the preset "${name}".` : `Saved the preset "${name}", but the browser would not store it: it is gone when the page closes.`;
+  });
+  presetDelete.addEventListener("click", () => {
+    const name = presetSel.value;
+    if (!presets.isUser(name) || !window.confirm(`Delete the preset "${name}"?`)) return;
+    presets.delete(name);
+    renderPresets();
+    presetNote.textContent = `Deleted the preset "${name}".`;
+  });
+
   const materialGroup = group(
     "Material",
     true,
+    h("div", { class: "field" }, h("span", { class: "lbl" }, "Preset", infoIcon("presets")), h("span", { class: "ctl" }, presetSel)),
+    h("div", { class: "rotrow" }, presetSave, presetDelete),
+    presetNote,
     numField("Thickness", "thickness", { step: 0.05, min: 0.1, unit: "mm", hint: "Measure with calipers; nominal 4 mm is often 3.7–3.9 mm.", help: "thickness" }),
     h("div", { class: "grid2" }, numField("Sheet W", "sheetW", { min: 10, unit: "mm", help: "sheetSize" }), numField("Sheet H", "sheetH", { min: 10, unit: "mm" })),
     numField("Kerf", "kerf", { step: 0.01, min: 0, unit: "mm", help: "kerf" }),
@@ -324,6 +380,7 @@ export function createPanel(root: HTMLElement, store: Store, actions: PanelActio
   store.subscribe((_s, changed) => {
     if (changed.has("settings")) sync();
   });
+  renderPresets();
   sync();
 
   return {

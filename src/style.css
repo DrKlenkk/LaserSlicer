@@ -218,6 +218,7 @@ button.warn-item:hover { background: var(--accent-soft); }
 .help-keys kbd { font: 12px ui-monospace, Menlo, Consolas, monospace; padding: 1px 6px; border: 1px solid var(--border); border-radius: 4px; background: var(--panel); white-space: nowrap; }
 .tabs .spacer { flex: 1; }
 .tabs button.help-btn { padding: 4px 10px; margin: 0 0 4px; border: 1px solid var(--border); border-radius: 999px; font-weight: 600; }
+.tabs button.help-btn:disabled { opacity: 0.4; cursor: default; }
 
 /* info icon + tooltip (ui/tooltip.ts) */
 .tip { display: inline-flex; vertical-align: middle; margin-left: 5px; }

@@ -123,7 +123,8 @@ raster style, grey engraving, export layer chips) neither start a run nor mark t
 ### 2.6 Keyboard shortcuts and help
 
 `?` or the **?** button opens a help overlay (short usage guide, gluing steps, shortcut table). Shortcuts are global and ignored
-while a text/number input, a select or the layer slider has focus. `Ctrl+S` is deliberately not bound.
+while a text/number input, a select or the layer slider has focus. `Ctrl+S` is deliberately not bound. The undo / redo keys
+follow their own rule (section 2.8).
 
 | Key | Action |
 |---|---|
@@ -134,14 +135,44 @@ while a text/number input, a select or the layer slider has focus. `Ctrl+S` is d
 | `M` | 3D tab: toggle Model / Stacked result |
 | `F` | 3D tab: frame the model |
 | `U` | update the preview (auto-update off) |
+| `Ctrl+Z` / `Cmd+Z` | undo the last settings change |
+| `Ctrl+Y`, `Ctrl+Shift+Z` / `Cmd+Shift+Z` | redo |
 | `?` | help |
 | `Esc` | close help, warnings, tooltip |
+
+### 2.8 Undo / redo and material presets
+
+**History.** Every settings change goes through `Store.set` and is recorded in `src/history.ts` (pure, tested): a stack of
+snapshots of the full settings object from before each step, at most 100 (the oldest is dropped), plus a redo stack that any new
+step clears. A change that leaves every value equal is not recorded. Rapid changes to the **same single setting** (typing, spinner
+clicks, a slider) within 1 s of the previous one are one step; a bulk change (project load, preset, reset, two settings at once)
+is always a step of its own. Undo and redo put the snapshot back with one store update, so the panel re-syncs, `slicingKey`
+decides whether to re-slice or mark the preview stale exactly as for a manual edit, and the settings are saved to `localStorage`.
+What is **not** a step: loading a model, restoring the last session, the selected tab, layer and 3D view. A 3MF load that sets the
+import unit changes the unit silently and writes the new value into all stored snapshots, so undo does not bring back a unit that
+no longer fits the model. A project file is one step, and loading a project with a model is one step as well.
+
+**Buttons and keys.** The two buttons (↶ ↷) left of "Auto-update preview" are disabled when there is nothing to undo / redo. The
+keys are ignored while focus is in a text-like input (text, number, search, ...), a select, a textarea or an editable element, so
+the browser's own undo of the typed text keeps working; they are handled with focus on a checkbox, button, the layer slider or
+the page. A number field commits when it loses focus or on Enter, so use a button or click elsewhere first.
+
+**Material presets** (Material group, `src/presets.ts`). A preset is a name plus the values of thickness, sheet W/H, kerf, part
+spacing, sheet margin, density, cut speed, engrave speed and price per sheet. The list has "Starting points" (built in, three
+plywood thicknesses; they leave speeds and price out, so applying one keeps yours; not deletable) and "My presets" (saved in
+`localStorage` key `laserslicer.presets.v1` as `[{ name, values }]`, validated on read, invalid entries dropped, at most 50, names
+case-insensitive and at most 60 characters). Selecting a preset applies it as one undo step. **Save...** asks for a name
+(`window.prompt`); an existing name is replaced after a confirm; the names of the starting points are refused. **Delete** (confirm)
+removes the selected preset of yours. The list shows the preset whose values match the current ones (so it clears when you edit a
+field). Presets are not part of the project file. Without usable storage the presets last for the page session and the panel says
+so.
 
 ### 2.7 Project files and persistence
 
 | What | Where | Content |
 |---|---|---|
 | Settings | `localStorage` key `laserslicer.settings.v1` | The full settings object, saved on every change, merged over defaults on load (new keys get defaults). |
+| Material presets | `laserslicer.presets.v1` | `[{ "name", "values": { thickness, sheetW, ... } }]`, my presets only (section 2.8). Not in the project file. |
 | UI prefs | `laserslicer.ui.v1` | `autoUpdate`, `hiddenTraces`, `restoreSession` (default on). Not in the project file. |
 | Last model | IndexedDB database `laserslicer.session`, record `last` | `{ name, bytes, savedAt }`: the original file bytes of the last model that loaded, at most 50 MB (`SESSION_MAX_BYTES`). Written after a successful load, loaded again at start-up when `restoreSession` is on. |
 | Legend state | `laserslicer.legend.collapsed` | Legend collapsed or not. |
@@ -640,7 +671,9 @@ A crashed worker sets the badge to `Worker error: ...`.
 | Path | Role |
 |---|---|
 | `index.html`, `src/main.ts` | Page shell; bootstrap wiring store, worker, panel, views, shortcuts, run scheduling. |
-| `src/state.ts` | Defaults, observable `Store`, `localStorage` persistence, project file (de)serialisation and validation (including the embedded model). |
+| `src/state.ts` | Defaults, observable `Store` (with the undo history), `localStorage` persistence, project file (de)serialisation and validation (including the embedded model). |
+| `src/history.ts` | DOM-free undo / redo history of settings snapshots (cap, merge window, rebase); used by the store. |
+| `src/presets.ts` | Material presets: validation, starting points, `PresetStore` with guarded `localStorage`. |
 | `src/sessionStore.ts` | IndexedDB record of the last model; every call guarded, with timeout. |
 | `src/core/base64.ts` | Chunked base64 encode/decode for the model in the project file. |
 | `src/updateController.ts` | DOM-free state machine for auto/stale/running and run ids; `slicingKey`. |
@@ -734,7 +767,7 @@ GitHub Actions (`.github/workflows/build.yml`): on every push, pull request, man
 
 ## 8. Testing and measured performance
 
-`npm test` runs 200 Vitest tests in 19 files in Node (no browser). Synthetic meshes (cube, sphere, torus, filleted plate, broken meshes) are generated by `test/fixtures/`.
+`npm test` runs 294 Vitest tests in 27 files in Node (no browser). Synthetic meshes (cube, sphere, torus, filleted plate, broken meshes) are generated by `test/fixtures/`.
 
 | Area | Files | What is covered |
 |---|---|---|
@@ -748,6 +781,7 @@ GitHub Actions (`.github/workflows/build.yml`): on every push, pull request, man
 | Nesting | `nest` | hull, minimum rectangle, no overlaps, margins/spacing, oversize parts, multiple sheets |
 | Estimates | `estimates` | lengths, area before kerf, bridged rings without gaps, hollow volume, pricing and 0 = not set, README block, the four settings are not in the slicing key, project defaults and validation |
 | Export | `export`, `raster`, `project`, `base64`, `sessionStore` | DXF and SVG structure (parsed with `dxf-parser`), file naming, ZIP and README, export layer selection; CRC-32, PNG `pHYs`, JPEG JFIF, size limits, painting through a mock canvas; project file round trip, validation, version 2 with an embedded model (odd lengths, corrupt data); base64 against Node's encoder; the IndexedDB wrapper with no, throwing, hanging, failing and in-memory fake storage |
+| History, presets | `history` | undo / redo stacks, merge window, cap 100, no-op not recorded, redo cleared by a new step, rebase of silent changes, store integration (bulk replace is one step); preset validation, starting points, apply / match, `PresetStore` with working, throwing and missing storage |
 | UI logic | `updateController`, `helpText` | auto/manual state machine, `slicingKey`, UI prefs; every tooltip key used and non-empty, tooltip placement |
 | Performance | `perf` | 500k-triangle smoke test |
 
@@ -779,6 +813,8 @@ checked by hand in Chromium).
 * **Limits:** at most 5000 layers; about 94 million vertices; images at most 16384 px per side and 200 MP.
 * **Hollowing, bridges and the 3D view:** the stacked 3D view does not show bridges or dowel holes (it extrudes layer outlines).
 * **Estimates are approximate.** The time ignores travel moves, acceleration, passes and the BRIDGE layer speed; the weight ignores dowel holes and rods and any glue; cost counts partial sheets whole and ignores waste beyond that. Not compared with a real job.
+* **Undo covers settings only.** Loading a model, tab and layer selection are not undone, and the history is lost when the page closes. Undo while a number field has focus is the browser's text undo, not the app's. Merging is by time (1 s), so a slow typist gets several steps.
+* **Presets are per browser** (not in the project file, not synced); the starting points are guesses for plywood, not measured values for any laser.
 * **Session restore needs IndexedDB.** Under `file://` Chromium allows it, other browsers may not; then nothing is restored and nothing is reported. Only the last model is kept, files over 50 MB are not stored. Not verified in Firefox or Safari.
 * **Project files with a model are large** (base64, a third bigger than the model) and are built in memory; a model of several hundred MB would not work well.
 * **STL and OBJ have no units;** the Import unit setting (default millimetres) is the only information, and a model in the wrong unit loads at the wrong size until it is changed. 3MF units are read from the `unit` attribute of the model part (default millimeter when absent); the same unit also applies to an STL or OBJ loaded afterwards.

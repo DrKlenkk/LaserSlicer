@@ -57,7 +57,8 @@ updates first, so the files always match the settings you see. The checkbox is r
 the project file.
 
 Press `?` in the app for the shortcuts: 1/2/3 tabs, arrows / PgUp / PgDn / Home / End step layers, M toggles model and stacked
-result, F frames the model, U updates the preview (auto-update off). "Project" in the panel saves and loads the settings as a `.json` file; tick "Include the model in the project file" to embed the model too (the file grows by about a third of the model size), and loading it brings back model and settings together.
+result, F frames the model, U updates the preview (auto-update off), Ctrl+Z / Ctrl+Y (Cmd on a Mac; also Ctrl+Shift+Z) undo and redo settings changes (also the two buttons next to "Auto-update preview"; not while you type in a field, where the browser's own undo works). Loading a model is not an undo step, loading a project file is one.
+**Material presets**: the Preset list in the Material group applies thickness, sheet size, kerf, spacing, margin, density, speeds and price at once (one undo step). "Save..." stores your current values under a name (an existing name is replaced after a confirm), "Delete" removes one of yours. Presets are kept in the browser, not in the project file. The three "starting point" presets are only guesses for plywood: measure your sheets and run the calibration sheet. "Project" in the panel saves and loads the settings as a `.json` file; tick "Include the model in the project file" to embed the model too (the file grows by about a third of the model size), and loading it brings back model and settings together.
 The last settings and the last model are also kept in this browser, so reloading the page brings you back to where you were (switch off with "Restore the last model when the page opens"; models over 50 MB are not remembered).
 
 ### Modes

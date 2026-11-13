@@ -3,6 +3,11 @@ import type { Mesh, MeshStats, Settings } from "./core/types";
 import type { RunResult } from "./core/pipeline";
 import { IMPORT_UNITS } from "./core/units";
 import { decodeBase64, encodeBase64 } from "./core/base64";
+import { History, changedKeys, type StepKind } from "./history";
+
+/** How a settings change enters the undo history: an edit of one control (rapid repeats merge), a bulk change that is
+ *  one step of its own, or a change that rides along with something else (model load, restore) and is not a step. */
+export type CommitKind = StepKind | "silent";
 
 export const DEFAULT_SETTINGS: Settings = {
   axis: "+Z",
@@ -211,6 +216,7 @@ export class Store {
     status: { text: "Starting…", level: "info" },
   };
   private listeners = new Set<Listener>();
+  private history = new History<Settings>();
 
   get(): AppState {
     return this.state;
@@ -225,26 +231,58 @@ export class Store {
     for (const l of this.listeners) l(this.state, changed);
   }
 
-  set(patch: Partial<AppState>) {
+  /** Every settings change goes through here, and is recorded in the undo history according to `kind`. */
+  set(patch: Partial<AppState>, kind: CommitKind = "edit") {
+    const prev = this.state.settings;
     this.state = { ...this.state, ...patch };
-    if (patch.settings) saveSettings(this.state.settings);
+    if (patch.settings) {
+      this.track(prev, patch.settings, kind);
+      saveSettings(this.state.settings);
+    }
     this.emit(new Set(Object.keys(patch) as (keyof AppState)[]));
   }
 
-  updateSettings(patch: Partial<Settings>) {
-    this.set({ settings: { ...this.state.settings, ...patch } });
+  private track(prev: Settings, next: Settings, kind: CommitKind) {
+    if (kind === "silent") {
+      const keys = changedKeys(prev, next);
+      if (keys.length) this.history.rebase(Object.fromEntries(keys.map((k) => [k, (next as unknown as Record<string, unknown>)[k]])) as Partial<Settings>);
+    } else this.history.record(prev, next, kind, Date.now());
+  }
+
+  updateSettings(patch: Partial<Settings>, kind: CommitKind = "edit") {
+    this.set({ settings: { ...this.state.settings, ...patch } }, kind);
+  }
+
+  get canUndo() { return this.history.canUndo; }
+  get canRedo() { return this.history.canRedo; }
+
+  /** Restores the settings from before the last step, in one update. Returns false when there is nothing to undo. */
+  undo(): boolean {
+    return this.travel(this.history.undo(this.state.settings));
+  }
+
+  redo(): boolean {
+    return this.travel(this.history.redo(this.state.settings));
+  }
+
+  private travel(snap: Settings | null): boolean {
+    if (!snap) return false;
+    this.state = { ...this.state, settings: snap };
+    saveSettings(snap);
+    this.emit(new Set<keyof AppState>(["settings"]));
+    return true;
   }
 
   setStatus(text: string, level: AppState["status"]["level"] = "info") {
     this.set({ status: { text, level } });
   }
 
-  /** Replace all settings (project load without a model). */
+  /** Replace all settings (project load without a model): one undo step. */
   replaceSettings(s: Settings) {
-    this.set({ settings: s });
+    this.set({ settings: s }, "step");
   }
 
   resetSettings() {
-    this.set({ settings: structuredClone(DEFAULT_SETTINGS) });
+    this.set({ settings: structuredClone(DEFAULT_SETTINGS) }, "step");
   }
 }

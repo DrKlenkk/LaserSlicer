@@ -118,9 +118,11 @@ export const HELP = {
     "When on (default), the last model you loaded is kept in this browser (IndexedDB, models up to 50 MB) and loaded again when the page opens, together with the settings the browser already remembers, so a reload brings you back to where you were. Turning it off also deletes the stored copy. If the browser blocks or fills its storage, nothing is restored and the app works as usual. The slicing result is not stored, it is computed again.",
   calibration:
     "Downloads a small ZIP (DXF, SVG and a README) to cut from a scrap of your plywood, about 160 x 80 mm; it works without a model. Kerf test: seven loose 20 mm squares and matching square holes, each pair drawn for a kerf from 0 to 0.30 mm and labelled. The pair that fits snugly shows your kerf: enter it in the Kerf field. Dowel test: five round holes around the current Dowel diameter (plus and minus 0.2 mm), labelled with the value to enter once your rod fits. The dowel holes are drawn smaller by the current Kerf, so do the kerf test first. Use the same laser settings as for the real job.",
+  presets:
+    "Saves the Material group (thickness, sheet size, kerf, part spacing, sheet margin, density, cut and engrave speed, price per sheet) under a name and brings it back from this list; picking one changes all of those fields at once and is a single undo step (Ctrl+Z). 'Save...' asks for a name; an existing name is replaced after you confirm. 'Delete' removes the selected preset of yours. Presets live in this browser only, not in the project file. 'Starting points' are only guesses for plywood: kerf, thickness and speeds depend on your laser and your sheets, so measure and run the calibration sheet. They leave speeds and price alone, and cannot be deleted. The list shows the preset that matches the current values.",
 } as const;
 
 export type HelpKey = keyof typeof HELP;
 
 /** Keys that cover one control rather than a single Settings field. */
-export const EXTRA_HELP_KEYS: readonly HelpKey[] = ["rotate", "sheetSize", "viewToggle", "autoUpdate", "viewTraces", "exportLayers", "calibration", "projectModel", "restoreSession"];
+export const EXTRA_HELP_KEYS: readonly HelpKey[] = ["rotate", "sheetSize", "viewToggle", "autoUpdate", "viewTraces", "exportLayers", "calibration", "projectModel", "restoreSession", "presets"];
