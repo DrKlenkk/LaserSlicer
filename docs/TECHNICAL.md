@@ -51,7 +51,7 @@ Collapsible groups, in this order. Model and Material start open, the rest colla
 | Group | Contents |
 |---|---|
 | **Model** | Drop zone / "Choose file..." (accepts `.stl`, `.obj`, `.3mf`), file name and triangle count, effective size readout (mm), scale %, target size along X/Y/Z, "Reset 100 %", slicing axis (`+X -X +Y -Y +Z -Z`), 90-degree rotation buttons for X, Y, Z with "Reset". |
-| **Material** | Thickness, sheet width and height, kerf, part spacing, sheet margin, and the "Download calibration sheet" button (works without a model, section 5.5). |
+| **Material** | Thickness, sheet width and height, kerf, part spacing, sheet margin, density, cut speed, engrave speed, price per sheet (estimates, section 5.7), and the "Download calibration sheet" button (works without a model, section 5.5). |
 | **Holding bridges** | Enable, bridges per outline, width, minimum outline length, inner holes, maximum spacing. |
 | **Slicing** | Outline mode, samples per layer, round height to whole layers, smoothing radius, simplify tolerance, min part area, min feature. |
 | **Hollowing** | Enable, wall, solid cap layers. |
@@ -176,6 +176,12 @@ keys); everything after it also re-runs. "Export" means no slicing at all.
 | Kerf (`kerf`) | 0.15 | mm, >= 0 | Cut outlines grow by kerf/2 per side, holes and dowel holes shrink by it. Engrave lines are never offset. | kerf |
 | Part spacing (`partSpacing`) | 3 | mm, >= 0 | Minimum gap between the final (kerfed) cut lines of neighbouring parts. | nest |
 | Sheet margin (`sheetMargin`) | 5 | mm, >= 0 | Border of the sheet kept free of parts. | nest |
+| Density (`density`) | 0.65 | g/cm3, >= 0 | Material density for the weight estimate. 0 = not set (no weight). | nothing (estimates only) |
+| Cut speed (`cutSpeed`) | 0 | mm/s, >= 0 | For the rough time estimate. 0 = not set. | nothing |
+| Engrave speed (`engraveSpeed`) | 0 | mm/s, >= 0 | For the rough time estimate. 0 = not set (engraving is left out of the time). | nothing |
+| Price per sheet (`pricePerSheet`) | 0 | any currency, >= 0 | Cost = price x sheets used. 0 = not set (no cost). | nothing |
+
+The last four are in the exclusion list of `slicingKey` (like the export settings): changing them neither starts a run nor marks the preview stale; the summary line and the estimate list update at once from the last result. They are project-file keys; files without them load with the defaults.
 
 ### 3.3 Holding bridges
 
@@ -518,10 +524,16 @@ Export is a ZIP, always (even for one file), named `<model>_laser.zip`, built in
 | **One file per layer** | Parts of one layer at model coordinates, moved so the lower-left corner of the layer is (0, 0); **not nested**, the drawing is the layer's bounding box. Layers with no parts are skipped. | `<model>_L012.dxf`, ... |
 
 The extension follows each selected format. The ZIP also contains `README.txt`: summary (layers, parts, sheets, material use per
-sheet), settings used (axis, rotation, effective scale and size, thickness, kerf, spacing, margin, mode, samples, simplify,
+sheet), the estimates (section 5.7), settings used (axis, rotation, effective scale and size, thickness, kerf, spacing, margin, mode, samples, simplify,
 smoothing, min area/feature, formats, layers included/left out, bridge details, raster options), stacking order, DXF layer
 colours, the file list, and every warning as `[level] message`. A note is added when CUT is not included. PNG and JPG are stored
 uncompressed in the ZIP (already compressed); everything else uses deflate level 6.
+
+### 5.7 Estimates
+
+`src/core/estimates.ts`, two pure steps. **Measurements** (`measureParts`, run in the pipeline and returned as `RunResult.measure`): cut length = perimeters of the kerf-compensated rings (outer outlines and inner rings; rings that carry bridges count as their open polylines, so the BRIDGE gaps are not included) plus pi x d of every dowel circle; engrave length = engrave polylines plus label stroke polylines (all of the parts, as written to DXF/SVG; the export layer chips are not applied, so a left-out layer still counts); part area = outer minus holes and cavities **before kerf** of the parts that survived the kerf stage; volume = area x thickness (dowel holes and rods ignored); sheets = number of nested sheets. **Pricing** (`estimate`, main thread and ZIP README): weight = volume in cm3 x density; time = cut length / cut speed + engrave length / engrave speed (a part of it is left out when its speed is 0, and the text says which); cost = price per sheet x sheets used (partial sheets count whole). A value of 0 hides that estimate.
+
+Where it shows: the summary lines (top bar and Export section) carry cut length, rough time (prefixed with the approximation sign) when a speed is set, and cost when a price is set (else weight); the top-bar tooltip and the list under the Export summary hold all values; the ZIP README has an "Estimates" block with all values and names the settings that are 0. The time ignores travel moves between parts, acceleration, corner slowdown, multiple passes and the BRIDGE layer speed, so it is a lower bound. The estimate settings reach the ZIP through the `export` message (not through the last run's settings), so a change made after the last run is honoured.
 
 ### 5.5 Calibration sheet
 
@@ -640,6 +652,7 @@ A crashed worker sets the badge to `Worker error: ...`.
 | `src/core/export/common.ts` | `Drawing`, export layer flags, sheet/layer drawings, number formatting. |
 | `src/core/export/dxf.ts`, `svg.ts` | Vector writers. |
 | `src/core/export/raster.ts`, `rasterBytes.ts` | Canvas painting; pure PNG/JPEG DPI patching and size limits. |
+| `src/core/estimates.ts` | Measurements (cut / engrave length, area, volume, sheets) and the weight / time / cost estimates, plus their texts. |
 | `src/core/calibration.ts` | Calibration sheet geometry (kerf and dowel tests), its README and ZIP. |
 | `src/core/export/files.ts`, `zip.ts` | File naming and selection; ZIP and `README.txt` (via `fflate`). |
 | `src/worker/slicer.worker.ts`, `client.ts`, `protocol.ts` | Worker entry, promise wrapper, message types. |
@@ -660,8 +673,8 @@ Worker: loading (STL, OBJ), welding, the whole pipeline, ZIP building and image 
 |---|---|---|
 | `ping` | round-trip check | `pong` |
 | `load { buffer, ext: stl/obj/soup }` | parse, weld, keep mesh | `loaded { stats, positions, indices, bbox }` |
-| `run { settings }` | run the pipeline | `progress { stage, fraction }` (overall 0..1), then `result { layers, parts, placements, sheets, warnings, info }` |
-| `export { model, formats, perLayerFiles, dpi, rasterStyle, rasterEngrave, layers }` | ZIP of the last finished run | `file { name, mime, bytes }` (bytes transferred) |
+| `run { settings }` | run the pipeline | `progress { stage, fraction }` (overall 0..1), then `result { layers, parts, placements, sheets, warnings, info, measure }` |
+| `export { model, formats, perLayerFiles, dpi, rasterStyle, rasterEngrave, layers, estimate }` | ZIP of the last finished run | `file { name, mime, bytes }` (bytes transferred) |
 | any | failure | `error { message }` |
 
 **Stale-job handling.** Every request has a `jobId`. The worker remembers the newest `run` (and `load`, which also supersedes a run in
@@ -723,6 +736,7 @@ GitHub Actions (`.github/workflows/build.yml`): on every push, pull request, man
 | Hollowing, registration | `hollow`, `registration` | cavity and wall maths on a sphere, dowel runs; labels (placement, shrink, fallback), engrave-line rules, font |
 | Bridges | `bridges` | placement (straight edges, N, spacing, short rings), gap maths with kerf, splitting, pipeline stage |
 | Nesting | `nest` | hull, minimum rectangle, no overlaps, margins/spacing, oversize parts, multiple sheets |
+| Estimates | `estimates` | lengths, area before kerf, bridged rings without gaps, hollow volume, pricing and 0 = not set, README block, the four settings are not in the slicing key, project defaults and validation |
 | Export | `export`, `raster`, `project` | DXF and SVG structure (parsed with `dxf-parser`), file naming, ZIP and README, export layer selection; CRC-32, PNG `pHYs`, JPEG JFIF, size limits, painting through a mock canvas; project file round trip and validation |
 | UI logic | `updateController`, `helpText` | auto/manual state machine, `slicingKey`, UI prefs; every tooltip key used and non-empty, tooltip placement |
 | Performance | `perf` | 500k-triangle smoke test |
@@ -754,6 +768,7 @@ checked by hand in Chromium).
 * **Welding is tolerance-based:** vertices of one source that differ by more than `1e-5 x bbox diagonal` are not welded, the section opens and repair joins gaps with straight lines (a warning is shown). Open-chain repair is skipped above 400 open chains in a plane (everything is force-closed).
 * **Limits:** at most 5000 layers; about 94 million vertices; images at most 16384 px per side and 200 MP.
 * **Hollowing, bridges and the 3D view:** the stacked 3D view does not show bridges or dowel holes (it extrudes layer outlines).
+* **Estimates are approximate.** The time ignores travel moves, acceleration, passes and the BRIDGE layer speed; the weight ignores dowel holes and rods and any glue; cost counts partial sheets whole and ignores waste beyond that. Not compared with a real job.
 * **STL has no units;** millimetres are assumed.
 * **3MF** is parsed on the main thread (one-off cost per load); all objects are merged into one soup.
 * **Milestone M10** (a Tauri `.exe` wrapper in the plan) was **not done**; the product is the single HTML file.

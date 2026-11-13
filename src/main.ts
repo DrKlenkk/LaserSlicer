@@ -19,6 +19,7 @@ import type { Tab } from "./state";
 import { UpdateController, slicingKey, type RunAction } from "./updateController";
 import { loadUiPrefs, saveUiPrefs } from "./uiPrefs";
 import { exportLayersOf } from "./core/export/common";
+import { estimate, estimateLines, estimateSettingsOf, estimateSummary } from "./core/estimates";
 
 const store = new Store();
 const ctl = new UpdateController(loadUiPrefs().autoUpdate);
@@ -153,7 +154,7 @@ const panel = createPanel(panelEl, store, {
     await ensureFresh(); // the ZIP is built from the last finished run, so it must match the current settings
     const st = store.get().settings; // read after the update: a click just before Download is included
     const { formats, perLayerFiles, dpi, rasterStyle, rasterEngrave } = st;
-    const f = await worker.exportZip(m.fileName, { formats, perLayerFiles, dpi, rasterStyle, rasterEngrave, layers: exportLayersOf(st) });
+    const f = await worker.exportZip(m.fileName, { formats, perLayerFiles, dpi, rasterStyle, rasterEngrave, layers: exportLayersOf(st), estimate: estimateSettingsOf(st) });
     downloadBytes(f.name, f.mime, f.bytes);
     store.setStatus(`Saved ${f.name}`);
   },
@@ -265,7 +266,7 @@ function startRun(): Promise<void> {
         if (ctl.isCurrent(seq)) showProgress(stage, f);
       });
       if (!ctl.isCurrent(seq)) return;
-      const result = { layers: r.layers, parts: r.parts, placements: r.placements, sheets: r.sheets, warnings: r.warnings, info: r.info };
+      const result = { layers: r.layers, parts: r.parts, placements: r.placements, sheets: r.sheets, warnings: r.warnings, info: r.info, measure: r.measure };
       showProgress(null);
       const layer = Math.min(store.get().layer, result.layers.length - 1);
       store.set({ result, layer });
@@ -295,6 +296,25 @@ async function ensureFresh() {
   if (ctl.stale || ctl.running || !store.get().result) throw new Error("Slicing did not finish; check the warnings and try again");
 }
 
+/** Summary line (top bar and export section) and the full estimate list. Recomputed on every settings change: the estimate
+ *  settings never start a run, so the numbers follow them here, on the main thread, from the measurements of the last result. */
+function renderSummaries() {
+  const { result: r, settings } = store.get();
+  if (!r) {
+    runSummary.textContent = "";
+    runSummary.title = "";
+    panel.setSummary("Load a model to slice it.", []);
+    return;
+  }
+  const e = estimate(r.measure, estimateSettingsOf(settings));
+  const lines = estimateLines(r.measure, e);
+  const base = `${r.info.layerCount} layers · ${r.parts.length} parts · ${r.sheets.length} sheet${r.sheets.length === 1 ? "" : "s"} · ${materialUse(r.sheets).toFixed(0)} % material use`;
+  const full = `${base} · ${estimateSummary(r.measure, e)}`;
+  runSummary.textContent = !ctl.auto && ctl.stale ? `${full} · outdated` : full;
+  runSummary.title = lines.join("\n");
+  panel.setSummary(full, lines);
+}
+
 function renderUpdate() {
   updateWrap.hidden = !ctl.showButton;
   updateBtn.disabled = ctl.running;
@@ -304,8 +324,7 @@ function renderUpdate() {
   const r = store.get().result;
   updateNote.textContent = r ? "● settings changed" : "● not sliced yet";
   autoCb.checked = ctl.auto;
-  const base = r ? `${r.info.layerCount} layers · ${r.parts.length} parts · ${r.sheets.length} sheet${r.sheets.length === 1 ? "" : "s"} · ${materialUse(r.sheets).toFixed(0)} % material use` : "";
-  runSummary.textContent = base && !ctl.auto && ctl.stale ? `${base} · outdated` : base;
+  renderSummaries();
   panel.setExportReady(!!r && r.sheets.length > 0 || (!ctl.auto && ctl.stale && !!store.get().model));
 }
 ctl.subscribe(renderUpdate);
@@ -326,6 +345,7 @@ store.subscribe((state, changed) => {
     sheetView.setResult(null, true);
     warnings.set([]);
     runSummary.textContent = "";
+    runSummary.title = "";
     lastSlicingKey = slicingKey(state.settings);
     act(ctl.modelLoaded());
     renderUpdate();
@@ -335,14 +355,11 @@ store.subscribe((state, changed) => {
       lastSlicingKey = k;
       act(ctl.settingsChanged());
     }
+    renderSummaries(); // estimate settings: numbers follow without a run
   }
   if (changed.has("result")) {
     const r = state.result;
     warnings.set(r ? r.warnings : []);
-    const text = r
-      ? `${r.info.layerCount} layers · ${r.parts.length} parts · ${r.sheets.length} sheet${r.sheets.length === 1 ? "" : "s"} · ${materialUse(r.sheets).toFixed(0)} % material use`
-      : "";
-    panel.setSummary(r ? text : "Load a model to slice it.");
     btnStack.disabled = !r;
     if (!r && viewMode === "stack") setViewMode("model");
     viewport.setStack(r ? r.layers : null);

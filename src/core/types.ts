@@ -85,6 +85,15 @@ export type Settings = {
   kerf: number;
   partSpacing: number;
   sheetMargin: number;
+  // Estimates (do not affect geometry; 0 = not set, the estimate that needs it is not shown)
+  /** material density in g/cm3 (plywood about 0.6 to 0.7) */
+  density: number;
+  /** cutting speed in mm/s */
+  cutSpeed: number;
+  /** engraving speed in mm/s */
+  engraveSpeed: number;
+  /** price of one sheet (any currency, no symbol) */
+  pricePerSheet: number;
   // Slicing
   mode: "oversize" | "midplane" | "undersize";
   samplesPerLayer: number;

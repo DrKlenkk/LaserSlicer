@@ -91,6 +91,8 @@ export function createExportSection(store: Store, onDownload: () => Promise<void
   syncers.push((s) => (mode.value = s.perLayerFiles ? "layer" : "sheet"));
 
   const summary = h("div", { class: "summary", id: "summary" }, "Load a model to slice it.");
+  const estimatesBox = h("pre", { class: "estimates", id: "estimates" });
+  estimatesBox.hidden = true;
   const status = h("div", { class: "hint", id: "export-status", role: "status" });
   const button = h("button", { type: "button", class: "btn primary", id: "export-zip", disabled: true }, "Download all (ZIP)");
   button.addEventListener("click", async () => {
@@ -128,6 +130,7 @@ export function createExportSection(store: Store, onDownload: () => Promise<void
     rasterBox,
     h("small", { class: "hint" }, "Cut every part face-up and stack bottom-up without flipping."),
     summary,
+    estimatesBox,
     button,
     status,
   );
@@ -143,8 +146,11 @@ export function createExportSection(store: Store, onDownload: () => Promise<void
 
   return {
     el,
-    setSummary(text: string) {
+    setSummary(text: string, details: string[] = []) {
       summary.textContent = text;
+      summary.title = details.join("\n");
+      estimatesBox.textContent = details.join("\n");
+      estimatesBox.hidden = details.length === 0;
     },
     /** enable the button when a result exists */
     setReady(v: boolean) {

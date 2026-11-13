@@ -129,6 +129,7 @@ input[type="checkbox"] { accent-color: var(--accent); width: 15px; height: 15px;
 .chips { display: flex; gap: 6px; flex-wrap: wrap; }
 .chip { display: flex; align-items: center; gap: 5px; padding: 3px 9px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); }
 .summary { color: var(--muted); font-size: 12px; padding: 6px 0; }
+.estimates { color: var(--muted); font-size: 11px; margin: 0 0 8px; white-space: pre-wrap; font-family: inherit; line-height: 1.4; }
 
 .tabs { display: flex; gap: 2px; padding: 8px 12px 0; border-bottom: 1px solid var(--border); background: var(--panel); }
 .tabs button {

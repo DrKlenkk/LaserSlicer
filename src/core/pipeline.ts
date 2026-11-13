@@ -16,6 +16,8 @@ import { addRegistration } from "./registration";
 import { applyKerf } from "./kerf";
 import { addBridges } from "./bridges";
 import { nestParts, type NestResult } from "./nest";
+import { measureParts, type Measurements } from "./estimates";
+import { shapeArea } from "./poly";
 
 export type RunInfo = {
   layerCount: number;
@@ -36,6 +38,8 @@ export type RunResult = {
   sheets: Sheet[];
   warnings: Warning[];
   info: RunInfo;
+  /** geometry measurements for the estimates (cut / engrave length, part area, volume, sheets); pricing is done on the main thread */
+  measure: Measurements;
 };
 
 export type Hooks = {
@@ -206,6 +210,8 @@ export class Pipeline {
     const warnings: Warning[] = [...this.meshWarnings(), ...sliced.warnings, ...clean.warnings, ...hollow.warnings, ...registered.warnings, ...kerfed.warnings, ...nested.warnings, ...bridged.warnings];
     if (kerfed.parts.length === 0)
       warnings.push({ level: "error", message: "No parts were produced: every layer is empty (the model may be too thin for this thickness, or Min part area is too large)" });
+    const kept = new Set(kerfed.parts.map((p) => p.id));
+    const areaBeforeKerf = registered.parts.reduce((a, p) => (kept.has(p.id) ? a + shapeArea(p.cut) : a), 0);
     const result: RunResult = {
       layers: hollow.layers,
       parts: bridged.parts,
@@ -220,6 +226,7 @@ export class Pipeline {
         scale: oriented.scale,
         size: oriented.size,
       },
+      measure: measureParts(bridged.parts, areaBeforeKerf, s.thickness, nested.sheets.length),
     };
     this.last = { result, settings: s };
     return result;

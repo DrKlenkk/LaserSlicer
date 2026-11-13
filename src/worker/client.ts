@@ -17,6 +17,7 @@ export class StaleJobError extends Error {
     super("Superseded by a newer job");
   }
 }
+import type { EstimateSettings } from "../core/estimates";
 import type { ExportLayers } from "../core/export/common";
 
 export class WorkerClient {
@@ -91,7 +92,7 @@ export class WorkerClient {
   }
 
   /** ZIP of the last completed run (bytes arrive transferred, not copied). */
-  async exportZip(model: string, o: { formats: Settings["formats"]; perLayerFiles: boolean; dpi: number; rasterStyle: Settings["rasterStyle"]; rasterEngrave: boolean; layers: ExportLayers }) {
+  async exportZip(model: string, o: { formats: Settings["formats"]; perLayerFiles: boolean; dpi: number; rasterStyle: Settings["rasterStyle"]; rasterEngrave: boolean; layers: ExportLayers; estimate: EstimateSettings }) {
     const r = await this.request({ type: "export", model, ...o });
     if (r.type !== "file") throw new Error("Unexpected reply");
     return r;

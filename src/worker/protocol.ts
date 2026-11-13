@@ -1,6 +1,7 @@
 // Message types between the UI (main thread) and the slicer worker.
 import type { Box3, MeshStats, Settings } from "../core/types";
 import type { RunResult } from "../core/pipeline";
+import type { EstimateSettings } from "../core/estimates";
 import type { ExportLayers } from "../core/export/common";
 
 /** ext "soup" = raw triangle soup (Float32Array x,y,z per vertex, 3 vertices per triangle). */
@@ -15,7 +16,7 @@ export type ToWorker =
    * The export choices travel with the message because they do not affect slicing (a pending re-run
    * must not make the user's latest checkbox click be ignored).
    */
-  | { type: "export"; jobId: number; model: string; formats: Settings["formats"]; perLayerFiles: boolean; dpi: number; rasterStyle: Settings["rasterStyle"]; rasterEngrave: boolean; layers: ExportLayers };
+  | { type: "export"; jobId: number; model: string; formats: Settings["formats"]; perLayerFiles: boolean; dpi: number; rasterStyle: Settings["rasterStyle"]; rasterEngrave: boolean; layers: ExportLayers; estimate: EstimateSettings };
 
 export type FromWorker =
   | { type: "pong"; jobId: number; t: number }

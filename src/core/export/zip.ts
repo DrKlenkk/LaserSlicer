@@ -6,6 +6,7 @@ import { materialUse } from "../nest";
 import { layerLabel } from "../layers";
 import type { ExportFile } from "./files";
 import { exportLayersOf } from "./common";
+import { estimateReadme } from "../estimates";
 
 export function buildReadme(result: RunResult, s: Settings, model: string, files: ExportFile[]): string {
   const L: string[] = [];
@@ -16,6 +17,8 @@ export function buildReadme(result: RunResult, s: Settings, model: string, files
   L.push(`  Parts: ${result.parts.length}`);
   L.push(`  Sheets: ${result.sheets.length} (${s.sheetW} x ${s.sheetH} mm), material use ${materialUse(result.sheets).toFixed(1)} %`);
   for (const sh of result.sheets) L.push(`    sheet ${sh.index + 1}: ${sh.partIds.length} parts, ${sh.usePct.toFixed(1)} % used`);
+  L.push("");
+  L.push(...estimateReadme(result.measure, s));
   L.push("");
   L.push("Settings used");
   L.push(`  Axis: ${s.axis}, extra rotation steps (X,Y,Z): ${s.rotationSteps.join(",")}`);

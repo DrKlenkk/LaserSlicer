@@ -36,6 +36,11 @@ Open `dist/index.html` by double-click (`file://` works; nothing is fetched). Co
    Not sure about kerf or dowel diameter? **Download calibration sheet** (Material group, works without a model) gives a small ZIP
    (DXF, SVG, README.txt) to cut from scrap: seven 20 mm squares with matching holes for kerf 0 to 0.30 mm, and five round holes around your dowel
    diameter. The pair that fits snugly shows your kerf; the hole that fits your rod gives the dowel diameter. Do the kerf test first.
+   **Estimates**: with a model sliced, the summary line shows the cut length and, once you enter them in the Material group, a rough
+   cutting time (**density, cut speed, engrave speed, price per sheet**; 0 = not set, that estimate is hidden) and the material cost
+   (price x sheets used, a partly used sheet counts whole). Hover the summary for the full list (cut and engrave length, glued volume, weight,
+   time, cost); the same list is in the Export section and in the ZIP's README.txt. The time ignores travel moves and acceleration, so a real job is longer.
+   Changing these four values does not re-slice.
 5. Optional **Holding bridges** (panel group of that name): short uncut tabs that keep each part attached to the sheet until you
    break it out, so it cannot fall or tilt mid-cut. Set bridges per outline (1-8), width, minimum outline length, optionally inner holes
    and a maximum spacing. They sit on straight edges, evenly spaced; the gaps are on the separate `BRIDGE` layer. In LightBurn give

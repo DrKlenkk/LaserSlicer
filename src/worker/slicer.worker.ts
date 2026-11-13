@@ -90,6 +90,8 @@ ctx.onmessage = (e) => {
           exportBridge: msg.layers.bridge,
           exportSheet: msg.layers.sheet,
           exportInnerLayer: msg.layers.innerLayer,
+          // the estimate settings may have changed after the run (they never trigger one): use the current ones
+          ...msg.estimate,
         };
         void exportJob(msg.jobId, last.result, settings, model);
         break;

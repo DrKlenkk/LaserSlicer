@@ -13,6 +13,10 @@ export const DEFAULT_SETTINGS: Settings = {
   kerf: 0.15,
   partSpacing: 3,
   sheetMargin: 5,
+  density: 0.65,
+  cutSpeed: 0,
+  engraveSpeed: 0,
+  pricePerSheet: 0,
   mode: "oversize",
   samplesPerLayer: 3,
   roundHeightToLayers: false,
@@ -102,7 +106,7 @@ export function serializeProject(s: Settings): string {
 }
 
 const POSITIVE = ["thickness", "sheetW", "sheetH", "scale", "labelHeight", "dowelDiameter", "bridgeWidth"] as const;
-const NON_NEGATIVE = ["kerf", "partSpacing", "sheetMargin", "smoothRadius", "simplifyTol", "minPartArea", "minFeature", "hollowWall", "solidCapLayers", "bridgeMinLength", "bridgeMaxSpacing"] as const;
+const NON_NEGATIVE = ["kerf", "partSpacing", "sheetMargin", "smoothRadius", "simplifyTol", "minPartArea", "minFeature", "hollowWall", "solidCapLayers", "bridgeMinLength", "bridgeMaxSpacing", "density", "cutSpeed", "engraveSpeed", "pricePerSheet"] as const;
 const INTEGERS = ["samplesPerLayer", "solidCapLayers", "dowelCount", "bridgeCount"] as const;
 const ENUMS: Record<string, readonly string[]> = {
   axis: ["+X", "-X", "+Y", "-Y", "+Z", "-Z"],
