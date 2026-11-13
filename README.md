@@ -71,8 +71,8 @@ Dowels put holes at identical positions in every layer of a run so a rod aligns 
 
 ## Export notes
 
-- **DXF** (R12, mm, Y up) is the file to cut with: layers `CUT` (red, outlines and dowel `CIRCLE`s), `ENGRAVE` (blue), `LABEL` (green, polylines, no text entities).
-- **SVG**: 1 unit = 1 mm, same three groups. **PNG/JPG**: rendered at the chosen DPI with the DPI stored in the file; for engraving or reference, not for cutting without tracing.
+- **DXF** (R12, mm, Y up) is the file to cut with: layers `CUT` (red, outlines and dowel `CIRCLE`s), `ENGRAVE` (blue), `LABEL` (green, polylines, no text entities), `BRIDGE` (magenta, holding-bridge segments, only when bridges are on) and `SHEET` (grey border, off by default). Choose which layers go into the files under "Layers in the files".
+- **SVG**: 1 unit = 1 mm, same layers as `<g>` groups. **PNG/JPG**: rendered at the chosen DPI with the DPI stored in the file; for engraving or reference, not for cutting without tracing.
 - Per sheet (default) or per layer. The ZIP also has a `README.txt` with the settings, stacking order and warnings.
 - Bridged outlines are open polylines on `CUT` plus one short open polyline per gap on `BRIDGE`. PNG/JPG: outline style draws the gaps magenta (or leaves them open without BRIDGE); filled style always shows the whole part.
 - Kerf is applied to the cut outlines only (holes shrink, outlines grow); engrave lines are never offset.
