@@ -100,6 +100,8 @@ export const HELP = {
     "The checkbox in front of each legend row shows or hides that trace in the Sheets and Layer tabs, for example to look at the cut lines without the blue glue lines. The choice is shared by both tabs, remembered in this browser and only changes what you see: it does not re-slice and it does not change the export. What goes into the files is chosen separately under Export, 'Layers in the files'.",
   exportLayers:
     "Chooses which traces are written into the exported DXF, SVG, PNG and JPG files. CUT = part outlines and dowel holes, ENGRAVE = the next-layer outline for gluing, LABEL = the layer text, BRIDGE = the gaps of the holding bridges (without it the gaps stay uncut tabs), SHEET border = a frame around the sheet (off by default; DXF layer SHEET, SVG group SHEET, grey frame in images). Use it, for example, to make a file with the cut lines only and a second one with the engraving only. Without CUT the files do not cut the parts out. These boxes are independent of the legend checkboxes in the views, which only change what you see. At least one layer must stay selected.",
+  exportInnerLayer:
+    "Puts the inner cuts (holes, hollowing cavities and dowel holes) on their own layer CUT_INNER (orange) in DXF and SVG, so only the outer outlines stay on CUT. In LightBurn and similar software you can then cut CUT_INNER first and CUT last, so a part cannot drop or shift before its holes are cut. Inner cuts are always written before the outlines in the files, with or without this option. PNG and JPG ignore it. Bridge gaps on inner rings stay on BRIDGE. It does not re-slice.",
 } as const;
 
 export type HelpKey = keyof typeof HELP;

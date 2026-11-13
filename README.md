@@ -30,7 +30,7 @@ Open `dist/index.html` by double-click (`file://` works; nothing is fetched). Co
 4. Choose an outline mode, optionally hollowing and dowels, and look at the result in the tabs: **3D** (original model or
    stacked layers), **Layer** (one layer: cut red, next layer blue dashed, labels green, dowel holes) and **Sheets** (the nested sheets).
    The **Sheets** and **Layer** tabs have a small legend (bottom right, collapsible): the trace colours are the DXF layers
-   `CUT` (red), `ENGRAVE` (blue), `LABEL` (green) and, with holding bridges, `BRIDGE` (magenta), so they can be assigned to cut / engrave in LightBurn and similar software.
+   `CUT` (red), `ENGRAVE` (blue), `LABEL` (green) and, with holding bridges, `BRIDGE` (magenta); the legend also lists the export-only `CUT_INNER` (orange), so they can be assigned to cut / engrave in LightBurn and similar software.
    The checkbox in front of each legend row shows or hides that trace in both tabs (view only: it does not re-slice and
    does not change the files; remembered in the browser).
 5. Optional **Holding bridges** (panel group of that name): short uncut tabs that keep each part attached to the sheet until you
@@ -71,7 +71,7 @@ Dowels put holes at identical positions in every layer of a run so a rod aligns 
 
 ## Export notes
 
-- **DXF** (R12, mm, Y up) is the file to cut with: layers `CUT` (red, outlines and dowel `CIRCLE`s), `ENGRAVE` (blue), `LABEL` (green, polylines, no text entities), `BRIDGE` (magenta, holding-bridge segments, only when bridges are on) and `SHEET` (grey border, off by default). Choose which layers go into the files under "Layers in the files".
+- **DXF** (R12, mm, Y up) is the file to cut with: layers `CUT` (red, outlines and dowel `CIRCLE`s), `ENGRAVE` (blue), `LABEL` (green, polylines, no text entities), `BRIDGE` (magenta, holding-bridge segments, only when bridges are on), `CUT_INNER` (orange, only with "Inner cuts on own layer") and `SHEET` (grey border, off by default). Choose which layers go into the files under "Layers in the files". In DXF and SVG the holes and dowel circles of each part are always written before its outline; "Inner cuts on own layer" (off by default) moves them to `CUT_INNER`, so you can cut that layer first and `CUT` last and the part cannot drop before its holes are cut. PNG/JPG ignore it.
 - **SVG**: 1 unit = 1 mm, same layers as `<g>` groups. **PNG/JPG**: rendered at the chosen DPI with the DPI stored in the file; for engraving or reference, not for cutting without tracing.
 - Per sheet (default) or per layer. The ZIP also has a `README.txt` with the settings, stacking order and warnings.
 - Bridged outlines are open polylines on `CUT` plus one short open polyline per gap on `BRIDGE`. PNG/JPG: outline style draws the gaps magenta (or leaves them open without BRIDGE); filled style always shows the whole part.

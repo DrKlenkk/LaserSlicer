@@ -89,6 +89,7 @@ ctx.onmessage = (e) => {
           exportLabel: msg.layers.label,
           exportBridge: msg.layers.bridge,
           exportSheet: msg.layers.sheet,
+          exportInnerLayer: msg.layers.innerLayer,
         };
         void exportJob(msg.jobId, last.result, settings, model);
         break;

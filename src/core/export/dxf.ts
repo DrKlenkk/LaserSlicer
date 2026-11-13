@@ -2,9 +2,11 @@
 // ENTITIES, EOF. R12 has no handles. Coordinates in mm, Y up, sheet lower-left = (0, 0).
 // Closed outlines are POLYLINE (70 = 1) + VERTEX + SEQEND, open engrave lines the same with 70 = 0, dowel holes CIRCLE.
 // Bridged rings: the ring without its gaps is a set of open polylines on CUT, each gap an open polyline on BRIDGE (magenta).
+// Entity order: SHEET, inner rings, dowel circles, outer outlines, BRIDGE, ENGRAVE, LABEL (holes first, so a part cannot move before they are cut).
+// With layers.innerLayer, inner rings and dowel circles are on layer CUT_INNER (orange, ACI 30) instead of CUT.
 // Labels are polylines, never TEXT entities.
 import type { Vec2 } from "../types";
-import { filterDrawing, num, polyline, type Drawing, type ExportLayers } from "./common";
+import { filterDrawing, num, polyline, splitCut, type Drawing, type ExportLayers } from "./common";
 
 export const DXF_LAYERS = [
   { name: "CUT", color: 1 },
@@ -12,6 +14,8 @@ export const DXF_LAYERS = [
   { name: "LABEL", color: 3 },
   { name: "BRIDGE", color: 6 },
   { name: "SHEET", color: 8 },
+  /** only written (and listed in the LAYER table) when inner cuts go on their own layer */
+  { name: "CUT_INNER", color: 30 },
 ] as const;
 
 export type DxfOptions = {
@@ -22,7 +26,9 @@ export type DxfOptions = {
 };
 
 export function writeDxf(src: Drawing, opts: DxfOptions = {}): string {
-  const L = { cut: true, engrave: true, label: true, bridge: true, sheet: !!opts.sheetBorder, ...opts.layers };
+  const L = { cut: true, engrave: true, label: true, bridge: true, sheet: !!opts.sheetBorder, innerLayer: false, ...opts.layers };
+  const layerList = DXF_LAYERS.filter((l) => l.name !== "CUT_INNER" || L.innerLayer);
+  const innerName = L.innerLayer ? "CUT_INNER" : "CUT";
   const d = filterDrawing(src, L);
   const out: string[] = [];
   const g = (code: number, value: string | number) => out.push(String(code).padStart(3, " "), typeof value === "number" ? num(value) : value);
@@ -62,8 +68,8 @@ export function writeDxf(src: Drawing, opts: DxfOptions = {}): string {
   out.push("  0", "TABLE", "  2", "LTYPE"); gi(70, 1);
   out.push("  0", "LTYPE", "  2", "CONTINUOUS"); gi(70, 0); out.push("  3", "Solid line"); gi(72, 65); gi(73, 0); g(40, 0);
   out.push("  0", "ENDTAB");
-  out.push("  0", "TABLE", "  2", "LAYER"); gi(70, DXF_LAYERS.length);
-  for (const l of DXF_LAYERS) {
+  out.push("  0", "TABLE", "  2", "LAYER"); gi(70, layerList.length);
+  for (const l of layerList) {
     out.push("  0", "LAYER", "  2", l.name); gi(70, 0); gi(62, l.color); out.push("  6", "CONTINUOUS");
   }
   out.push("  0", "ENDTAB");
@@ -82,12 +88,15 @@ export function writeDxf(src: Drawing, opts: DxfOptions = {}): string {
   };
   if (L.sheet)
     poly("SHEET", [[0, 0], [d.width, 0], [d.width, d.height], [0, d.height]], true);
-  for (const sh of d.cut) for (const r of sh) poly("CUT", r, true);
-  for (const l of d.cutOpen ?? []) poly("CUT", l, false);
-  for (const l of d.bridge ?? []) poly("BRIDGE", l, false);
+  const cut = splitCut(d);
+  for (const r of cut.innerClosed) poly(innerName, r, true);
+  for (const l of cut.innerOpen) poly(innerName, l, false);
   for (const c of d.circles) {
-    out.push("  0", "CIRCLE", "  8", "CUT"); g(10, c.c[0]); g(20, c.c[1]); g(30, 0); g(40, c.d / 2);
+    out.push("  0", "CIRCLE", "  8", innerName); g(10, c.c[0]); g(20, c.c[1]); g(30, 0); g(40, c.d / 2);
   }
+  for (const r of cut.outerClosed) poly("CUT", r, true);
+  for (const l of cut.outerOpen) poly("CUT", l, false);
+  for (const l of d.bridge ?? []) poly("BRIDGE", l, false);
   for (const l of d.engrave) {
     const { pts, closed } = polyline(l);
     poly("ENGRAVE", pts, closed);

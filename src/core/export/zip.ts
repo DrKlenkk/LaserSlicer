@@ -35,6 +35,9 @@ export function buildReadme(result: RunResult, s: Settings, model: string, files
     L.push(`  Holding bridges: ${nb} (${s.bridgeCount} per outline, ${s.bridgeWidth} mm of material left after the kerf = gap of ${gap.toFixed(2)} mm in the cut path, outlines of at least ${s.bridgeMinLength} mm${s.bridgeHoles ? ", inner holes included" : ""}${s.bridgeMaxSpacing > 0 ? `, at most ${s.bridgeMaxSpacing} mm apart` : ""})`);
     L.push(EL.bridge ? "  Bridges are on DXF layer BRIDGE (SVG group BRIDGE): run it at low power / high speed so it scores but does not cut through, or leave the layer out for plain uncut tabs." : "  BRIDGE is not included: the gaps are left out, so the cut outlines have uncut tabs.");
   }
+  L.push(EL.innerLayer && EL.cut
+    ? "  Inner cuts: holes, cavities and dowel holes are on DXF layer CUT_INNER (SVG group CUT_INNER, orange); only the outer outlines are on CUT. Cut CUT_INNER first, then CUT. PNG and JPG images ignore this and show everything as before."
+    : "  Inner cuts (holes, cavities, dowel holes) are written before the outer outlines in every part's DXF and SVG data.");
   if (!EL.cut) L.push("  Note: CUT is not included, so these files do not cut the parts out.");
   if (s.formats.includes("png") || s.formats.includes("jpg"))
     L.push(`  Raster images: ${s.dpi} DPI, ${s.rasterStyle} style${s.rasterEngrave && (EL.engrave || EL.label) ? ", engrave and labels in grey" : ""}; not suitable for cutting without tracing`);
@@ -43,7 +46,7 @@ export function buildReadme(result: RunResult, s: Settings, model: string, files
   L.push(`  Cut every part face-up and stack bottom-up without flipping: ${layerLabel(0)} is the bottom layer${n > 1 ? `, ${layerLabel(n - 1)} the top` : ""}.`);
   L.push("  Glue each layer onto the one below it; align it to the engraved outline of the next layer where one exists.");
   L.push("");
-  L.push(`DXF layers: CUT (red), ENGRAVE (blue), LABEL (green), ${s.bridgesEnabled ? "BRIDGE (magenta), " : ""}SHEET (grey). Units: mm, Y up, R12 (AC1009).`);
+  L.push(`DXF layers: CUT (red), ENGRAVE (blue), LABEL (green), ${s.bridgesEnabled ? "BRIDGE (magenta), " : ""}${EL.innerLayer && EL.cut ? "CUT_INNER (orange, inner cuts: cut first), " : ""}SHEET (grey). Units: mm, Y up, R12 (AC1009).`);
   L.push("");
   L.push("Files");
   for (const f of files) L.push(`  ${f.name}`);

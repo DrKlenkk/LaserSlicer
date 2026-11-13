@@ -131,5 +131,7 @@ export type Settings = {
   exportBridge: boolean;
   /** sheet border (DXF layer SHEET, SVG group SHEET, grey frame in images), off by default */
   exportSheet: boolean;
+  /** DXF and SVG only: inner rings (holes, cavities) and dowel circles on their own layer CUT_INNER, so only outer outlines stay on CUT. Export-only. */
+  exportInnerLayer: boolean;
   perLayerFiles: boolean;
 };

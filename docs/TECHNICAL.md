@@ -90,6 +90,7 @@ triggers no re-slice and does not change the export. The state is shared by both
 | LABEL | `#009a2c` / `#37d067` | both |
 | BRIDGE | `#d000d0` / `#f060f0` | both |
 | SHEET (border, not exported by default) | `#8a8a8a` / `#9a9a9a` | Sheets |
+| CUT_INNER (export only, no checkbox) | `#ff8000` | both, as a legend note |
 | Previous (reference layer) | grey | Layer |
 | Hover | cut colour fill | Sheets |
 
@@ -232,6 +233,7 @@ keys); everything after it also re-runs. "Export" means no slicing at all.
 | LABEL (`exportLabel`) | on | bool | Label strokes. |
 | BRIDGE (`exportBridge`) | on | bool | Bridge gap polylines. Off: gaps are simply not drawn, leaving uncut tabs. |
 | SHEET border (`exportSheet`) | off | bool | A frame around the sheet. |
+| Inner cuts on own layer (`exportInnerLayer`) | off | bool | DXF and SVG: inner rings (holes, cavities) and dowel circles go on layer `CUT_INNER` (orange) instead of `CUT`, so only outer outlines stay on `CUT`. Follows the CUT chip (no CUT, no inner cuts). Images ignore it. Not a trace: no legend checkbox, no view toggle. |
 
 At least one layer chip must stay selected, otherwise Download is disabled with a hint. Deselecting CUT shows the hint "CUT is
 not included: the files will not cut the parts out."
@@ -527,6 +529,8 @@ uncompressed in the ZIP (already compressed); everything else uses deflate level
 outlines **and dowel holes**; ENGRAVE = next-layer outlines; LABEL = text strokes; BRIDGE = gaps; SHEET border = a frame. Excluded
 layers simply have no entities (DXF keeps all five layers in its LAYER table so colour mapping stays stable; SVG writes no group).
 
+**Entity order and CUT_INNER.** In DXF and SVG the entities of the cut family are always written inner rings first (closed holes and cavities, then bridged inner rings), then dowel circles, then outer outlines (closed, then bridged), then BRIDGE, ENGRAVE, LABEL. Across a sheet, all inner cuts of all parts precede all outlines. With `exportInnerLayer` the first two kinds are written on `CUT_INNER` instead of `CUT` (SVG: a `CUT_INNER` group before the `CUT` group). Bridge gaps stay on BRIDGE whatever ring they belong to. In LightBurn and similar software cut `CUT_INNER` first, then `CUT`. The `CUT_INNER` layer is listed in the DXF LAYER table only when the option is on, so with it off the file differs from earlier versions only in entity order. PNG and JPG ignore the option (they are pixel images, one colour for all cuts). The ZIP README names the layer and the cutting order when it is on.
+
 ### 5.3 DXF (R12)
 
 `src/core/export/dxf.ts`. ASCII, `$ACADVER AC1009`, `$INSUNITS 4` (mm), `$MEASUREMENT 1`, `$EXTMIN/$EXTMAX` over what is drawn (or the sheet
@@ -535,9 +539,10 @@ Coordinates are mm, **Y up**, no transformation needed.
 
 | Layer | ACI colour | Entities |
 |---|---|---|
-| `CUT` | 1 red | closed `POLYLINE` (flag 70 = 1) per outer ring and hole; **open** `POLYLINE` (flag 70 = 0) for bridged rings without their gaps; `CIRCLE` per dowel hole (diameter already kerf-reduced) |
+| `CUT` | 1 red | closed `POLYLINE` (flag 70 = 1) per hole, then per outer ring (holes first); **open** `POLYLINE` (flag 70 = 0) for bridged rings without their gaps; `CIRCLE` per dowel hole (diameter already kerf-reduced) |
 | `ENGRAVE` | 5 blue | `POLYLINE`, closed when first and last point coincide (repeated point dropped), else open |
 | `LABEL` | 3 green | `POLYLINE` strokes (no `TEXT` entities, no font dependency) |
+| `CUT_INNER` | 30 orange | only with `exportInnerLayer`: the holes, bridged inner rings and dowel `CIRCLE`s that would otherwise be on `CUT`; `CUT` then holds outlines only |
 | `BRIDGE` | 6 magenta | open `POLYLINE` per gap |
 | `SHEET` | 8 grey | closed rectangle, only when the SHEET border is selected |
 
@@ -547,8 +552,8 @@ Each polyline is `POLYLINE` + `VERTEX`... + `SEQEND`. Verified only by parsing w
 
 `src/core/export/svg.ts`. `width`/`height` in mm and `viewBox="0 0 W H"`, so 1 user unit = 1 mm; Y is flipped (`y_svg = height - y`).
 Groups `CUT` (`#ff0000`), `ENGRAVE` (`#0000ff`), `LABEL` (`#00a000`), `BRIDGE` (`#d000d0`, only when gaps exist), `SHEET` (`#808080`, a `<rect>`),
-all `fill="none" stroke-width="0.1"`. CUT: one `<path fill-rule="evenodd">` per shape (outer and holes as subpaths), open bridged
-polylines as separate paths, `<circle>` for dowel holes. Closed polylines end in `Z`.
+all `fill="none" stroke-width="0.1"`. CUT: one stroke-only `<path>` per ring, inner rings first, then `<circle>` for dowel holes, then outer outlines; open bridged
+polylines are separate paths. (Earlier versions wrote one `evenodd` path per shape; rings are separate paths now so the order can be inner first and holes can move to `CUT_INNER`. The strokes are identical.) With `exportInnerLayer` a `CUT_INNER` group (`#ff8000`) comes first and holds the inner rings and circles. Closed polylines end in `Z`.
 
 ### 5.5 PNG and JPG
 
@@ -730,7 +735,7 @@ checked by hand in Chromium).
 
 * **Rectangle-only nesting.** Each part is packed as its minimum-area rectangle (MaxRects); no true-shape nesting, no nesting of a small part inside another's cavity. Round parts waste material. A part larger than the sheet is reported and left out. (True-shape nesting was an optional v2 in the plan.)
 * **Chromium only.** Firefox, Safari, Edge and `file://` there are untested. Image export needs `OffscreenCanvas` in workers.
-* **DXF not tested in LightBurn or LibreCAD**, only parsed with `dxf-parser`. The same holds for the BRIDGE layer workflow.
+* **DXF not tested in LightBurn or LibreCAD**, only parsed with `dxf-parser`. The same holds for the BRIDGE layer workflow and for `CUT_INNER` (colour ACI 30 and the cut-first workflow in LightBurn were not checked).
 * **Hershey font is a reconstruction.** Glyphs follow the Hershey encoding and Simplex style but were drawn by hand, not copied from the original table. Only digits, A-Z, a-z, `-` and space exist. Descender letters can overshoot the label box.
 * **No vent holes** in hollowed models; the cavity is sealed.
 * **Dowels need room.** Thin hollow walls and strongly curved hollow models usually leave no run of two layers with a valid dowel position. Engrave lines are not routed around dowel holes.

@@ -32,6 +32,7 @@ export class LayerView2D {
         { trace: "engrave", layer: "ENGRAVE", text: "next-layer outline (dashed), glue alignment line", color: css("--engrave"), dash: true },
         { trace: "label", layer: "LABEL", text: "layer label text: engraved", color: css("--label") },
         { trace: "bridge", layer: "BRIDGE", text: "holding bridges (gaps in the cut): score only, or leave out", color: css("--bridge") },
+        { layer: "CUT_INNER", text: "export only, if chosen: holes and dowel holes on their own layer, cut first", color: () => "#ff8000", thin: true },
         { trace: "ghost", layer: "Previous", text: "previous layer: reference only", color: css("--ghost"), fill: true },
       ],
       "Colours map to the DXF layers, so you can assign them to cut / engrave in LightBurn and similar software.",

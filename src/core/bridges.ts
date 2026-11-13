@@ -274,6 +274,22 @@ export function cutPaths(part: Part): { closed: Ring[]; open: Vec2[][]; gaps: Ve
   return { closed, open, gaps };
 }
 
+/** Like `cutPaths`, but split into outer outline and inner rings (holes, cavities); dowel circles are not rings and are not included. */
+export function cutPathsByKind(part: Part): { outerClosed: Ring[]; outerOpen: Vec2[][]; innerClosed: Ring[]; innerOpen: Vec2[][]; gaps: Vec2[][] } {
+  const rings = [part.cut.outer, ...part.cut.holes];
+  const bridged = new Map((part.bridges ?? []).map((b) => [b.ring, b]));
+  const r = { outerClosed: [] as Ring[], outerOpen: [] as Vec2[][], innerClosed: [] as Ring[], innerOpen: [] as Vec2[][], gaps: [] as Vec2[][] };
+  rings.forEach((ring, i) => {
+    const b = bridged.get(i);
+    if (!b) (i === 0 ? r.outerClosed : r.innerClosed).push(ring);
+    else {
+      (i === 0 ? r.outerOpen : r.innerOpen).push(...b.cut);
+      r.gaps.push(...b.gaps);
+    }
+  });
+  return r;
+}
+
 /** Length of a polyline (mm). */
 export function polylineLength(l: Vec2[]): number {
   let s = 0;

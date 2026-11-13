@@ -52,7 +52,7 @@ describe("DXF", () => {
     const cut = ents.filter((e) => e.layer === "CUT" && e.type === "POLYLINE");
     expect(cut).toHaveLength(2);
     const p = samplePart();
-    for (const [i, ring] of [p.cut.outer, p.cut.holes[0]].entries()) {
+    for (const [i, ring] of [p.cut.holes[0], p.cut.outer].entries()) { // inner rings are written first
       expect(cut[i].shape).toBe(true);
       const v = verts(cut[i]);
       expect(v).toHaveLength(ring.length);
@@ -118,7 +118,6 @@ describe("SVG", () => {
     expect(svg).toContain('width="600.0mm" height="400.0mm" viewBox="0 0 600.0 400.0"');
     for (const id of ["CUT", "ENGRAVE", "LABEL"]) expect(svg).toContain(`<g id="${id}"`);
     expect(svg).toContain('stroke-width="0.1"');
-    expect(svg).toContain('fill-rule="evenodd"');
   });
 
   it("matches the DXF outlines after the Y flip", () => {

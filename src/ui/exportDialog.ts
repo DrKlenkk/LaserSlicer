@@ -40,6 +40,11 @@ export function createExportSection(store: Store, onDownload: () => Promise<void
     syncers.push((s) => (cb.checked = s[key]));
     return h("label", { class: "chip" }, cb, text);
   });
+  // Routing, not a layer: inner cuts and dowel circles on their own DXF/SVG layer (images ignore it).
+  const innerCb = h("input", { type: "checkbox", id: "f-exportInnerLayer" });
+  innerCb.addEventListener("change", () => store.updateSettings({ exportInnerLayer: innerCb.checked }));
+  syncers.push((s) => (innerCb.checked = s.exportInnerLayer));
+  const innerField = h("label", { class: "field check" }, innerCb, h("span", { class: "lbl" }, "Inner cuts on own layer (CUT_INNER)", infoIcon("exportInnerLayer")));
   const layerHint = h("small", { class: "hint warn", id: "layer-hint", role: "status" });
 
   // Raster options (shown only while PNG or JPG is selected).
@@ -116,9 +121,10 @@ export function createExportSection(store: Store, onDownload: () => Promise<void
     h("div", { class: "chips" }, ...chips),
     h("div", { class: "row-label" }, "Layers in the files", infoIcon("exportLayers")),
     h("div", { class: "chips", id: "export-layers" }, ...layerChips),
+    innerField,
     layerHint,
     h("label", { class: "field" }, h("span", { class: "lbl" }, "Files", infoIcon("perLayerFiles")), h("span", { class: "ctl" }, mode)),
-    h("small", { class: "hint" }, "DXF is the file to cut with (R12, mm, layers CUT red, ENGRAVE blue, LABEL green, BRIDGE magenta). SVG is a second vector option."),
+    h("small", { class: "hint" }, "DXF is the file to cut with (R12, mm, layers CUT red, ENGRAVE blue, LABEL green, BRIDGE magenta, CUT_INNER orange if chosen). SVG is a second vector option."),
     rasterBox,
     h("small", { class: "hint" }, "Cut every part face-up and stack bottom-up without flipping."),
     summary,

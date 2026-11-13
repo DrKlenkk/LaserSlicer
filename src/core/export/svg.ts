@@ -1,12 +1,14 @@
-// SVG writer (plan "SVG"): 1 user unit = 1 mm, Y flipped (y_svg = height - y), groups CUT / ENGRAVE / LABEL / BRIDGE.
+// SVG writer (plan "SVG"): 1 user unit = 1 mm, Y flipped (y_svg = height - y), groups CUT / ENGRAVE / LABEL / BRIDGE (+ CUT_INNER when inner cuts have their own layer).
+// Every ring is its own stroke-only path (no evenodd subpaths, so inner rings can come first and can move to CUT_INNER). Order: inner rings, dowel circles, outer outlines;
+// with CUT_INNER the first two are in that group, which comes first in the file.
 import type { Vec2 } from "../types";
-import { filterDrawing, num, polyline, type Drawing, type ExportLayers } from "./common";
+import { filterDrawing, num, polyline, splitCut, type Drawing, type ExportLayers } from "./common";
 
-export const SVG_COLORS = { CUT: "#ff0000", ENGRAVE: "#0000ff", LABEL: "#00a000", BRIDGE: "#d000d0", SHEET: "#808080" } as const;
+export const SVG_COLORS = { CUT: "#ff0000", ENGRAVE: "#0000ff", LABEL: "#00a000", BRIDGE: "#d000d0", SHEET: "#808080", CUT_INNER: "#ff8000" } as const;
 
 /** Excluded layers get no group at all; the SHEET border (a rectangle) is only written when `layers.sheet` is set. */
 export function writeSvg(src: Drawing, layers: Partial<ExportLayers> = {}): string {
-  const L = { cut: true, engrave: true, label: true, bridge: true, sheet: false, ...layers };
+  const L = { cut: true, engrave: true, label: true, bridge: true, sheet: false, innerLayer: false, ...layers };
   const d = filterDrawing(src, L);
   const pt = (p: Vec2) => `${num(p[0])} ${num(d.height - p[1])}`;
   const sub = (pts: Vec2[], closed: boolean) =>
@@ -18,13 +20,23 @@ export function writeSvg(src: Drawing, layers: Partial<ExportLayers> = {}): stri
   const group = (id: keyof typeof SVG_COLORS, body: string[]) =>
     out.push(`<g id="${id}" stroke="${SVG_COLORS[id]}" fill="none" stroke-width="0.1">`, ...body, "</g>");
 
-  // CUT: one path per shape, outer + holes as subpaths with evenodd so holes stay holes
-  const cut: string[] = [];
-  for (const sh of d.cut) cut.push(`<path fill-rule="evenodd" d="${sh.map((r) => sub(r, true)).join(" ")}"/>`);
-  for (const l of d.cutOpen ?? []) cut.push(`<path d="${sub(l, false)}"/>`);
-  for (const c of d.circles)
-    cut.push(`<circle cx="${num(c.c[0])}" cy="${num(d.height - c.c[1])}" r="${num(c.d / 2)}"/>`);
-  if (L.cut) group("CUT", cut);
+  // Inner rings and dowel circles first, then the outer outlines (the order a cutter that follows the file will use).
+  const cut = splitCut(d);
+  const inner = [
+    ...cut.innerClosed.map((r) => `<path d="${sub(r, true)}"/>`),
+    ...cut.innerOpen.map((l) => `<path d="${sub(l, false)}"/>`),
+    ...d.circles.map((c) => `<circle cx="${num(c.c[0])}" cy="${num(d.height - c.c[1])}" r="${num(c.d / 2)}"/>`),
+  ];
+  const outer = [
+    ...cut.outerClosed.map((r) => `<path d="${sub(r, true)}"/>`),
+    ...cut.outerOpen.map((l) => `<path d="${sub(l, false)}"/>`),
+  ];
+  if (L.cut) {
+    if (L.innerLayer) {
+      if (inner.length) group("CUT_INNER", inner);
+      group("CUT", outer);
+    } else group("CUT", [...inner, ...outer]);
+  }
 
   const lines = (ls: Vec2[][]) =>
     ls.map((l) => {

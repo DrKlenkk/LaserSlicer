@@ -54,6 +54,7 @@ export class SheetView {
         { trace: "engrave", layer: "ENGRAVE", text: "next-layer outline, glue alignment line", color: () => col().engrave },
         { trace: "label", layer: "LABEL", text: "layer label text: engraved", color: () => col().label },
         { trace: "bridge", layer: "BRIDGE", text: "holding bridges (gaps in the cut): score only, or leave out", color: () => col().bridge },
+        { layer: "CUT_INNER", text: "export only, if chosen: holes and dowel holes on their own layer, cut first", color: () => "#ff8000", thin: true },
         { trace: "sheet", layer: "SHEET", text: "sheet border: not exported by default", color: () => col().sheet, thin: true },
         { layer: "Hover", text: "part under the pointer (click: open its layer)", color: () => col().cut, fill: true },
       ],

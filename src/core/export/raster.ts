@@ -112,7 +112,7 @@ export function checkRasterLimits(result: RunResult, perLayer: boolean, dpi: num
 /** PNG and/or JPG files of every sheet (or layer). Browser only. */
 export async function buildRasterFiles(
   result: RunResult,
-  settings: Pick<Settings, "formats" | "perLayerFiles" | "dpi" | "rasterStyle" | "rasterEngrave"> & Partial<Pick<Settings, "exportCut" | "exportEngrave" | "exportLabel" | "exportBridge" | "exportSheet">>,
+  settings: Pick<Settings, "formats" | "perLayerFiles" | "dpi" | "rasterStyle" | "rasterEngrave"> & Partial<Pick<Settings, "exportCut" | "exportEngrave" | "exportLabel" | "exportBridge" | "exportSheet" | "exportInnerLayer">>,
   model: string,
 ): Promise<ExportFile[]> {
   const formats = settings.formats.filter((f): f is RasterFormat => f === "png" || f === "jpg");

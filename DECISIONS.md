@@ -342,3 +342,22 @@ cache key contains it and nothing earlier re-runs; kerf, hollowing and nesting c
   in the slicing key exclusion list), legend row + view toggle `bridge`. Without BRIDGE the CUT polylines stay open = uncut tabs. The DXF LAYER table
   always lists BRIDGE; README/SVG mention it only when bridges exist. Layer tab draws bridged parts from the (kerfed) part cut paths.
 - **Not done / unverified.** Not tried in LightBurn. Bridges of the 3D stacked view are not shown (by design).
+
+## Inner cuts first and the CUT_INNER layer (`exportInnerLayer`)
+- **Order is unconditional.** Writers take the split `Drawing` fields (`outerClosed`, `outerOpen`, `innerClosed`, `innerOpen`, filled by `drawingOf` through
+  `bridges.cutPathsByKind`) and write inner rings (closed, then bridged), dowel circles, outer outlines (closed, then bridged), then BRIDGE, ENGRAVE, LABEL.
+  The order is global per drawing (all holes of the sheet before any outline), which includes the required per-part order and is better for a cutter that follows the file.
+  Drawings built by hand (tests) have no split; `splitCut` derives it (first ring of a shape = outline, `cutOpen` = outlines).
+- **SVG deviation: no more evenodd paths.** One `evenodd` path per shape cannot hold "holes, dowels, outline" in that order, and cannot move the holes to another group.
+  Every ring is now its own stroke-only path (fill is none, so the picture is identical). The brief said the off output should equal today's apart from order;
+  this is the one structural change, chosen over keeping evenodd and failing the order requirement. Anyone who filled the SVG would see holes filled; the file was never meant for filling.
+- **Setting.** `exportInnerLayer`, default off, export-only (in `EXPORT_ONLY`, so no run and no stale preview). It is carried in `ExportLayers.innerLayer` (a routing flag, not a
+  trace choice) so it flows through the existing worker message. It follows the CUT chip: with CUT excluded nothing of the cut family is written, inner cuts included.
+- **Colours.** ACI 30 (orange, RGB 255/127/0) in DXF, `#ff8000` in SVG: not used by CUT 1, ENGRAVE 5, LABEL 3, BRIDGE 6, SHEET 8, and readable on white and black, unlike yellow (2) or cyan (4).
+  Not tried in LightBurn, which maps ACI colours to its own palette.
+- **LAYER table.** `CUT_INNER` is listed only when the option is on, so that with it off the DXF stays identical to before apart from entity order (an existing test pins the five layers).
+  SVG writes the `CUT_INNER` group only when it has content.
+- **Bridges.** Gaps of bridged inner rings stay on BRIDGE; the open polylines of bridged inner rings go to `CUT_INNER` with the rest of the inner cuts.
+- **Raster formats ignore the option.** Images are one pixel picture where all cuts are black, so a second layer has no meaning there. Documented in help, README and TECHNICAL.
+- **Legend.** One extra row `CUT_INNER` in the Sheets and Layer legends, without a visibility checkbox: the views never draw it (it is a routing of export files), and the text says
+  "export only, if chosen". The ZIP README names the layer, its colour and "cut CUT_INNER first, then CUT" when on, and otherwise states that inner cuts are written first.

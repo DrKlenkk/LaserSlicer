@@ -44,6 +44,7 @@ export const DEFAULT_SETTINGS: Settings = {
   exportLabel: true,
   exportBridge: true,
   exportSheet: false,
+  exportInnerLayer: false,
   perLayerFiles: false,
 };
 
