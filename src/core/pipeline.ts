@@ -100,7 +100,7 @@ export class Pipeline {
     // ---- stage 1: orient ----
     report("Orienting", STAGE_WEIGHT.orient, 0);
     const orientKey = JSON.stringify([
-      this.meshVersion, s.axis, s.rotationSteps, s.scale, s.targetSize, s.roundHeightToLayers ? s.thickness : null,
+      this.meshVersion, s.axis, s.rotationSteps, s.importUnit, s.scale, s.targetSize, s.roundHeightToLayers ? s.thickness : null,
     ]);
     if (this.cOrient?.key !== orientKey) {
       this.cOrient = { key: orientKey, value: this.orient(s) };

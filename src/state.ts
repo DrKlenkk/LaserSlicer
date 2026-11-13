@@ -1,10 +1,12 @@
 // Small observable store: settings (persisted) + model data (not persisted).
 import type { Mesh, MeshStats, Settings } from "./core/types";
 import type { RunResult } from "./core/pipeline";
+import { IMPORT_UNITS } from "./core/units";
 
 export const DEFAULT_SETTINGS: Settings = {
   axis: "+Z",
   rotationSteps: [0, 0, 0],
+  importUnit: "mm",
   scale: 1,
   targetSize: null,
   thickness: 4.0,
@@ -112,6 +114,7 @@ const ENUMS: Record<string, readonly string[]> = {
   axis: ["+X", "-X", "+Y", "-Y", "+Z", "-Z"],
   mode: ["oversize", "midplane", "undersize"],
   rasterStyle: ["filled", "outline"],
+  importUnit: IMPORT_UNITS,
 };
 
 /**

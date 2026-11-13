@@ -12,6 +12,7 @@ import { materialUse } from "./core/nest";
 import { createWarnings } from "./ui/warnings";
 import { orientMesh, type Oriented } from "./core/transform";
 import { load3mfToSoup } from "./ui/load3mf";
+import { read3mfUnit, THREEMF_UNIT_NAME, THREEMF_UNIT_PLURAL, type ImportUnit } from "./core/units";
 import { h } from "./ui/dom";
 import { createHelp } from "./ui/help";
 import type { ViewMode } from "./ui/viewport3d";
@@ -114,7 +115,9 @@ async function openFile(file: File) {
   try {
     let buffer = await file.arrayBuffer();
     let kind: "stl" | "obj" | "soup" = ext === "3mf" ? "soup" : (ext as "stl" | "obj");
+    let declared: ImportUnit | null = null; // unit declared by a 3MF file
     if (ext === "3mf") {
+      declared = read3mfUnit(new Uint8Array(buffer)); // before the buffer is replaced by the soup
       // 3MFLoader needs DOMParser (not in workers): parse here, send the triangles on.
       let soup: Float32Array;
       try {
@@ -125,11 +128,16 @@ async function openFile(file: File) {
       buffer = soup.buffer as ArrayBuffer;
     }
     const r = await worker.load(buffer, kind);
+    // A 3MF file is authoritative about its unit: set it in the same update as the model (one orient, one run).
+    // STL and OBJ keep whatever unit is set (it is a project setting).
+    const unitChanged = declared !== null && declared !== store.get().settings.importUnit;
     store.set({
       model: { fileName: file.name, mesh: { positions: r.positions, indices: r.indices, bbox: r.bbox }, stats: r.stats },
+      ...(unitChanged ? { settings: { ...store.get().settings, importUnit: declared! } } : {}),
       result: null,
       layer: 0,
     });
+    const unitNote = unitChanged ? ` 3MF declares ${THREEMF_UNIT_PLURAL[declared!]} — import unit set to ${THREEMF_UNIT_NAME[declared!]}.` : "";
     lastFitModel = null; // fit camera for the new model
     const s = r.stats;
     const problems: string[] = [];
@@ -137,7 +145,7 @@ async function openFile(file: File) {
     if (s.nonManifoldEdges) problems.push(`${s.nonManifoldEdges} non-manifold edges`);
     if (s.degenerateRemoved) problems.push(`${s.degenerateRemoved} degenerate triangles removed`);
     store.setStatus(
-      problems.length ? `Loaded ${file.name}: mesh problems (${problems.join(", ")}); slicing will try to repair.` : `Loaded ${file.name}: ${s.triangles.toLocaleString()} triangles, closed mesh.`,
+      (problems.length ? `Loaded ${file.name}: mesh problems (${problems.join(", ")}); slicing will try to repair.` : `Loaded ${file.name}: ${s.triangles.toLocaleString()} triangles, closed mesh.`) + unitNote,
       problems.length ? "warn" : "info",
     );
   } catch (e) {
@@ -208,7 +216,7 @@ function refresh() {
   statusMsg.className = `msg ${status.level}`;
 
   // orientation (memoised on the inputs that affect it)
-  const key = model ? JSON.stringify([settings.axis, settings.rotationSteps, settings.scale, settings.targetSize]) : "";
+  const key = model ? JSON.stringify([settings.axis, settings.rotationSteps, settings.importUnit, settings.scale, settings.targetSize]) : "";
   if (!model) {
     if (oriented) {
       oriented = null;

@@ -6,6 +6,7 @@ import type { HelpKey } from "./helpText";
 import { infoIcon } from "./tooltip";
 import { createExportSection, downloadBytes } from "./exportDialog";
 import { buildCalibrationZip } from "../core/calibration";
+import { IMPORT_UNIT_OPTIONS } from "../core/units";
 
 export type OrientInfo = { size: [number, number, number]; scale: number };
 
@@ -48,7 +49,7 @@ export function createPanel(root: HTMLElement, store: Store, actions: PanelActio
     return h("label", { class: "field check" }, input, h("span", { class: "lbl" }, label, help ? infoIcon(help) : null), hint ? h("small", { class: "hint" }, hint) : null);
   }
 
-  function selectField<K extends "mode" | "dpi" | "rasterStyle">(label: string, key: K, options: [string, string][], help?: HelpKey) {
+  function selectField<K extends "mode" | "dpi" | "rasterStyle" | "importUnit">(label: string, key: K, options: [string, string][], help?: HelpKey) {
     const sel = h("select", { id: `f-${key}` }, ...options.map(([v, t]) => h("option", { value: v }, t)));
     sel.addEventListener("change", () => {
       const raw = sel.value;
@@ -155,9 +156,10 @@ export function createPanel(root: HTMLElement, store: Store, actions: PanelActio
     fileInfo,
     h("div", { class: "row-label" }, "Size (mm)"),
     sizeReadout,
+    selectField("Import unit", "importUnit", [...IMPORT_UNIT_OPTIONS], "importUnit"),
     h("label", { class: "field" }, h("span", { class: "lbl" }, "Scale", infoIcon("scale")), h("span", { class: "ctl" }, scaleInput, h("span", { class: "unit" }, "%"))),
     h("label", { class: "field" }, h("span", { class: "lbl" }, "Target size along one axis", infoIcon("targetSize")), h("span", { class: "ctl" }, dimSelect, targetInput, h("span", { class: "unit" }, "mm"))),
-    h("div", { class: "rotrow" }, resetScale, h("small", { class: "hint" }, "Proportions stay locked. STL has no units; mm assumed.")),
+    h("div", { class: "rotrow" }, resetScale, h("small", { class: "hint" }, "Proportions stay locked. Scale is on top of the import unit.")),
     h("div", { class: "row-label" }, "Slicing axis (points up)", infoIcon("axis")),
     axisRow,
     h("div", { class: "row-label" }, "Rotate", infoIcon("rotate")),

@@ -24,7 +24,7 @@ Open `dist/index.html` by double-click (`file://` works; nothing is fetched). Co
 
 ## Use
 
-1. Drop a model on the page (or "Choose file..."). STL has no units, so mm are assumed; set a scale or target size if needed.
+1. Drop a model on the page (or "Choose file..."). STL and OBJ have no units, so choose the **Import unit** (mm, cm, m, inch, ...) if the model loads at the wrong size; a 3MF file sets it from its own unit. Use scale or target size for the rest.
 2. Pick the slicing axis (the selected axis points up) and rotate in 90 degree steps.
 3. Enter the **measured** plywood thickness (calipers; "4 mm" is often 3.7-3.9), sheet size and kerf.
 4. Choose an outline mode, optionally hollowing and dowels, and look at the result in the tabs: **3D** (original model or

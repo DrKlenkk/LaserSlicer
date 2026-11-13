@@ -1,6 +1,7 @@
 // Orientation (slicing axis -> +Z, 90 degree steps), scaling, and drop to Z = 0.
 import type { Axis, Dim, Mesh, Settings } from "./types";
 import { bboxSize, computeBBox } from "./mesh";
+import { importUnitFactor } from "./units";
 
 /** Row-major 3x3 rotation matrix. */
 export type Mat3 = [number, number, number, number, number, number, number, number, number];
@@ -63,13 +64,13 @@ export type Oriented = {
   scale: number;
   /** extents in mm after orientation and scaling */
   size: [number, number, number];
-  /** size at scale 1 (after orientation only) */
+  /** size at scale 1 (after orientation and import unit, in mm) */
   baseSize: [number, number, number];
 };
 
 const DIM_INDEX: Record<Dim, number> = { x: 0, y: 1, z: 2 };
 
-/** Effective uniform scale for the given settings and unscaled oriented size. */
+/** Effective uniform scale for the given settings and the oriented size in mm at scale 1 (import unit already applied). */
 export function effectiveScale(
   s: Pick<Settings, "scale" | "targetSize">,
   baseSize: [number, number, number],
@@ -84,16 +85,17 @@ export function effectiveScale(
 /** Build the oriented copy of `mesh`. The input is not modified. */
 export function orientMesh(
   mesh: Mesh,
-  s: Pick<Settings, "axis" | "rotationSteps" | "scale" | "targetSize">,
+  s: Pick<Settings, "axis" | "rotationSteps" | "scale" | "targetSize"> & Partial<Pick<Settings, "importUnit">>,
 ): Oriented {
   const m = orientationMatrix(s.axis, s.rotationSteps);
+  const unit = importUnitFactor(s.importUnit ?? "mm"); // model units -> mm, kept apart from the user scale
   const src = mesh.positions;
   const out = new Float32Array(src.length);
   for (let i = 0; i < src.length; i += 3) {
     const x = src[i], y = src[i + 1], z = src[i + 2];
-    out[i] = m[0] * x + m[1] * y + m[2] * z;
-    out[i + 1] = m[3] * x + m[4] * y + m[5] * z;
-    out[i + 2] = m[6] * x + m[7] * y + m[8] * z;
+    out[i] = (m[0] * x + m[1] * y + m[2] * z) * unit;
+    out[i + 1] = (m[3] * x + m[4] * y + m[5] * z) * unit;
+    out[i + 2] = (m[6] * x + m[7] * y + m[8] * z) * unit;
   }
   const rotBox = computeBBox(out);
   const baseSize = bboxSize(rotBox);

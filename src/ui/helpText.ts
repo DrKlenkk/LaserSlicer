@@ -10,8 +10,10 @@ export const HELP = {
     "Layers are cut perpendicular to this axis, and the selected axis points up in the finished stack. Pick the direction that gives the best result: usually the model's natural 'up', or the way that keeps overhangs short, because every layer is a flat slice. +Z and -Z give the same layers in opposite order (the bottom layer becomes the top).",
   rotate:
     "Turns the model in 90 degree steps about the X, Y or Z axis, applied after the slicing axis is chosen. Each click adds one quarter turn; 'Reset' undoes all of them. Use it when the axis buttons alone do not give the orientation you want, for example to lay a model on its side.",
+  importUnit:
+    "The unit the model was drawn in. STL and OBJ files carry no units, so choose it yourself: the model is multiplied by the matching number of millimetres (inch 25.4, cm 10, m 1000, foot 304.8, micron 0.001) before the scale is applied. A model that loads tiny or huge is usually in the wrong unit. 3MF files declare their unit, and loading one sets this field for you (the status bar says so). The Scale field stays at 100 % for a model that is only unit-converted; the size readout shows the result in mm.",
   scale:
-    "Resizes the whole model, in percent of its original size (proportions stay locked). STL and OBJ files carry no units, so millimetres are assumed: a model that loads tiny or huge usually needs a scale such as 25.4 (inches to mm) or 10 (cm to mm). The field shows the effective scale, including any change from the target size.",
+    "Resizes the whole model, in percent of its original size (proportions stay locked). It is applied on top of the Import unit (so a model in inches stays at 100 % when the unit is set to inch). The field shows the effective scale, including any change from the target size.",
   targetSize:
     "Scales the model so that its size along the chosen axis (X, Y or Z, after rotation) is exactly this many millimetres. The other dimensions follow so the proportions stay the same. Handy when you know the finished height or width you want. Typing a scale in percent instead cancels the target size.",
 

@@ -35,7 +35,7 @@ below.
 | Worker | All heavy geometry (parsing, welding, slicing, nesting, export, image rendering) runs in one Web Worker. The main thread does UI, 3D rendering, 3MF parsing and the cheap orientation for the 3D preview. |
 | No install, no server | State lives in the page and in `localStorage`; the model itself is never stored. |
 | Tested browser | **Chromium only** (headless Playwright, software GL). Firefox, Safari and Edge, and `file://` behaviour there, are untested. |
-| Units | Millimetres everywhere. STL and OBJ carry no units, so millimetres are assumed. Y axis up in all outputs. |
+| Units | Millimetres everywhere after import. STL and OBJ carry no units, so the *Import unit* setting says what the file is in (default millimetres); 3MF declares its unit and sets that setting on load. Y axis up in all outputs. |
 
 ---
 
@@ -50,7 +50,7 @@ Collapsible groups, in this order. Model and Material start open, the rest colla
 
 | Group | Contents |
 |---|---|
-| **Model** | Drop zone / "Choose file..." (accepts `.stl`, `.obj`, `.3mf`), file name and triangle count, effective size readout (mm), scale %, target size along X/Y/Z, "Reset 100 %", slicing axis (`+X -X +Y -Y +Z -Z`), 90-degree rotation buttons for X, Y, Z with "Reset". |
+| **Model** | Drop zone / "Choose file..." (accepts `.stl`, `.obj`, `.3mf`), file name and triangle count, effective size readout (mm), import unit (micron, mm, cm, m, inch, foot), scale %, target size along X/Y/Z, "Reset 100 %", slicing axis (`+X -X +Y -Y +Z -Z`), 90-degree rotation buttons for X, Y, Z with "Reset". |
 | **Material** | Thickness, sheet width and height, kerf, part spacing, sheet margin, density, cut speed, engrave speed, price per sheet (estimates, section 5.7), and the "Download calibration sheet" button (works without a model, section 5.5). |
 | **Holding bridges** | Enable, bridges per outline, width, minimum outline length, inner holes, maximum spacing. |
 | **Slicing** | Outline mode, samples per layer, round height to whole layers, smoothing radius, simplify tolerance, min part area, min feature. |
@@ -164,8 +164,9 @@ keys); everything after it also re-runs. "Export" means no slicing at all.
 |---|---|---|---|---|
 | Slicing axis (`axis`) | `+Z` | `+X -X +Y -Y +Z -Z` | Layers are cut perpendicular to this axis; the chosen axis points up in the stack. `+Z` and `-Z` give the same layers in opposite order. | orient |
 | Rotate (`rotationSteps`) | `[0,0,0]` | 0..3 quarter turns about X, Y, Z | Extra 90-degree turns applied after axis alignment, in the order X, Y, Z. "Reset" zeroes them. | orient |
+| Import unit (`importUnit`) | `mm` | `micron mm cm m in ft` | Unit of the model file, as a factor to mm (0.001, 1, 10, 1000, 25.4, 304.8) applied together with, but separate from, the scale: the Scale field stays at 100 % for a model that is only unit-converted, and the size readout is in mm. Loading a 3MF sets it from the file (status bar says so); STL and OBJ loads leave it as it is. | orient |
 | Scale (`scale`) | 1 (shown as 100) | percent in the UI, > 0 | Uniform scale. The field shows the *effective* scale including target size and height rounding. Typing a scale cancels the target size. | orient |
-| Target size (`targetSize`) | `null` | X/Y/Z + mm > 0 | Scales uniformly so the oriented extent along that axis equals this value. Overrides `scale`. | orient |
+| Target size (`targetSize`) | `null` | X/Y/Z + mm > 0 | Scales uniformly so the oriented extent along that axis (in mm, after the import unit) equals this value. Overrides `scale`. | orient |
 
 ### 3.2 Material
 
@@ -259,7 +260,7 @@ The panel's number inputs enforce `min`/`max` and silently restore the previous 
 validates independently (`parseProject` in `src/state.ts`): positive (`thickness`, `sheetW`, `sheetH`, `scale`, `labelHeight`,
 `dowelDiameter`, `bridgeWidth`), non-negative (`kerf`, spacing, margin, smoothing, simplify, areas, hollow, cap layers, bridge
 minimum and spacing), integers (`samplesPerLayer`, `solidCapLayers`, `dowelCount`, `bridgeCount`), `samplesPerLayer >= 1`,
-`dowelCount >= 1`, `bridgeCount` 1..8, `dpi` 1..4800, `rotationSteps` three integers (normalised mod 4), enums, `formats` subset.
+`dowelCount >= 1`, `bridgeCount` 1..8, `dpi` 1..4800, `rotationSteps` three integers (normalised mod 4), enums (`axis`, `mode`, `rasterStyle`, `importUnit`), `formats` subset.
 Independently of the UI, the label height is clamped to at least 3 mm in the code.
 
 ---
@@ -311,7 +312,7 @@ under a key built from only the settings that influence it.
 
 1. **Axis alignment:** a proper rotation (determinant +1, no mirroring) maps the chosen axis to +Z. Then `rotationSteps` are
    applied as quarter turns about X, then Y, then Z.
-2. **Scale:** effective scale = `targetSize.mm / extent` if a target is set, else `scale`. The mesh is scaled and translated so
+2. **Import unit and scale:** every vertex is first multiplied by the import unit factor (mm per unit, `src/core/units.ts`), so extents are in mm. Effective scale = `targetSize.mm / extent` if a target is set, else `scale`; it excludes the unit. The mesh is scaled and translated so
    its minimum Z is 0 (X and Y are not centred).
 3. **Height rounding** (optional): factor `n x thickness / height` with `n = max(1, round(height / thickness))`, applied uniformly
    to all three axes. The reported scale includes it.
@@ -322,7 +323,7 @@ under a key built from only the settings that influence it.
 6. **Vertex nudge:** a plane within `1e-6` of any vertex Z is moved up by `1e-4` (repeated up to 8 times), so a plane never passes exactly through a vertex.
 
 The 3D preview applies the same `orientMesh` on the main thread so axis and scale changes feel instant.
-*Caching:* orient key = mesh version, axis, rotation, scale, target size, and thickness only if height rounding is on.
+*Caching:* orient key = mesh version, axis, rotation, import unit, scale, target size, and thickness only if height rounding is on.
 
 ### 4.3 Plane cutting and stitching
 
@@ -497,7 +498,7 @@ Each stage stores `{ key, value }` and re-runs only if its key (a JSON string) c
 
 | Stage | Key = previous key + |
 |---|---|
-| orient | mesh version, axis, rotationSteps, scale, targetSize, thickness (only if `roundHeightToLayers`) |
+| orient | mesh version, axis, rotationSteps, importUnit, scale, targetSize, thickness (only if `roundHeightToLayers`) |
 | slice, modes | thickness, mode, samplesPerLayer |
 | cleanup | smoothRadius, simplifyTol, minPartArea, minFeature |
 | hollow | hollowEnabled (+ hollowWall, solidCapLayers, minPartArea when on) |
@@ -638,7 +639,8 @@ A crashed worker sets the badge to `Worker error: ...`.
 | `src/uiPrefs.ts`, `src/traceVisibility.ts` | Persisted view prefs; shared trace-visibility state. |
 | `src/core/types.ts` | `Settings`, `Mesh`, `Shape`, `Part`, `Layer`, `Sheet`, `Placement`, `Warning`. |
 | `src/core/loaders.ts`, `mesh.ts` | STL/OBJ/soup parsing; welding, bbox, edge statistics. |
-| `src/core/transform.ts` | Axis rotations, quarter turns, scale, drop to Z = 0. |
+| `src/core/transform.ts` | Axis rotations, quarter turns, import unit, scale, drop to Z = 0. |
+| `src/core/units.ts` | Import unit table and the 3MF unit reader (`read3mfUnit`, regex on the model tag, no DOM). |
 | `src/core/layers.ts` | Layer planning, height rounding, mode combine, cleanup, part ids. |
 | `src/core/slice.ts` | Sweep plane cutter, edge-key stitching, open-chain repair. |
 | `src/core/poly.ts` | The only module that touches `clipper2-js`: boolean ops, offset, biased simplify, area, point-in-polygon. |
@@ -769,7 +771,7 @@ checked by hand in Chromium).
 * **Limits:** at most 5000 layers; about 94 million vertices; images at most 16384 px per side and 200 MP.
 * **Hollowing, bridges and the 3D view:** the stacked 3D view does not show bridges or dowel holes (it extrudes layer outlines).
 * **Estimates are approximate.** The time ignores travel moves, acceleration, passes and the BRIDGE layer speed; the weight ignores dowel holes and rods and any glue; cost counts partial sheets whole and ignores waste beyond that. Not compared with a real job.
-* **STL has no units;** millimetres are assumed.
+* **STL and OBJ have no units;** the Import unit setting (default millimetres) is the only information, and a model in the wrong unit loads at the wrong size until it is changed. 3MF units are read from the `unit` attribute of the model part (default millimeter when absent); the same unit also applies to an STL or OBJ loaded afterwards.
 * **3MF** is parsed on the main thread (one-off cost per load); all objects are merged into one soup.
 * **Milestone M10** (a Tauri `.exe` wrapper in the plan) was **not done**; the product is the single HTML file.
 * On-screen trace colours are approximations of the ACI colours of the DXF layers.

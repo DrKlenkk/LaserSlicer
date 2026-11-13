@@ -391,3 +391,17 @@ cache key contains it and nothing earlier re-runs; kerf, hollowing and nesting c
 - **Export path.** The worker builds the README from `pipeline.last.settings`, which are the settings of the last run, so a density or price changed afterwards would be missed (changing them starts no run). The four values therefore travel with the `export` message and override the stored ones, as the export layer flags already do.
 - **Project file.** The four keys are optional and validated (finite numbers, >= 0); older files get the defaults. The project format version stays 1: the new keys are optional, so nothing changes for existing files.
 - **Not verified:** the numbers were checked against hand-computed boxes in tests and against the summary in the browser, not against a real laser job.
+
+## Import units (`src/core/units.ts`)
+- **Setting.** `importUnit` (`micron | mm | cm | m | in | ft`, default `mm`) in the Model group, as a factor to mm. It is applied to every vertex in `orientMesh` before the scale and the target size, so extents are in mm
+  from then on and a target size still means mm. `Oriented.scale` stays the user scale (excludes the unit), which is what keeps the Scale field at 100 % for a model that is only unit-converted. The unit is in the orient key
+  in the pipeline and in the 3D preview's key (the preview calls the same `orientMesh`), and, being a normal setting, in `slicingKey`. No other code used the scale, so the readout, bounding box and fit logic follow with no change.
+- **All six 3MF units in the dropdown (deviation).** The brief listed mm, cm, m, inch. Micron and foot are valid 3MF units; mapping them onto a scale percentage would break the "100 %" rule, and hiding options that appear only when set
+  would make the dropdown change under the user. So the dropdown lists all six (micron first, foot last) and the project file accepts all six.
+- **3MFLoader does not apply the unit.** three's `3MFLoader` reads the `unit` attribute into its model data but never uses it, so there is no double scaling: the file's numbers reach the worker as they are and the import unit does the conversion.
+- **Reading the unit.** `read3mfUnit` (core, no DOM: unzip only `*.model` and `*.rels` with fflate, find the model part through the `3dmodel` relationship in `_rels/.rels`, fall back to the first `*.model`, regex on the `<model>` start tag)
+  returns `mm` when the attribute is absent (the format's default), and `null` for an unreadable archive or a value the format does not allow, in which case the setting is left alone. Not DOM based, so it is tested in Node with
+  generated archives. It reads the archive once more than the loader does (a few KB of XML is decompressed twice for small files; the model part, which can be large, is parsed by the regex only up to its first tag).
+- **Persistence.** Loading a 3MF always sets the unit (the file is authoritative, even when it says millimeter and the setting was inch), in the same store update as the model so there is one orient and one run. STL and OBJ loads
+  leave the setting as it is: it is a project setting, and a user converting several inch STL files should not have to repeat it. The status bar adds "3MF declares inches — import unit set to inch." only when the setting actually changed.
+- **Not verified:** 3MF files from real CAD programs with a non-default unit (only generated archives were tried). Components with their own transforms are in model units like everything else in the file.

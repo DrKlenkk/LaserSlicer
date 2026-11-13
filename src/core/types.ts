@@ -1,4 +1,6 @@
 // Core types. All lengths in mm, 2D coordinates in the sheet plane.
+import type { ImportUnit } from "./units";
+export type { ImportUnit } from "./units";
 
 export type Vec2 = [number, number];
 export type Ring = Vec2[]; // closed, last point != first point
@@ -75,6 +77,8 @@ export type Settings = {
   axis: Axis;
   /** number of 90 degree turns about X, Y, Z (applied in that order after axis alignment) */
   rotationSteps: [number, number, number];
+  /** unit of the model file (STL/OBJ carry none, 3MF declares one); a factor to mm applied with `scale` but separate from it */
+  importUnit: ImportUnit;
   scale: number;
   /** if set, overrides `scale`: scale so that the oriented extent along `dim` equals `mm` */
   targetSize: { dim: Dim; mm: number } | null;
