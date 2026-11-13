@@ -33,6 +33,9 @@ Open `dist/index.html` by double-click (`file://` works; nothing is fetched). Co
    `CUT` (red), `ENGRAVE` (blue), `LABEL` (green) and, with holding bridges, `BRIDGE` (magenta); the legend also lists the export-only `CUT_INNER` (orange), so they can be assigned to cut / engrave in LightBurn and similar software.
    The checkbox in front of each legend row shows or hides that trace in both tabs (view only: it does not re-slice and
    does not change the files; remembered in the browser).
+   Not sure about kerf or dowel diameter? **Download calibration sheet** (Material group, works without a model) gives a small ZIP
+   (DXF, SVG, README.txt) to cut from scrap: seven 20 mm squares with matching holes for kerf 0 to 0.30 mm, and five round holes around your dowel
+   diameter. The pair that fits snugly shows your kerf; the hole that fits your rod gives the dowel diameter. Do the kerf test first.
 5. Optional **Holding bridges** (panel group of that name): short uncut tabs that keep each part attached to the sheet until you
    break it out, so it cannot fall or tilt mid-cut. Set bridges per outline (1-8), width, minimum outline length, optionally inner holes
    and a maximum spacing. They sit on straight edges, evenly spaced; the gaps are on the separate `BRIDGE` layer. In LightBurn give
@@ -75,6 +78,7 @@ Dowels put holes at identical positions in every layer of a run so a rod aligns 
 - **SVG**: 1 unit = 1 mm, same layers as `<g>` groups. **PNG/JPG**: rendered at the chosen DPI with the DPI stored in the file; for engraving or reference, not for cutting without tracing.
 - Per sheet (default) or per layer. The ZIP also has a `README.txt` with the settings, stacking order and warnings.
 - Bridged outlines are open polylines on `CUT` plus one short open polyline per gap on `BRIDGE`. PNG/JPG: outline style draws the gaps magenta (or leaves them open without BRIDGE); filled style always shows the whole part.
+- The calibration sheet uses only `CUT` and `LABEL`; its labels use a decimal point glyph added to the font.
 - Kerf is applied to the cut outlines only (holes shrink, outlines grow); engrave lines are never offset.
 
 ## Limitations

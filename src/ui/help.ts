@@ -22,6 +22,7 @@ export function createHelp() {
     h("button", { type: "button", class: "btn small help-close", id: "help-close", onclick: close }, "Close"),
     h("h2", {}, "Laser Slicer"),
     h("p", {}, "Load an STL, OBJ or 3MF model, set the thickness you measured on your plywood, and download the ZIP. Every change re-slices automatically unless \"Auto-update preview\" is off; then click Update preview (or press U)."),
+    h("p", {}, "Not sure about kerf or dowel size? \"Download calibration sheet\" (Material group) gives a small ZIP to cut from scrap: squares and holes for kerf, round holes for the dowel. See its README.txt."),
     h("h3", {}, "Gluing"),
     h("ol", {},
       h("li", {}, "Cut every part face-up; do not flip any part."),

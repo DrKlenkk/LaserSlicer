@@ -5,6 +5,7 @@ import { h } from "./dom";
 import type { HelpKey } from "./helpText";
 import { infoIcon } from "./tooltip";
 import { createExportSection, downloadBytes } from "./exportDialog";
+import { buildCalibrationZip } from "../core/calibration";
 
 export type OrientInfo = { size: [number, number, number]; scale: number };
 
@@ -165,6 +166,17 @@ export function createPanel(root: HTMLElement, store: Store, actions: PanelActio
   );
 
   // ---------- other groups (inputs bound to settings; pipeline arrives in later milestones) ----------
+  const calibrationStatus = h("small", { class: "hint", id: "calibration-status", role: "status" });
+  function downloadCalibration() {
+    try {
+      const { dowelDiameter, kerf } = store.get().settings;
+      const z = buildCalibrationZip({ dowelDiameter, kerf });
+      downloadBytes(z.name, "application/zip", z.bytes);
+      calibrationStatus.textContent = `Saved ${z.name}: cut it from scrap, see README.txt inside.`;
+    } catch (e) {
+      calibrationStatus.textContent = `Calibration sheet failed: ${e instanceof Error ? e.message : String(e)}`;
+    }
+  }
   const materialGroup = group(
     "Material",
     true,
@@ -172,6 +184,8 @@ export function createPanel(root: HTMLElement, store: Store, actions: PanelActio
     h("div", { class: "grid2" }, numField("Sheet W", "sheetW", { min: 10, unit: "mm", help: "sheetSize" }), numField("Sheet H", "sheetH", { min: 10, unit: "mm" })),
     numField("Kerf", "kerf", { step: 0.01, min: 0, unit: "mm", help: "kerf" }),
     h("div", { class: "grid2" }, numField("Part spacing", "partSpacing", { min: 0, unit: "mm", help: "partSpacing" }), numField("Sheet margin", "sheetMargin", { min: 0, unit: "mm", help: "sheetMargin" })),
+    h("div", { class: "rotrow" }, h("button", { type: "button", class: "btn small", id: "calibration-download", onclick: downloadCalibration }, "Download calibration sheet"), infoIcon("calibration")),
+    calibrationStatus,
   );
   const bridgeGroup = group(
     "Holding bridges",

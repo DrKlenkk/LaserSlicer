@@ -51,7 +51,7 @@ Collapsible groups, in this order. Model and Material start open, the rest colla
 | Group | Contents |
 |---|---|
 | **Model** | Drop zone / "Choose file..." (accepts `.stl`, `.obj`, `.3mf`), file name and triangle count, effective size readout (mm), scale %, target size along X/Y/Z, "Reset 100 %", slicing axis (`+X -X +Y -Y +Z -Z`), 90-degree rotation buttons for X, Y, Z with "Reset". |
-| **Material** | Thickness, sheet width and height, kerf, part spacing, sheet margin. |
+| **Material** | Thickness, sheet width and height, kerf, part spacing, sheet margin, and the "Download calibration sheet" button (works without a model, section 5.5). |
 | **Holding bridges** | Enable, bridges per outline, width, minimum outline length, inner holes, maximum spacing. |
 | **Slicing** | Outline mode, samples per layer, round height to whole layers, smoothing radius, simplify tolerance, min part area, min feature. |
 | **Hollowing** | Enable, wall, solid cap layers. |
@@ -523,6 +523,14 @@ smoothing, min area/feature, formats, layers included/left out, bridge details, 
 colours, the file list, and every warning as `[level] message`. A note is added when CUT is not included. PNG and JPG are stored
 uncompressed in the ZIP (already compressed); everything else uses deflate level 6.
 
+### 5.5 Calibration sheet
+
+The button "Download calibration sheet" (Material group, tooltip `calibration`) builds `laser-slicer-calibration.zip` on the main thread (a few hundred rectangles and strokes, no clipper, so no worker round trip) with `calibration.dxf`, `calibration.svg` and `README.txt`. It needs no model and does not touch the store, the pipeline or any cache. The sheet is about 160 x 73 mm (`src/core/calibration.ts`), written with the normal DXF and SVG writers: only layers `CUT` and `LABEL` are used.
+
+* **Kerf test.** Seven pairs for test kerf k = 0, 0.05 ... 0.30 mm: one strip part with seven 20 mm square holes (cut path inset by k/2) and, below each hole, a loose 20 mm square (cut path outset by k/2), the same compensation the slicer applies. When the real kerf equals k both come out 20.00 mm and fit snugly. The value is engraved on the square and under the hole.
+* **Dowel test.** Five round holes (`CIRCLE`s) with labels D-0.2, D-0.1, D, D+0.1, D+0.2 where D is the current Dowel diameter. The label is the value to enter as Dowel diameter; the drawn circle is the label minus the current Kerf setting, exactly as dowel holes are compensated in the main run, so do the kerf test first. The sheet grows to the right for large dowels.
+* Labels use the Hershey font, which has a decimal point glyph (`.`) since this feature, so they read `0.15`, `5.9`.
+
 ### 5.2 Export layer selection
 
 "Layers in the files" decides what is written, for all four formats, independently of the legend toggles in the views. CUT = part
@@ -632,6 +640,7 @@ A crashed worker sets the badge to `Worker error: ...`.
 | `src/core/export/common.ts` | `Drawing`, export layer flags, sheet/layer drawings, number formatting. |
 | `src/core/export/dxf.ts`, `svg.ts` | Vector writers. |
 | `src/core/export/raster.ts`, `rasterBytes.ts` | Canvas painting; pure PNG/JPEG DPI patching and size limits. |
+| `src/core/calibration.ts` | Calibration sheet geometry (kerf and dowel tests), its README and ZIP. |
 | `src/core/export/files.ts`, `zip.ts` | File naming and selection; ZIP and `README.txt` (via `fflate`). |
 | `src/worker/slicer.worker.ts`, `client.ts`, `protocol.ts` | Worker entry, promise wrapper, message types. |
 | `src/ui/panel.ts`, `exportDialog.ts` | Parameter panel and export section. |
@@ -734,6 +743,7 @@ checked by hand in Chromium).
 ## 9. Known limitations and unverified items
 
 * **Rectangle-only nesting.** Each part is packed as its minimum-area rectangle (MaxRects); no true-shape nesting, no nesting of a small part inside another's cavity. Round parts waste material. A part larger than the sheet is reported and left out. (True-shape nesting was an optional v2 in the plan.)
+* **Calibration sheet is a guide, not a measurement.** It assumes the fit feel of a 20 mm square in a 20 mm hole; wood swelling, burn marks and the laser focus change the result by a few hundredths. Not cut on a real laser here.
 * **Chromium only.** Firefox, Safari, Edge and `file://` there are untested. Image export needs `OffscreenCanvas` in workers.
 * **DXF not tested in LightBurn or LibreCAD**, only parsed with `dxf-parser`. The same holds for the BRIDGE layer workflow and for `CUT_INNER` (colour ACI 30 and the cut-first workflow in LightBurn were not checked).
 * **Hershey font is a reconstruction.** Glyphs follow the Hershey encoding and Simplex style but were drawn by hand, not copied from the original table. Only digits, A-Z, a-z, `-` and space exist. Descender letters can overshoot the label box.

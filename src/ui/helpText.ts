@@ -102,9 +102,11 @@ export const HELP = {
     "Chooses which traces are written into the exported DXF, SVG, PNG and JPG files. CUT = part outlines and dowel holes, ENGRAVE = the next-layer outline for gluing, LABEL = the layer text, BRIDGE = the gaps of the holding bridges (without it the gaps stay uncut tabs), SHEET border = a frame around the sheet (off by default; DXF layer SHEET, SVG group SHEET, grey frame in images). Use it, for example, to make a file with the cut lines only and a second one with the engraving only. Without CUT the files do not cut the parts out. These boxes are independent of the legend checkboxes in the views, which only change what you see. At least one layer must stay selected.",
   exportInnerLayer:
     "Puts the inner cuts (holes, hollowing cavities and dowel holes) on their own layer CUT_INNER (orange) in DXF and SVG, so only the outer outlines stay on CUT. In LightBurn and similar software you can then cut CUT_INNER first and CUT last, so a part cannot drop or shift before its holes are cut. Inner cuts are always written before the outlines in the files, with or without this option. PNG and JPG ignore it. Bridge gaps on inner rings stay on BRIDGE. It does not re-slice.",
+  calibration:
+    "Downloads a small ZIP (DXF, SVG and a README) to cut from a scrap of your plywood, about 160 x 80 mm; it works without a model. Kerf test: seven loose 20 mm squares and matching square holes, each pair drawn for a kerf from 0 to 0.30 mm and labelled. The pair that fits snugly shows your kerf: enter it in the Kerf field. Dowel test: five round holes around the current Dowel diameter (plus and minus 0.2 mm), labelled with the value to enter once your rod fits. The dowel holes are drawn smaller by the current Kerf, so do the kerf test first. Use the same laser settings as for the real job.",
 } as const;
 
 export type HelpKey = keyof typeof HELP;
 
 /** Keys that cover one control rather than a single Settings field. */
-export const EXTRA_HELP_KEYS: readonly HelpKey[] = ["rotate", "sheetSize", "viewToggle", "autoUpdate", "viewTraces", "exportLayers"];
+export const EXTRA_HELP_KEYS: readonly HelpKey[] = ["rotate", "sheetSize", "viewToggle", "autoUpdate", "viewTraces", "exportLayers", "calibration"];

@@ -4,7 +4,7 @@
 // and every following character pair is an (x, y) vertex, all offset by the code of "R" (x right, y DOWN); the
 // marker " R" lifts the pen. The cap height is 21 units (y from -12 at the top to +9 at the baseline).
 // NOTE: the outlines were reconstructed in the Simplex style (single stroke, polygonal curves); they are not a
-// byte-exact copy of the original Hershey table (see DECISIONS.md). Covered: digits, A-Z, a-z, "-" and space.
+// byte-exact copy of the original Hershey table (see DECISIONS.md). Covered: digits, A-Z, a-z, "-", "." and space.
 // Lower case: x-height 14 units (y from -5 to 9), ascenders to the cap height, descenders (g j p q y) down to y = 16/17.
 import type { Vec2 } from "../types";
 
@@ -46,6 +46,8 @@ const GLYPHS: Record<string, string> = {
   "Y": "H\\KFRPYF RRPR[",
   "Z": "H[KFXFK[X[",
   "-": "JZMPWP",
+  // decimal point: a closed 2 x 2 unit square on the baseline (a laser cannot engrave a smaller dot anyway)
+  ".": "OUQ[S[SYQYQ[",
   "a": "P`^T^Q\\OZNXMVNTORQRTRWTYVZX[ZZ\\Y^W^T R^M^[",
   "b": "P`RFR[ R^T^Q\\OZNXMVNTORQRTRWTYVZX[ZZ\\Y^W^T",
   "c": "P_]P[NXMVMTORQRTRWTYV[X[[Z]X",

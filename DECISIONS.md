@@ -361,3 +361,17 @@ cache key contains it and nothing earlier re-runs; kerf, hollowing and nesting c
 - **Raster formats ignore the option.** Images are one pixel picture where all cuts are black, so a second layer has no meaning there. Documented in help, README and TECHNICAL.
 - **Legend.** One extra row `CUT_INNER` in the Sheets and Layer legends, without a visibility checkbox: the views never draw it (it is a routing of export files), and the text says
   "export only, if chosen". The ZIP README names the layer, its colour and "cut CUT_INNER first, then CUT" when on, and otherwise states that inner cuts are written first.
+
+## Calibration sheet (`src/core/calibration.ts`)
+- **Where it runs.** On the main thread, not in the worker: the sheet is a few hundred points, built in well under a millisecond, and the button must work with no model and no worker run.
+  The geometry and the ZIP are pure core functions (`buildCalibration`, `buildCalibrationZip`), tested in Node. It reads `kerf` and `dowelDiameter` once at click time; nothing is stored and no cache is touched.
+- **Decimal point, not hundredths.** Added a `.` glyph to the font (a closed 2 x 2 unit square on the baseline, same encoding) so labels read `0.15` and `5.9`; hundredths ("15") would
+  have been unambiguous but unreadable next to the dowel labels. Side effect: the glyph is in the font for every label (layer labels never contain a dot).
+- **Range.** Kerf 0 to 0.30 in 0.05 steps (7 pairs), dowel D-0.2 to D+0.2 in 0.1 steps (5 holes), as suggested. Squares are 20 mm as asked.
+  Seven 20 mm pairs only fit about 150 mm wide with thin webs, so the layout is 160 x ~73 mm (a strip of 7 holes with 2 mm webs, the 7 squares directly under their holes at the same pitch, the dowel strip below). That is a little wider than the brief's "about 150 x 100".
+- **Compensation.** Square outset by k/2, hole inset by k/2, as the slicer does; both come out 20 mm exactly when the true kerf is k. A test kerf of 0 draws plain 20 mm shapes.
+- **Dowel holes use the current Kerf setting (deviation).** The brief said no compensation beyond the label. Taken literally the label would be the path size and the user would have to add the kerf in their head.
+  Instead the label is the value to type into "Dowel diameter" and the drawn circle is label minus the Kerf setting, which is what the main pipeline draws for that setting. Consequence: do the kerf test first (stated in the README and tooltip). Circle size is clamped to at least 0.1 mm.
+- **Parts are cut free.** Squares are separate parts with their outline on CUT; the holes are inner rings of one strip part and the dowel holes are `CIRCLE`s in a second strip. Labels are on LABEL inside the square and in a 7 mm band under each hole, never touching a cut (tested).
+- **Layers.** Only CUT and LABEL; the calibration sheet ignores the export-layer chips, the CUT_INNER option and the formats setting (always DXF and SVG): it is meant to be cut as is.
+- **Not verified:** not cut on a real laser, not opened in LightBurn.
