@@ -574,3 +574,10 @@ cache key contains it and nothing earlier re-runs; kerf, hollowing and nesting c
 - **Keyboard:** the button is a normal toggle; there is no global shortcut (the single letters are taken by the existing shortcuts). `Esc` clears first, switches the tool off on the second press. The listener is on `window` but only acts while the tool is on and its tab is visible.
 - **Sheets across sheets:** the sheets are drawn side by side with a 20 mm gap, so a measurement across two sheets would include the gap; the readout adds "different sheets" instead of hiding it.
 - **Not verified:** touch use (a tap works like a click, but there is no hover preview on touch).
+
+## Explode and Section (3D view)
+- **View state, not persisted:** the sliders are plain UI state and start at 0 on every load. The brief allowed `laserslicer.ui.v1`, but the privacy policy (German and English) lists exactly what that key holds; adding view sliders to it would make the legal text inaccurate, and a remembered explode value would only surprise someone who comes back to a model. So nothing new is stored.
+- **Explode = layer index x thickness x fraction,** at most one thickness of gap (the brief's "1x their thickness gap"). It moves meshes only; the highlight, the section and the camera are unaffected. The camera is not re-framed when exploding (at 100 % a 50-layer stack is twice as tall; use Fit view).
+- **Section by a material clipping plane,** perpendicular to X or Y (the brief said one horizontal axis; both are offered). The plane sweeps the extent of the layer outlines from the maximum side (0 %, nothing cut) to the minimum side (100 %). Without caps a cut shows the inside; the materials are double-sided for that, which also shows hollow cavities. A proper filled section face would need a stencil-buffer cap pass per layer; not done.
+- **Why a pure module:** `src/core/stackView.ts` holds the maths so the tests run in Node (no WebGL); the rendering part was checked in headless Chromium.
+- **Not verified:** real GPUs and other browsers (headless Chromium uses SwiftShader).

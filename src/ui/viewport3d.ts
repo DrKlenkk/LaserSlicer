@@ -3,11 +3,12 @@ import {
   AmbientLight, BufferAttribute, BufferGeometry, Box3, Box3Helper, CanvasTexture, Color,
   DirectionalLight, DoubleSide, ExtrudeGeometry, GridHelper, Group, Line, LineBasicMaterial, Mesh as ThreeMesh,
   MeshStandardMaterial, OrthographicCamera, Path, PerspectiveCamera, Scene, Shape as ThreeShape, Sprite, SpriteMaterial,
-  Vector2, Vector3, WebGLRenderer,
+  Plane, Vector2, Vector3, WebGLRenderer,
 } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { Layer, Mesh, Shape } from "../core/types";
 import { bboxSize } from "../core/mesh";
+import { explodeOffset, sectionPlane, stackExtent, type SectionAxis } from "../core/stackView";
 
 const GIZMO_PX = 96;
 
@@ -40,6 +41,11 @@ export class Viewport3D {
   private stackDirty = false;
   private stackMeshes: ThreeMesh[] = [];
   private mode: ViewMode = "model";
+  /** view-only stack controls: explode fraction, section fraction and axis (never saved, never sent to the worker) */
+  private explode = 0;
+  private section = 0;
+  private sectionAxis: SectionAxis = "x";
+  private clip = new Plane(new Vector3(-1, 0, 0), 1e9);
   private highlight = -1;
   private woodMats = [
     new MeshStandardMaterial({ color: 0xd9b27c, roughness: 0.8, metalness: 0 }),
@@ -66,6 +72,11 @@ export class Viewport3D {
       return;
     }
     const r = this.renderer;
+    r.localClippingEnabled = true; // the section plane is a material clipping plane (only the stack's materials have one)
+    for (const m of [...this.woodMats, this.hiMat]) {
+      m.clippingPlanes = [this.clip];
+      m.side = DoubleSide; // a cut stack shows the inside of the layers (and hollow cavities) instead of holes in the surface
+    }
     r.setPixelRatio(window.devicePixelRatio || 1);
     r.autoClear = false;
     container.append(r.domElement);
@@ -187,6 +198,34 @@ export class Viewport3D {
     this.requestRender();
   }
 
+  /** Explode: spread the layers apart vertically; fraction 0..1 (1 = a gap of one layer thickness between neighbours). View only. */
+  setExplode(frac: number) {
+    this.explode = Math.min(1, Math.max(0, frac));
+    this.applyExplode();
+    this.requestRender();
+  }
+
+  /** Section: cut the stack with a vertical plane perpendicular to `axis`; fraction 0..1 (0 = off). View only. */
+  setSection(frac: number, axis: SectionAxis) {
+    this.section = Math.min(1, Math.max(0, frac));
+    this.sectionAxis = axis;
+    this.applySection();
+    this.requestRender();
+  }
+
+  private applyExplode() {
+    for (const m of this.stackMeshes) {
+      const l = m.userData as { z0: number; thickness: number; layer: number };
+      m.position.z = l.z0 + explodeOffset(l.layer, l.thickness, this.explode);
+    }
+  }
+
+  private applySection() {
+    const plane = sectionPlane(this.sectionAxis, this.section, this.stackLayers ? stackExtent(this.stackLayers, this.sectionAxis) : null);
+    this.clip.normal.set(...plane.normal);
+    this.clip.constant = plane.constant;
+  }
+
   private materialFor(layerIndex: number) {
     return layerIndex === this.highlight ? this.hiMat : this.woodMats[layerIndex % 2];
   }
@@ -210,12 +249,13 @@ export class Viewport3D {
         const geo = extrudeShapes(l.shapes, l.z1 - l.z0);
         if (!geo) continue;
         const mesh = new ThreeMesh(geo, this.materialFor(l.index));
-        mesh.position.z = l.z0;
-        mesh.userData.layer = l.index;
+        mesh.position.z = l.z0 + explodeOffset(l.index, l.z1 - l.z0, this.explode);
+        mesh.userData = { layer: l.index, z0: l.z0, thickness: l.z1 - l.z0 };
         this.stackMeshes.push(mesh);
         this.stackGroup.add(mesh);
       }
       this.stackDirty = false;
+      this.applySection(); // the extent of a new stack differs
     } else if (!this.stackLayers && this.stackMeshes.length) {
       this.disposeStack();
     }

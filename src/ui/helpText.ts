@@ -88,6 +88,10 @@ export const HELP = {
   bridgeMaxSpacing:
     "Optional (0 = off). If an outline is long, it gets more bridges than the count above so that the nominal spacing along the outline is at most this many mm (bridges may slide up to a quarter of the spacing to reach a straight edge). Use it so large plates do not end up with a few widely spaced bridges, for example 150 mm. Up to 64 bridges per outline.",
 
+  // ----- 3D view -----
+  stackView:
+    "Two view-only sliders for the stacked result in the 3D tab. Explode pulls the layers apart vertically, up to a gap of one layer thickness between neighbours at 100 %, so you can see each layer and the hollow cavities. Section cuts the stack with a vertical plane perpendicular to the X or the Y axis and removes everything on one side, so you can look inside: 0 % is off, higher values move the plane across the stack. They change only what you see: slicing, the sheets and the export are not affected, and they are not saved in the project file. Reset sets both back to 0.",
+
   // ----- Export -----
   formats:
     "Which files go in the ZIP. DXF is the file to cut with (mm, red CUT, blue ENGRAVE, green LABEL layers) and works in most laser software. SVG is the same drawing as 1 unit = 1 mm. PNG and JPG are pictures for engraving, previewing or tracing, not for cutting directly. \"Assembly guide (HTML)\" adds one assembly.html page to the ZIP: a printable A4 gluing guide with one block per layer (part numbers, the sheet each part is on and a drawing of the layer in its place in the model, all at one scale, with the layer below dashed). It opens in any browser, needs no network and prints in black and white. You can pick several.",
@@ -138,7 +142,7 @@ export const HELP = {
 export type HelpKey = keyof typeof HELP;
 
 /** Keys that cover one control rather than a single Settings field. */
-export const EXTRA_HELP_KEYS: readonly HelpKey[] = ["basicExpert", "rotate", "sheetSize", "viewToggle", "autoUpdate", "viewTraces", "exportLayers", "layerRange", "calibration", "projectModel", "restoreSession", "presets", "compare"];
+export const EXTRA_HELP_KEYS: readonly HelpKey[] = ["basicExpert", "rotate", "sheetSize", "viewToggle", "autoUpdate", "viewTraces", "exportLayers", "layerRange", "calibration", "projectModel", "restoreSession", "presets", "compare", "stackView"];
 
 /** Section of docs.html (its `id`) that explains each tooltip's setting; the tooltip ends with a "Read more" link to it. */
 export const HELP_DOC: Record<HelpKey, string> = {
@@ -187,6 +191,7 @@ export const HELP_DOC: Record<HelpKey, string> = {
   exportLayers: "layers-in-files",
   exportInnerLayer: "inner-cuts",
   exportStl: "stacked-stl",
+  stackView: "explode-section",
   layerRange: "layer-range",
   density: "estimates",
   cutSpeed: "estimates",

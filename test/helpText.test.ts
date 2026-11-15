@@ -55,7 +55,7 @@ describe("tooltip placement", () => {
 });
 
 // Every section id of public/docs.html that the documentation promises (the anchors the tooltips may link to are a subset).
-const DOC_SECTIONS = ["getting-started", "interface", "basic-expert", "tabs", "measure", "view-toggle", "legend", "auto-update", "warnings", "undo-redo", "model", "import-unit", "scale", "orientation", "material", "thickness", "sheet-size", "copies", "kerf", "calibration", "presets", "compare", "estimates", "slicing", "outline-modes", "layer-height", "smoothing", "simplify", "small-parts", "hollowing", "gluing-aids", "engrave-lines", "labels", "dowels", "bridges", "nesting", "export", "formats", "layers-in-files", "inner-cuts", "stacked-stl", "cut-order", "layer-range", "per-layer-files", "raster", "assembly-guide", "project", "laser-workflow", "mobile", "troubleshooting", "privacy", "glossary"];
+const DOC_SECTIONS = ["getting-started", "interface", "basic-expert", "tabs", "measure", "view-toggle", "explode-section", "legend", "auto-update", "warnings", "undo-redo", "model", "import-unit", "scale", "orientation", "material", "thickness", "sheet-size", "copies", "kerf", "calibration", "presets", "compare", "estimates", "slicing", "outline-modes", "layer-height", "smoothing", "simplify", "small-parts", "hollowing", "gluing-aids", "engrave-lines", "labels", "dowels", "bridges", "nesting", "export", "formats", "layers-in-files", "inner-cuts", "stacked-stl", "cut-order", "layer-range", "per-layer-files", "raster", "assembly-guide", "project", "laser-workflow", "mobile", "troubleshooting", "privacy", "glossary"];
 
 describe("documentation links", () => {
   it("maps every help key to an anchor (and nothing else)", () => {

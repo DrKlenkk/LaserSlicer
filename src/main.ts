@@ -24,6 +24,7 @@ import { loadUiPrefs, saveUiPrefs } from "./uiPrefs";
 import { effectiveSettings } from "./basicMode";
 import { SessionStore } from "./sessionStore";
 import { createLegalBar } from "./ui/legal";
+import { createStackControls } from "./ui/stackControls";
 import type { Settings } from "./core/types";
 import { createDrawer } from "./ui/drawer";
 import { buildDemoStl, DEMO_FILE_NAME } from "./core/demo";
@@ -74,6 +75,10 @@ tabBar.append(h("span", { class: "spacer" }), undoBtn, redoBtn, autoLabel, h("bu
 const btnModel = h("button", { type: "button", id: "view-model", class: "active", onclick: () => setViewMode("model") }, "Model");
 const btnStack = h("button", { type: "button", id: "view-stack", disabled: true, title: "The sliced layers stacked (M)", onclick: () => setViewMode("stack") }, "Stacked result");
 const viewToggle = h("div", { class: "view-toggle", id: "view-toggle", role: "group", "aria-label": "3D view" }, btnModel, btnStack, infoIcon("viewToggle"));
+const stackControls = createStackControls((e, s, a) => {
+  viewport.setExplode(e);
+  viewport.setSection(s, a);
+});
 const statusMsg = h("span", { class: "msg", id: "status-msg" }, "Starting…");
 const workerBadge = h("span", { class: "badge", id: "worker-status" }, "Worker: starting…");
 const progressBar = h("div", { class: "progress", id: "progress", hidden: true }, h("div", { class: "progress-fill", id: "progress-fill" }));
@@ -88,7 +93,7 @@ const statusBar = h("footer", { class: "statusbar" }, progressBar, statusMsg, pr
 const dropOverlay = h("div", { class: "drop-overlay", hidden: true }, "Drop model to load");
 
 const layoutEl = h("div", { class: "layout" });
-layoutEl.append(panelEl, h("main", { class: "main" }, tabBar, h("div", { class: "stage" }, viewEl, layerEl, sheetsEl, fitBtn, viewToggle, updateWrap)), statusBar, createLegalBar());
+layoutEl.append(panelEl, h("main", { class: "main" }, tabBar, h("div", { class: "stage" }, viewEl, layerEl, sheetsEl, fitBtn, viewToggle, stackControls.el, updateWrap)), statusBar, createLegalBar());
 app.append(
   layoutEl,
   dropOverlay,
@@ -127,6 +132,11 @@ function setViewMode(m: ViewMode) {
   btnModel.classList.toggle("active", m === "model");
   btnStack.classList.toggle("active", m === "stack");
   viewport.setMode(m);
+  syncStackControls();
+}
+/** Explode and Section belong to the stacked result in the 3D tab. */
+function syncStackControls() {
+  stackControls.setVisible(store.get().tab === "3d" && viewMode === "stack");
 }
 
 // ---------- loading models (file, project file, restored session) ----------
@@ -332,6 +342,7 @@ function refresh() {
     tabButtons[i].setAttribute("aria-selected", String(t.id === tab));
   });
   fitBtn.hidden = viewToggle.hidden = tab !== "3d";
+  stackControls.setVisible(tab === "3d" && viewMode === "stack");
   if (tab === "3d") viewport.activate();
   if (tab === "layer") layerView.activate();
   if (tab === "sheets") sheetView.activate();
