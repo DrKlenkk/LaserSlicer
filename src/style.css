@@ -328,6 +328,8 @@ button.warn-item:hover { background: var(--accent-soft); }
   .statusbar .msg { white-space: normal; flex: 1 1 180px; overflow-wrap: anywhere; }
   .warn-panel { bottom: 100%; margin-bottom: 4px; }
   .legalbar { grid-row: 3; }
+  /* 16 px text keeps iOS from zooming into a focused field; only in the phone layout, desktop keeps its size */
+  input[type="number"], select { font-size: 16px; }
 
   .tabs .settings-btn { display: inline-block; }
   .drawer-head { display: flex; }
@@ -374,7 +376,7 @@ button.warn-item:hover { background: var(--accent-soft); }
   .tabs button.help-btn { min-width: 40px; }
   .chip { min-height: 40px; padding: 4px 12px; }
   .group > summary { min-height: 44px; }
-  input[type="number"], select { min-height: 40px; font-size: 16px; }
+  input[type="number"], select { min-height: 40px; }
   input[type="checkbox"] { width: 22px; height: 22px; }
   .field.check { min-height: 40px; }
   .tabs .auto-update { min-height: 40px; margin-bottom: 0; }

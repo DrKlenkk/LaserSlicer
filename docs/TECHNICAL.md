@@ -49,7 +49,7 @@ a **Settings** button at the start of the tab bar opens it (width `min(380px, 92
 the **Close** button, a tap on the dimmed view, or Esc closes it, and loading a model through "Choose file..." closes it too so the model is visible.
 The views take the full width. The tab bar wraps (below 560 px: Settings, undo/redo, auto-update and help on the first row, the three tabs full width on the second),
 **Update preview** sits below the 3D toggle / Fit view row, the status bar and the legal bar wrap, and the legend starts collapsed (until the user chooses) and scrolls inside itself.
-Buttons, tabs, chips, group headers, inputs and selects are at least 40 px high (also on any touch screen above the breakpoint, e.g. an iPad in landscape, which keeps the desktop layout); number inputs use 16 px text so iOS does not zoom.
+Buttons, tabs, chips, group headers, inputs and selects are at least 40 px high (also on any touch screen above the breakpoint, e.g. an iPad in landscape, which keeps the desktop layout); number inputs and dropdowns use 16 px text in the narrow layout only, so iOS does not zoom; wider screens keep the desktop font size.
 The drawer state is a class on the layout element only: not a setting, not undone, not saved; it resets when the window leaves the narrow range (rotation). The canvases follow their `ResizeObserver`s, so opening the drawer (an overlay) or rotating re-fits them. Above 820 px the layout is unchanged.
 
 ### 2.1 Parameter panel
