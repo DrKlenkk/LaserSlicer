@@ -43,7 +43,9 @@ export function snapRadius(px: number, scale: number): number {
   return scale > 0 ? px / scale : 0;
 }
 
-/** Number of the sheet a Sheets-view x coordinate belongs to (sheets of width `w` are `gap` apart). */
-export function sheetAtX(x: number, w: number, gap: number): number {
-  return Math.max(0, Math.floor(x / (w + gap)));
+/** Number of the sheet a Sheets-view x coordinate belongs to; `origins` are the left edges of the sheets (the gap belongs to the sheet on its left). */
+export function sheetAtX(x: number, origins: readonly number[]): number {
+  let n = 0;
+  for (let i = 0; i < origins.length; i++) if (x >= origins[i]) n = i;
+  return n;
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { formatMeasure, measure, nearestVertex, sheetAtX, snapRadius } from "../src/core/measure";
+import { sheetOrigins } from "../src/core/offcut";
 import type { Vec2 } from "../src/core/types";
 
 describe("measure", () => {
@@ -58,9 +59,16 @@ describe("vertex snapping", () => {
 
 describe("sheet index of a view x coordinate", () => {
   it("maps x to the sheet strip (width + gap)", () => {
-    expect(sheetAtX(10, 600, 20)).toBe(0);
-    expect(sheetAtX(619, 600, 20)).toBe(0);
-    expect(sheetAtX(630, 600, 20)).toBe(1);
-    expect(sheetAtX(-5, 600, 20)).toBe(0);
+    const o = sheetOrigins([600, 600], 20);
+    expect(sheetAtX(10, o)).toBe(0);
+    expect(sheetAtX(619, o)).toBe(0);
+    expect(sheetAtX(630, o)).toBe(1);
+    expect(sheetAtX(-5, o)).toBe(0);
+    // an offcut first sheet of another width moves the later sheets
+    const odd = sheetOrigins([300, 600, 600], 20);
+    expect(odd).toEqual([0, 320, 940]);
+    expect(sheetAtX(319, odd)).toBe(0);
+    expect(sheetAtX(330, odd)).toBe(1);
+    expect(sheetAtX(950, odd)).toBe(2);
   });
 });

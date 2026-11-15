@@ -11,7 +11,7 @@ for (const m of uiSource.matchAll(/boolField\("[^"]*", "\w+", "(\w+)"/g)) used.a
 for (const m of uiSource.matchAll(/\], "(\w+)"\)/g)) used.add(m[1]);
 
 // Settings whose tooltip lives under a different key (one control covers several settings).
-const COVERED_BY: Record<string, string> = { sheetW: "sheetSize", sheetH: "sheetSize", rotationSteps: "rotate", exportCut: "exportLayers", exportEngrave: "exportLayers", exportLabel: "exportLayers", exportBridge: "exportLayers", exportSheet: "exportLayers", rangeFrom: "layerRange", rangeTo: "layerRange" };
+const COVERED_BY: Record<string, string> = { sheetW: "sheetSize", sheetH: "sheetSize", rotationSteps: "rotate", offcutW: "offcutEnabled", offcutH: "offcutEnabled", exportCut: "exportLayers", exportEngrave: "exportLayers", exportLabel: "exportLayers", exportBridge: "exportLayers", exportSheet: "exportLayers", rangeFrom: "layerRange", rangeTo: "layerRange" };
 
 describe("help texts", () => {
   it("has a real text for every key", () => {
@@ -55,7 +55,7 @@ describe("tooltip placement", () => {
 });
 
 // Every section id of public/docs.html that the documentation promises (the anchors the tooltips may link to are a subset).
-const DOC_SECTIONS = ["getting-started", "interface", "basic-expert", "tabs", "measure", "view-toggle", "explode-section", "legend", "auto-update", "warnings", "undo-redo", "model", "import-unit", "scale", "orientation", "material", "thickness", "sheet-size", "copies", "kerf", "calibration", "presets", "compare", "estimates", "slicing", "outline-modes", "layer-height", "smoothing", "simplify", "small-parts", "hollowing", "gluing-aids", "engrave-lines", "labels", "dowels", "bridges", "nesting", "export", "formats", "layers-in-files", "inner-cuts", "stacked-stl", "cut-order", "layer-range", "per-layer-files", "raster", "assembly-guide", "project", "laser-workflow", "mobile", "troubleshooting", "privacy", "glossary"];
+const DOC_SECTIONS = ["getting-started", "interface", "basic-expert", "tabs", "measure", "view-toggle", "explode-section", "legend", "auto-update", "warnings", "undo-redo", "model", "import-unit", "scale", "orientation", "material", "thickness", "sheet-size", "copies", "offcut", "kerf", "calibration", "presets", "compare", "estimates", "slicing", "outline-modes", "layer-height", "smoothing", "simplify", "small-parts", "hollowing", "gluing-aids", "engrave-lines", "labels", "dowels", "bridges", "nesting", "export", "formats", "layers-in-files", "inner-cuts", "stacked-stl", "cut-order", "layer-range", "per-layer-files", "raster", "assembly-guide", "project", "laser-workflow", "mobile", "troubleshooting", "privacy", "glossary"];
 
 describe("documentation links", () => {
   it("maps every help key to an anchor (and nothing else)", () => {

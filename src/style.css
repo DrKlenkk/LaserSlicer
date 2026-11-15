@@ -420,3 +420,10 @@ button.warn-item:hover { background: var(--accent-soft); }
 .sc-val { flex: 0 0 46px; white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
 .sc-last select { flex: 1; min-width: 0; }
 @media (max-width: 820px) { .sc-row input[type="range"] { min-height: 32px; } }
+
+/* first sheet (offcut): blocked areas list in the Material group */
+.offcut-box { display: flex; flex-direction: column; gap: 6px; padding: 8px 0; border-top: 1px solid var(--border); }
+.blocked-list { display: flex; flex-direction: column; gap: 6px; }
+.blocked-row { display: flex; align-items: center; gap: 4px; }
+.blk-f { display: flex; flex: 1; min-width: 0; align-items: center; gap: 2px; font-size: 11px; color: var(--muted); }
+.blk-f input { width: 100%; min-width: 0; padding: 3px 4px; }

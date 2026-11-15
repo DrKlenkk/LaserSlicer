@@ -208,7 +208,7 @@ export class Pipeline {
     // ---- stage 7: nesting ----
     // The layer range is resolved (clamped) first, so two requests that mean the same layers share one nesting.
     const range = resolveRange(sliced.plan.count, s.rangeFrom, s.rangeTo);
-    const nestKey = JSON.stringify([kerfKey, s.sheetW, s.sheetH, s.partSpacing, s.sheetMargin, s.copies, range.from, range.to]);
+    const nestKey = JSON.stringify([kerfKey, s.sheetW, s.sheetH, s.partSpacing, s.sheetMargin, s.copies, s.offcutEnabled ? [s.offcutW, s.offcutH, s.blockedAreas] : null, range.from, range.to]);
     if (this.cNest?.key !== nestKey) {
       this.cNest = { key: nestKey, value: nestParts(partsInRange(kerfed.parts, range), s) };
       this.runs.nest++;

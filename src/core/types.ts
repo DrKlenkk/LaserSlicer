@@ -63,6 +63,8 @@ export type Sheet = {
   usedArea: number;
   /** usedArea / (w * h) in percent */
   usePct: number;
+  /** blocked areas of an offcut first sheet (sheet coordinates, mm): no parts are placed there and they are never exported as cuts; only on sheet 0 */
+  blocked?: { x: number; y: number; w: number; h: number }[];
 };
 
 /** `copy` (0-based) is set only when Copies > 1: the same part id is then placed once per copy. */
@@ -92,6 +94,14 @@ export type Settings = {
   sheetMargin: number;
   /** how many times the whole model is cut (1..50): every part is nested this many times. Nesting stage, never re-slices. */
   copies: number;
+  // First sheet (offcut). Nesting stage, never re-slices.
+  /** the first sheet is an offcut or partly used: it gets the size below and the blocked areas */
+  offcutEnabled: boolean;
+  /** size of the first sheet in mm; 0 = same as the sheet size */
+  offcutW: number;
+  offcutH: number;
+  /** rectangles of the first sheet where nothing may be placed (x, y = lower-left corner, sheet coordinates, Y up) */
+  blockedAreas: { x: number; y: number; w: number; h: number }[];
   // Estimates (do not affect geometry; 0 = not set, the estimate that needs it is not shown)
   /** material density in g/cm3 (plywood about 0.6 to 0.7) */
   density: number;

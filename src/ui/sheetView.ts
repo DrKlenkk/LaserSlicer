@@ -8,6 +8,7 @@ import { h } from "./dom";
 import { createLegend } from "./legend";
 import { traceVisibility as vis, traceVisibility } from "../traceVisibility";
 import { sheetAtX } from "../core/measure";
+import { sheetOrigins } from "../core/offcut";
 import { MeasureTool } from "./measureTool";
 
 type View = { scale: number; ox: number; oy: number }; // screen = o + world * (scale, -scale)
@@ -50,6 +51,8 @@ export class SheetView {
   private measureTool: MeasureTool;
   /** vertices to snap to, in view coordinates (sheet offset applied): part rings and sheet corners */
   private snapGroups: Vec2[][] = [];
+  /** left edge of every sheet in the view (the first sheet may be narrower: an offcut) */
+  private origins: number[] = [];
 
   constructor(private root: HTMLElement, private onPart: (layer: number, partId: string) => void) {
     root.classList.add("layer-view");
@@ -63,6 +66,7 @@ export class SheetView {
         { trace: "bridge", layer: "BRIDGE", expert: true, text: "holding bridges (gaps in the cut): score only, or leave out", color: () => col().bridge },
         { layer: "CUT_INNER", expert: true, text: "export only, if chosen: holes and dowel holes on their own layer, cut first", color: () => "#ff8000", thin: true },
         { trace: "sheet", layer: "SHEET", expert: true, text: "sheet border: not exported by default", color: () => col().sheet, thin: true },
+        { layer: "Blocked", expert: true, text: "offcut: blocked area, no parts here, not exported", color: () => sheetColors().sheet, fill: true },
         { layer: "Hover", text: "part under the pointer (click: open its layer)", color: () => col().cut, fill: true },
       ],
       "Colours map to the DXF layers, so you can assign them to cut / engrave in LightBurn and similar software.",
@@ -77,8 +81,7 @@ export class SheetView {
         this.draw();
       },
       note: (a, b) => {
-        const w = this.result?.sheets[0]?.w ?? 0;
-        return w && sheetAtX(a[0], w, GAP) !== sheetAtX(b[0], w, GAP) ? " · different sheets" : "";
+        return sheetAtX(a[0], this.origins) !== sheetAtX(b[0], this.origins) ? " · different sheets" : "";
       },
     }, "measure-sheets");
     root.append(this.canvas, this.tip, this.empty, this.banner, this.measureTool.el, legend.el);
@@ -129,13 +132,14 @@ export class SheetView {
     this.snapGroups = [];
     this.measureTool.clear();
     this.sheetsW = this.sheetsH = 0;
+    this.origins = r ? sheetOrigins(r.sheets.map((s) => s.w), GAP) : [];
     if (r) {
       const byId = new Map(r.parts.map((p) => [p.id, p]));
       for (const pl of r.placements) {
         const base = byId.get(pl.partId);
         const sheet = r.sheets[pl.sheet];
         if (!base || !sheet) continue;
-        const ox = pl.sheet * (sheet.w + GAP);
+        const ox = this.origins[pl.sheet];
         const part = applyPlacement(base, pl);
         const path = new Path2D();
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -156,9 +160,10 @@ export class SheetView {
         this.placed.push({ part, sheet: pl.sheet, ox, path, cutPath, bridgePath, minX, minY, maxX, maxY });
       }
       for (const s of r.sheets) {
-        const sx = s.index * (s.w + GAP);
+        const sx = this.origins[s.index];
         this.snapGroups.push([[sx, 0], [sx + s.w, 0], [sx + s.w, s.h], [sx, s.h]]);
-        this.sheetsW = s.index * (s.w + GAP) + s.w;
+        for (const b of s.blocked ?? []) this.snapGroups.push([[sx + b.x, b.y], [sx + b.x + b.w, b.y], [sx + b.x + b.w, b.y + b.h], [sx + b.x, b.y + b.h]]);
+        this.sheetsW = sx + s.w;
         this.sheetsH = Math.max(this.sheetsH, s.h);
       }
     }
@@ -263,7 +268,7 @@ export class SheetView {
     ctx.setTransform(dpr * v.scale, 0, 0, -dpr * v.scale, dpr * v.ox, dpr * v.oy);
     const px = 1 / v.scale;
     for (const s of r.sheets) {
-      const x0 = s.index * (s.w + GAP);
+      const x0 = this.origins[s.index];
       ctx.fillStyle = paper;
       ctx.fillRect(x0, 0, s.w, s.h);
       if (vis.visible("sheet")) {
@@ -310,11 +315,40 @@ export class SheetView {
     }
     // captions in screen space
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    // blocked areas of an offcut: hatched, drawn over the parts' neighbourhood (nothing is placed there; never exported)
+    for (const s of r.sheets)
+      for (const b of s.blocked ?? []) {
+        const sx = v.ox + (this.origins[s.index] + b.x) * v.scale, sy = v.oy - (b.y + b.h) * v.scale;
+        const bw = b.w * v.scale, bh = b.h * v.scale;
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(sx, sy, bw, bh);
+        ctx.clip();
+        ctx.globalAlpha = 0.12;
+        ctx.fillStyle = text;
+        ctx.fillRect(sx, sy, bw, bh);
+        ctx.globalAlpha = 0.55;
+        ctx.strokeStyle = text;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let d = -bh; d < bw; d += 9) {
+          ctx.moveTo(sx + d, sy + bh);
+          ctx.lineTo(sx + d + bh, sy);
+        }
+        ctx.stroke();
+        ctx.restore();
+        ctx.save();
+        ctx.setLineDash([5, 3]);
+        ctx.strokeStyle = text;
+        ctx.lineWidth = 1.25;
+        ctx.strokeRect(sx, sy, bw, bh);
+        ctx.restore();
+      }
     ctx.fillStyle = text;
     ctx.font = '12px system-ui, "Segoe UI", sans-serif';
     ctx.textBaseline = "bottom";
     for (const s of r.sheets) {
-      const x = v.ox + s.index * (s.w + GAP) * v.scale;
+      const x = v.ox + this.origins[s.index] * v.scale;
       ctx.fillText(`Sheet ${s.index + 1} · ${s.partIds.length} parts · ${s.usePct.toFixed(1)} % used`, x, v.oy - s.h * v.scale - 4);
     }
     this.measureTool.draw(ctx, ([x, y]) => [v.ox + x * v.scale, v.oy - y * v.scale], css.getPropertyValue("--accent").trim() || "#d9822b", css.getPropertyValue("--text").trim() || "#222", paper);

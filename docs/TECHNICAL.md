@@ -262,6 +262,9 @@ keys); everything after it also re-runs. "Export" means no slicing at all.
 | Part spacing (`partSpacing`) | 3 | mm, >= 0 | Minimum gap between the final (kerfed) cut lines of neighbouring parts. | nest |
 | Sheet margin (`sheetMargin`) | 5 | mm, >= 0 | Border of the sheet kept free of parts. | nest |
 | Copies (`copies`) | 1 | whole number 1 to 50 (Expert) | Every part is nested this many times; estimates and guide count all copies. Labels are not suffixed. | nest |
+| First sheet is an offcut (`offcutEnabled`) | off | bool (Expert) | Turns on the first-sheet options below; off, they are ignored. | nest |
+| Offcut W / H (`offcutW`, `offcutH`) | 0 / 0 | mm, >= 0 (0 = sheet size) | Size of the first sheet only. | nest |
+| Blocked areas (`blockedAreas`) | `[]` | list of `{x, y, w, h}` in mm, w and h > 0, at most 50 | Rectangles of the first sheet (origin lower-left, Y up) where nothing is placed. Only while `offcutEnabled`. | nest |
 | Density (`density`) | 0.65 | g/cm3, >= 0 | Material density for the weight estimate. 0 = not set (no weight). | nothing (estimates only) |
 | Cut speed (`cutSpeed`) | 0 | mm/s, >= 0 | For the rough time estimate. 0 = not set. | nothing |
 | Engrave speed (`engraveSpeed`) | 0 | mm/s, >= 0 | For the rough time estimate. 0 = not set (engraving is left out of the time). | nothing |
@@ -559,8 +562,9 @@ Micro-edges under 5 micrometres produced by offsets are merged (`TINY_EDGE`). *C
 4. **Packing:** MaxRects with best-short-side-fit, trying 90-degree turns too. `partSpacing` is added to every rectangle and to the bin, so
    edges keep that gap and the sheet edge keeps the margin. Each part is tried on all open sheets in order before a new sheet is opened.
 5. **Copies:** with `copies` > 1 each part becomes `copies` items (same rectangle, same layer order, copies of one part adjacent). The part itself is not duplicated: placements repeat its `partId` and carry `copy` (0-based; absent when `copies` is 1), and `Sheet.partIds` lists the id once per copy. `measureParts` multiplies cut and engrave length, area and volume by the copies; the travel is measured on the nested sheets and so includes them.
-6. **Output:** `Placement { partId, sheet, x, y, angleDeg, copy? }` (rotate CCW about the origin, then translate; `applyPlacement` applies it to cut, engrave, labels, dowel holes and bridges) and `Sheet { w, h, partIds, usedArea, usePct }`.
-7. **Material use:** `sum(part area, outer minus holes) / sum(sheet area)`, shown as a percentage per sheet in the README and overall in the summary line.
+6. **Offcut:** with `offcutEnabled`, sheet 0 has the size from `firstSheetSize` (`offcutW` / `offcutH`, 0 = sheet size; `src/core/offcut.ts`) and each blocked area is placed in its MaxRects bin as an obstacle before any part: bin coordinates start at the sheet margin, so the rectangle goes in at `(x - margin, y - margin)` with `partSpacing` added to its width and height, which keeps the part spacing to it on every side (the same trick as for the parts). A blocked area may lie partly outside the sheet. `Sheet.blocked` carries the list for the Sheets tab (hatched) and the README; nothing is exported as geometry. If sheet 0 takes no part at all, it is dropped, later sheets are renumbered and an info warning says so. `Sheet.w` / `h` are per sheet, so the DXF, SVG and image writers and `usePct` use the offcut size for sheet 0; the Sheets tab places the sheets side by side using `sheetOrigins` (cumulative widths).
+7. **Output:** `Placement { partId, sheet, x, y, angleDeg, copy? }` (rotate CCW about the origin, then translate; `applyPlacement` applies it to cut, engrave, labels, dowel holes and bridges) and `Sheet { w, h, partIds, usedArea, usePct }`.
+8. **Material use:** `sum(part area, outer minus holes) / sum(sheet area)`, shown as a percentage per sheet in the README and overall in the summary line.
 
 The nest is **rectangle-based**, not true-shape: round parts waste sheet area (a sphere uses about 13 % of a 600 x 400 mm sheet).
 *Layer range:* only parts of layers inside the range (`rangeFrom`..`rangeTo`, section 5.8) are passed to the nesting; the other parts stay in `RunResult.parts` (the Layer tab and 3D view still show the whole model) but have no placement. The measurements for the estimates, the part count and the ZIP README cover the range only.
@@ -607,7 +611,7 @@ Each stage stores `{ key, value }` and re-runs only if its key (a JSON string) c
 | hollow | hollowEnabled (+ hollowWall, solidCapLayers, minPartArea when on) |
 | registration | hollowEnabled, engraveNextOutline, labels, labelHeight, dowels (+ dowelDiameter, dowelCount) |
 | kerf | kerf |
-| nest | sheetW, sheetH, partSpacing, sheetMargin, copies, the resolved layer range (`from`, `to` after clamping to the layer count, so equivalent requests share a nesting) |
+| nest | sheetW, sheetH, partSpacing, sheetMargin, copies, offcut size and blocked areas (only when `offcutEnabled`), the resolved layer range (`from`, `to` after clamping to the layer count, so equivalent requests share a nesting) |
 | bridges | bridge settings (from the kerf key; independent of nesting) |
 
 Examples: a kerf change re-runs kerf, nesting and bridges only; a sheet-size change or a layer-range change re-runs nesting only; a mode or thickness change

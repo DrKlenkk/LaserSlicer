@@ -21,6 +21,7 @@ export const BASIC_OVERRIDES: Partial<Settings> = {
   dowels: false,
   bridgesEnabled: false,
   hollowEnabled: false,
+  offcutEnabled: false, // Basic always nests on full sheets
   exportCut: true,
   exportEngrave: false,
   exportLabel: false,

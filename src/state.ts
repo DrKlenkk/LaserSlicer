@@ -2,6 +2,7 @@
 import type { Mesh, MeshStats, Settings } from "./core/types";
 import type { RunResult } from "./core/pipeline";
 import { IMPORT_UNITS } from "./core/units";
+import { MAX_BLOCKED, cleanBlocked, isBlockedArea } from "./core/offcut";
 import { decodeBase64, encodeBase64 } from "./core/base64";
 import { loadUiPrefs, type UiMode } from "./uiPrefs";
 import { History, changedKeys, type StepKind } from "./history";
@@ -23,6 +24,10 @@ export const DEFAULT_SETTINGS: Settings = {
   partSpacing: 3,
   sheetMargin: 5,
   copies: 1,
+  offcutEnabled: false,
+  offcutW: 0,
+  offcutH: 0,
+  blockedAreas: [],
   density: 0.65,
   cutSpeed: 0,
   engraveSpeed: 0,
@@ -96,7 +101,9 @@ function loadSettings(): Settings {
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<Settings>;
       // Merge over defaults so settings added in later versions get their default.
-      return { ...structuredClone(DEFAULT_SETTINGS), ...parsed };
+      const merged = { ...structuredClone(DEFAULT_SETTINGS), ...parsed };
+      merged.blockedAreas = cleanBlocked(merged.blockedAreas); // browser storage is unchecked
+      return merged;
     }
   } catch {
     /* storage unavailable (file:// in some browsers) or corrupt: use defaults */
@@ -133,7 +140,7 @@ export function serializeProject(s: Settings, model?: ProjectModel | null): stri
 export const MAX_COPIES = 50;
 
 const POSITIVE = ["thickness", "sheetW", "sheetH", "scale", "labelHeight", "dowelDiameter", "bridgeWidth"] as const;
-const NON_NEGATIVE = ["kerf", "partSpacing", "sheetMargin", "smoothRadius", "simplifyTol", "minPartArea", "minFeature", "hollowWall", "solidCapLayers", "bridgeMinLength", "bridgeMaxSpacing", "density", "cutSpeed", "engraveSpeed", "pricePerSheet"] as const;
+const NON_NEGATIVE = ["kerf", "partSpacing", "sheetMargin", "smoothRadius", "simplifyTol", "minPartArea", "minFeature", "hollowWall", "solidCapLayers", "bridgeMinLength", "bridgeMaxSpacing", "offcutW", "offcutH", "density", "cutSpeed", "engraveSpeed", "pricePerSheet"] as const;
 const INTEGERS = ["samplesPerLayer", "solidCapLayers", "dowelCount", "bridgeCount", "copies"] as const;
 const ENUMS: Record<string, readonly string[]> = {
   axis: ["+X", "-X", "+Y", "-Y", "+Z", "-Z"],
@@ -178,6 +185,9 @@ export function parseProjectFile(text: string, withModel = true): { settings: Se
       if (typeof v !== "string" || !ENUMS[k].includes(v)) bad(k);
     } else if (k === "formats") {
       if (!Array.isArray(v) || v.some((f) => !["dxf", "svg", "png", "jpg", "guide"].includes(f as string))) bad(k);
+    } else if (k === "blockedAreas") {
+      if (!Array.isArray(v) || v.length > MAX_BLOCKED || !v.every(isBlockedArea)) bad(k);
+      src[k] = cleanBlocked(v);
     } else if (k === "rotationSteps") {
       if (!Array.isArray(v) || v.length !== 3 || v.some((n) => !Number.isInteger(n))) bad(k);
       src[k] = (v as number[]).map((n) => ((n % 4) + 4) % 4);

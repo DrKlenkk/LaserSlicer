@@ -9,6 +9,7 @@ import { infoIcon } from "./tooltip";
 import { createExportSection, downloadBytes } from "./exportDialog";
 import { buildCalibrationZip } from "../core/calibration";
 import { IMPORT_UNIT_OPTIONS } from "../core/units";
+import { MAX_BLOCKED } from "../core/offcut";
 import { PresetStore, STARTER_PRESETS, applyPreset, matchesPreset, normalizeName, presetValuesOf } from "../presets";
 
 export type OrientInfo = { size: [number, number, number]; scale: number };
@@ -261,6 +262,64 @@ export function createPanel(root: HTMLElement, store: Store, actions: PanelActio
     presetNote.textContent = `Deleted the preset "${name}".`;
   });
 
+  // ---------- First sheet (offcut): size and blocked areas ----------
+  const blockedList = h("div", { class: "blocked-list", id: "blocked-list" });
+  const blockedAdd = h("button", { type: "button", class: "btn small", id: "blocked-add" }, "Add blocked area");
+  const BLOCK_KEYS = ["x", "y", "w", "h"] as const;
+  const setBlocked = (list: Settings["blockedAreas"]) => store.updateSettings({ blockedAreas: list });
+  blockedAdd.addEventListener("click", () => {
+    const s = store.get().settings;
+    setBlocked([...s.blockedAreas, { x: 0, y: 0, w: Math.max(10, Math.round(s.sheetW / 4)), h: Math.max(10, Math.round(s.sheetH / 4)) }]);
+  });
+  const blockedRows: HTMLInputElement[][] = [];
+  function renderBlocked(s: Settings) {
+    const list = s.blockedAreas;
+    if (blockedRows.length !== list.length) {
+      blockedList.replaceChildren();
+      blockedRows.length = 0;
+      list.forEach((_, i) => {
+        const inputs = BLOCK_KEYS.map((k) => {
+          const input = h("input", { type: "number", step: "any", min: k === "w" || k === "h" ? 0.1 : undefined, id: `blocked-${i}-${k}`, "aria-label": `Blocked area ${i + 1}: ${k === "x" ? "X" : k === "y" ? "Y" : k === "w" ? "width" : "height"} in mm` });
+          input.addEventListener("change", () => {
+            const v = parseFloat(input.value);
+            const cur = store.get().settings.blockedAreas;
+            if (!Number.isFinite(v) || ((k === "w" || k === "h") && !(v > 0)) || !cur[i]) {
+              input.value = String(cur[i]?.[k] ?? "");
+              return;
+            }
+            setBlocked(cur.map((b, j) => (j === i ? { ...b, [k]: v } : b)));
+          });
+          return input;
+        });
+        const del = h("button", { type: "button", class: "btn small ghost", "aria-label": `Remove blocked area ${i + 1}`, title: "Remove this blocked area", onclick: () => setBlocked(store.get().settings.blockedAreas.filter((_, j) => j !== i)) }, "✕");
+        const lbls = ["x", "y", "w", "h"].map((t, n) => h("label", { class: "blk-f" }, h("span", {}, t), inputs[n]));
+        blockedRows.push(inputs);
+        blockedList.append(h("div", { class: "blocked-row" }, ...lbls, del));
+      });
+    }
+    list.forEach((b, i) => BLOCK_KEYS.forEach((k, n) => {
+      const input = blockedRows[i][n];
+      if (document.activeElement !== input) input.value = String(b[k]);
+      input.disabled = !s.offcutEnabled;
+    }));
+    blockedAdd.disabled = !s.offcutEnabled || list.length >= MAX_BLOCKED;
+  }
+  syncers.push(renderBlocked);
+  const offcutBox = h(
+    "div",
+    { class: "offcut-box", id: "offcut-box" },
+    boolField("First sheet is an offcut", "offcutEnabled", "offcutEnabled", "Use a smaller or partly used piece for the first sheet only; all other sheets are full size."),
+    h("div", { class: "grid2" }, numField("Offcut W", "offcutW", { min: 0, unit: "mm" }), numField("Offcut H", "offcutH", { min: 0, unit: "mm" })),
+    h("small", { class: "hint" }, "0 = same as the sheet size. Origin of x, y: lower-left corner of the first sheet."),
+    h("div", { class: "row-label" }, "Blocked areas on the first sheet", infoIcon("blockedAreas")),
+    blockedList,
+    h("div", { class: "rotrow" }, blockedAdd),
+  );
+  const offcutDisable = (s: Settings) => {
+    for (const k of ["offcutW", "offcutH"] as const) (offcutBox.querySelector(`#f-${k}`) as HTMLInputElement).disabled = !s.offcutEnabled;
+  };
+  syncers.push(offcutDisable);
+
   const materialGroup = group(
     "Material",
     false,
@@ -273,6 +332,7 @@ export function createPanel(root: HTMLElement, store: Store, actions: PanelActio
     numField("Kerf", "kerf", { step: 0.01, min: 0, unit: "mm", help: "kerf" }),
     expert(h("div", { class: "grid2" }, numField("Part spacing", "partSpacing", { min: 0, unit: "mm", help: "partSpacing" }), numField("Sheet margin", "sheetMargin", { min: 0, unit: "mm", help: "sheetMargin" }))),
     expert(numField("Copies", "copies", { step: 1, min: 1, max: 50, hint: "Cut the whole model this many times (1 to 50). All parts are nested again for every copy.", help: "copies" })),
+    expert(offcutBox),
     expert(numField("Density", "density", { step: 0.01, min: 0, unit: "g/cm³", hint: "0 = not set. Plywood is about 0.6–0.7. Only used for the weight estimate.", help: "density" })),
     expert(h("div", { class: "grid2" }, numField("Cut speed", "cutSpeed", { min: 0, unit: "mm/s", help: "cutSpeed" }), numField("Engrave speed", "engraveSpeed", { min: 0, unit: "mm/s", help: "engraveSpeed" }))),
     expert(numField("Price per sheet", "pricePerSheet", { step: 0.01, min: 0, hint: "Any currency, 0 = not set. Cost = price x sheets used (a partly used sheet counts whole).", help: "pricePerSheet" })),

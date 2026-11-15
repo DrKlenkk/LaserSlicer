@@ -36,6 +36,11 @@ export const HELP = {
   copies:
     "How many times the whole model is cut, 1 to 50 (default 1). Every part is nested that many times onto the sheets, so you get that many complete stacks from one export, for example three identical lamps or a spare set. The layer labels stay the same on every copy (L12 appears once per copy). The sheet count, cut length, time, weight, cost and the assembly guide all count every copy. The layers are not sliced again; only the nesting is redone. With 'One file per layer' each file holds one copy, so cut it that many times.",
 
+  offcutEnabled:
+    "Use this when the first sheet is not a full sheet: an offcut from an earlier job, or a sheet that already has holes cut out of it. Only the first sheet is changed; every further sheet has the normal size. Offcut W and H set the size of that piece (0 = the same as the sheet size), and blocked areas mark parts of it where nothing may go, such as a corner that is burnt or already cut away. Parts are nested around blocked areas, keeping the margin and the part spacing. Nothing about blocked areas is cut or exported: they only keep the parts away. If the first sheet is too small or too blocked for any part it is dropped and the report says so.",
+  blockedAreas:
+    "Rectangles on the first sheet where no part may be placed, each given by x, y (the lower-left corner, measured from the lower-left corner of the first sheet, like the coordinates in the exported files) and width and height, all in mm. Use them for the used-up part of a sheet. Parts keep the part spacing away from them. The Sheets tab shows them hatched. They are only used when 'First sheet is an offcut' is on, are never exported as cuts, and do not re-slice the model, only the nesting.",
+
   // ----- Slicing -----
   mode:
     "How the outline of each layer is taken from the model, since the model's shape changes within the thickness of one layer. Oversize (default): every part covers the model everywhere inside its layer, so you glue the stack and sand it down to the shape. Mid-plane: the section at the middle of the layer, which is closest on average but leaves small steps both ways. Undersize: the part never sticks out of the model, so nothing needs sanding, but the result is slightly smaller and may lose thin details.",
@@ -158,6 +163,8 @@ export const HELP_DOC: Record<HelpKey, string> = {
   partSpacing: "sheet-size",
   sheetMargin: "sheet-size",
   copies: "copies",
+  offcutEnabled: "offcut",
+  blockedAreas: "offcut",
   mode: "outline-modes",
   samplesPerLayer: "outline-modes",
   roundHeightToLayers: "layer-height",

@@ -1,6 +1,7 @@
 // Nesting (plan section 11, v1): minimum-area bounding rectangles packed with MaxRects (best short side fit).
 import type { Part, Placement, Settings, Shape, Sheet, Vec2, Warning } from "./types";
 import { shapeArea } from "./poly";
+import { activeBlocked, firstSheetSize } from "./offcut";
 
 // ---------- geometry ----------
 
@@ -175,7 +176,7 @@ export type NestResult = { placements: Placement[]; sheets: Sheet[]; warnings: W
  */
 export function nestParts(
   parts: Part[],
-  s: Pick<Settings, "sheetW" | "sheetH" | "partSpacing" | "sheetMargin"> & Partial<Pick<Settings, "copies">>,
+  s: Pick<Settings, "sheetW" | "sheetH" | "partSpacing" | "sheetMargin"> & Partial<Pick<Settings, "copies" | "offcutEnabled" | "offcutW" | "offcutH" | "blockedAreas">>,
 ): NestResult {
   const warnings: Warning[] = [];
   const placements: Placement[] = [];
@@ -183,6 +184,7 @@ export function nestParts(
   const bins: MaxRectsBin[] = [];
   const spacing = Math.max(0, s.partSpacing);
   const usableW = s.sheetW - 2 * s.sheetMargin, usableH = s.sheetH - 2 * s.sheetMargin;
+  const blockedAreas = activeBlocked(s);
 
   const copies = Math.max(1, Math.round(s.copies ?? 1));
   type Item = { part: Part; rect: Rect; minX: number; minY: number; area: number; copy: number };
@@ -211,8 +213,14 @@ export function nestParts(
     let placed = false;
     for (let si = 0; si <= bins.length && !placed; si++) {
       if (si === bins.length) {
-        bins.push(new MaxRectsBin(usableW + spacing, usableH + spacing));
-        sheets.push({ index: si, w: s.sheetW, h: s.sheetH, partIds: [], usedArea: 0, usePct: 0 });
+        // the first sheet may be an offcut: own size and blocked areas (obstacles kept `spacing` away from parts)
+        const dim = si === 0 ? firstSheetSize(s) : { w: s.sheetW, h: s.sheetH };
+        const bin = new MaxRectsBin(Math.max(0, dim.w - 2 * s.sheetMargin) + spacing, Math.max(0, dim.h - 2 * s.sheetMargin) + spacing);
+        const blocked = si === 0 ? blockedAreas : [];
+        // bin coordinates start at the margin; the +spacing on the far side keeps the gap on the far side of an obstacle too
+        for (const b of blocked) bin.place({ x: b.x - s.sheetMargin, y: b.y - s.sheetMargin, w: b.w + spacing, h: b.h + spacing });
+        bins.push(bin);
+        sheets.push({ index: si, w: dim.w, h: dim.h, partIds: [], usedArea: 0, usePct: 0, ...(blocked.length ? { blocked: blocked.map((b) => ({ ...b })) } : {}) });
       }
       const f = bins[si].find(w + spacing, h + spacing, true);
       if (!f) continue;
@@ -238,6 +246,13 @@ export function nestParts(
       sheets[si].usedArea += it.area;
       placed = true;
     }
+  }
+  // An offcut that took no part at all (too small or too blocked) is dropped and the others are renumbered.
+  if (sheets.length > 1 && sheets[0].partIds.length === 0) {
+    sheets.shift();
+    sheets.forEach((sh, i) => (sh.index = i));
+    for (const p of placements) p.sheet -= 1;
+    warnings.push({ level: "info", message: "The first sheet (offcut) is too small or too blocked for any part and was not used" });
   }
   for (const sh of sheets) sh.usePct = (sh.usedArea / (sh.w * sh.h)) * 100;
   return { placements, sheets, warnings };

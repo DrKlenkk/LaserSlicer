@@ -26,7 +26,10 @@ export function buildReadme(result: RunResult, s: Settings, model: string, files
   if (copies > 1)
     L.push(`  COPIES: ${copies}. Every part is nested ${copies} times; the estimates below are for all copies.${s.perLayerFiles ? " The per-layer files hold ONE copy of each part: cut each file " + copies + " times." : ""}`);
   L.push(`  Sheets: ${result.sheets.length} (${s.sheetW} x ${s.sheetH} mm), material use ${materialUse(result.sheets).toFixed(1)} %`);
-  for (const sh of result.sheets) L.push(`    sheet ${sh.index + 1}: ${sh.partIds.length} parts, ${sh.usePct.toFixed(1)} % used`);
+  for (const sh of result.sheets) L.push(`    sheet ${sh.index + 1}${sh.w !== s.sheetW || sh.h !== s.sheetH ? ` (${sh.w} x ${sh.h} mm)` : ""}: ${sh.partIds.length} parts, ${sh.usePct.toFixed(1)} % used`);
+  const first = result.sheets[0];
+  if (s.offcutEnabled && first && (first.w !== s.sheetW || first.h !== s.sheetH || first.blocked?.length))
+    L.push(`  OFFCUT: sheet 1 is an offcut or partly used sheet, ${first.w} x ${first.h} mm${first.blocked?.length ? `, with ${first.blocked.length} blocked area${first.blocked.length === 1 ? "" : "s"} (x, y, w, h in mm from its lower-left corner: ${first.blocked.map((b) => `${b.x}, ${b.y}, ${b.w}, ${b.h}`).join("; ")})` : ""}. Blocked areas are left empty and are not in the files; load that sheet's material accordingly.`);
   L.push("");
   L.push(...estimateReadme(result.measure, s));
   L.push("");
