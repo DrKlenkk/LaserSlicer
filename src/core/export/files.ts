@@ -2,6 +2,7 @@
 import type { Settings } from "../types";
 import type { RunResult } from "../pipeline";
 import { layerLabel } from "../layers";
+import { partsInRange } from "../range";
 import { exportLayersOf, layerDrawing, sheetDrawing, type Drawing, type ExportLayers } from "./common";
 import { writeDxf } from "./dxf";
 import { writeSvg } from "./svg";
@@ -29,7 +30,7 @@ export function exportDrawings(result: RunResult, perLayer: boolean, model: stri
   const drawings: NamedDrawing[] = [];
   if (perLayer) {
     for (const layer of result.layers) {
-      const parts = result.parts.filter((p) => p.layer === layer.index);
+      const parts = partsInRange(result.parts, result.info.range).filter((p) => p.layer === layer.index);
       if (parts.length === 0) continue;
       drawings.push({ stem: `${model}_${layerLabel(layer.index)}`, drawing: layerDrawing(parts) });
     }

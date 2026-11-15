@@ -394,6 +394,9 @@ export function createPanel(root: HTMLElement, store: Store, actions: PanelActio
     setSummary(text: string, details: string[] = []) {
       exportSection.setSummary(text, details);
     },
+    setRangeNote(text: string, warn = false) {
+      exportSection.setRangeNote(text, warn);
+    },
     setExportReady(v: boolean) {
       exportSection.setReady(v);
     },

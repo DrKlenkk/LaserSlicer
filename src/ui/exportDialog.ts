@@ -90,6 +90,35 @@ export function createExportSection(store: Store, onDownload: () => Promise<void
   mode.addEventListener("change", () => store.updateSettings({ perLayerFiles: mode.value === "layer" }));
   syncers.push((s) => (mode.value = s.perLayerFiles ? "layer" : "sheet"));
 
+  // Layer range (nesting stage, so the sheets, summary and estimates show what is exported). Blank = no limit.
+  const rangeInput = (key: "rangeFrom" | "rangeTo", id: string, placeholder: string) => {
+    const input = h("input", { type: "number", step: 1, min: 0, id, placeholder, "aria-label": key === "rangeFrom" ? "First layer to export" : "Last layer to export" });
+    input.addEventListener("change", () => {
+      const raw = input.value.trim();
+      const v = Number(raw);
+      if (raw === "") store.updateSettings({ [key]: null });
+      else if (Number.isFinite(v) && v >= 0) store.updateSettings({ [key]: Math.round(v) });
+      sync();
+    });
+    syncers.push((s) => {
+      if (document.activeElement !== input) input.value = s[key] === null ? "" : String(s[key]);
+    });
+    return input;
+  };
+  const fromInput = rangeInput("rangeFrom", "f-rangeFrom", "first");
+  const toInput = rangeInput("rangeTo", "f-rangeTo", "last");
+  const rangeAll = h("button", { type: "button", class: "btn", id: "range-all" }, "All layers");
+  rangeAll.addEventListener("click", () => store.updateSettings({ rangeFrom: null, rangeTo: null }));
+  syncers.push((s) => (rangeAll.disabled = s.rangeFrom === null && s.rangeTo === null));
+  const rangeNote = h("small", { class: "hint", id: "range-note", role: "status" });
+  const rangeField = h(
+    "div",
+    { class: "field range-field" },
+    h("span", { class: "lbl" }, "Layer range to export", infoIcon("layerRange")),
+    h("span", { class: "ctl range-ctl" }, "from", fromInput, "to", toInput, rangeAll),
+    rangeNote,
+  );
+
   const summary = h("div", { class: "summary", id: "summary" }, "Load a model to slice it.");
   const estimatesBox = h("pre", { class: "estimates", id: "estimates" });
   estimatesBox.hidden = true;
@@ -125,6 +154,7 @@ export function createExportSection(store: Store, onDownload: () => Promise<void
     h("div", { class: "chips", id: "export-layers" }, ...layerChips),
     innerField,
     layerHint,
+    rangeField,
     h("label", { class: "field" }, h("span", { class: "lbl" }, "Files", infoIcon("perLayerFiles")), h("span", { class: "ctl" }, mode)),
     h("small", { class: "hint" }, "DXF is the file to cut with (R12, mm, layers CUT red, ENGRAVE blue, LABEL green, BRIDGE magenta, CUT_INNER orange if chosen). SVG is a second vector option."),
     rasterBox,
@@ -151,6 +181,11 @@ export function createExportSection(store: Store, onDownload: () => Promise<void
       summary.title = details.join("\n");
       estimatesBox.textContent = details.join("\n");
       estimatesBox.hidden = details.length === 0;
+    },
+    /** text under the range fields: what the effective range is, and that it was adjusted (empty = all layers, nothing to say) */
+    setRangeNote(text: string, warn = false) {
+      rangeNote.textContent = text;
+      rangeNote.classList.toggle("warn", warn);
     },
     /** enable the button when a result exists */
     setReady(v: boolean) {

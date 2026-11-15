@@ -147,4 +147,7 @@ export type Settings = {
   /** DXF and SVG only: inner rings (holes, cavities) and dowel circles on their own layer CUT_INNER, so only outer outlines stay on CUT. Export-only. */
   exportInnerLayer: boolean;
   perLayerFiles: boolean;
+  /** layer range of the export (0-based layer numbers as in the UI, inclusive); null = first / last layer. Part of the nesting stage's key. */
+  rangeFrom: number | null;
+  rangeTo: number | null;
 };

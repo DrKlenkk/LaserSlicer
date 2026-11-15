@@ -57,7 +57,8 @@ The app shows "© 2026 Louis Adrian Spencer", GPL-3.0, a link to the source and 
    `BRIDGE` a low power / fast speed so it only scores the plywood (the web stays and snaps), or leave `BRIDGE` out of the export
    for plain uncut tabs. Width is the material left after the kerf (the gap in the path is width + kerf). The screenshot above uses
    a 1.5 mm width for visibility; the default is 0.5 mm.
-6. Export: pick formats, the layers that go into the files (CUT, ENGRAVE, LABEL, BRIDGE and, off by default, a SHEET border; applies
+6. **Layer range** (Export section): to recut one broken or lost layer, enter the first and last layer (same numbers as the Layer tab, layer 0 = bottom; empty = no limit, "All layers" resets). Only those layers are nested and exported, so the Sheets tab, the summary line and the estimates show exactly what will be cut, and the Sheets tab header and the ZIP's README.txt say that only layers X to Y are included. Labels and engrave lines stay those of the full model, so the recut layers fit the rest of the stack. A range outside the model is clamped (the note says so); files per layer follow the range too. Changing it only re-runs the nesting.
+7. Export: pick formats, the layers that go into the files (CUT, ENGRAVE, LABEL, BRIDGE and, off by default, a SHEET border; applies
    to DXF, SVG, PNG and JPG, independent of the legend checkboxes) and "Download all (ZIP)". Warnings are in the status bar; click one to jump to its layer.
 
 **Auto-update preview** (checkbox in the tab bar, on by default) re-slices after every change. For large models turn it off:

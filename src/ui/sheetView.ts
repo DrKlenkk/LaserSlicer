@@ -35,6 +35,8 @@ export class SheetView {
   private canvas = h("canvas", { class: "layer-canvas", tabindex: 0, "aria-label": "Nested sheets" });
   private tip = h("div", { class: "sheet-tip", hidden: true });
   private empty = h("div", { class: "layer-empty" }, "Load a model to see its sheets.");
+  /** header shown only when the export covers a layer range: says which layers the sheets hold */
+  private banner = h("div", { class: "layer-info", id: "sheet-range", hidden: true });
   private result: RunResult | null = null;
   private placed: Placed[] = [];
   private view: View = { scale: 1, ox: 0, oy: 0 };
@@ -61,7 +63,7 @@ export class SheetView {
       "Colours map to the DXF layers, so you can assign them to cut / engrave in LightBurn and similar software.",
     );
     window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => legend.refresh());
-    root.append(this.canvas, this.tip, this.empty, legend.el);
+    root.append(this.canvas, this.tip, this.empty, this.banner, legend.el);
     traceVisibility.subscribe(() => this.draw()); // view only: no pipeline run
     const c = this.canvas;
     c.addEventListener("wheel", (e) => this.onWheel(e), { passive: false });
@@ -132,6 +134,10 @@ export class SheetView {
         this.sheetsH = Math.max(this.sheetsH, s.h);
       }
     }
+    const range = r?.info.range;
+    this.banner.hidden = !r || !range || range.all;
+    if (r && range && !range.all)
+      this.banner.textContent = `Only layers ${range.from} to ${range.to} (of 0 to ${r.info.layerCount - 1}; L${String(range.from).padStart(3, "0")} to L${String(range.to).padStart(3, "0")}) are nested and exported`;
     this.empty.hidden = !!r && r.sheets.length > 0;
     this.empty.textContent = r ? "No parts to place." : "Load a model to see its sheets.";
     if (resetView) this.fitPending = true;
@@ -150,8 +156,9 @@ export class SheetView {
       return;
     }
     const pad = 28; // room for the sheet captions
-    const scale = Math.min((w - 2 * pad) / this.sheetsW, (hgt - 2 * pad) / this.sheetsH);
-    this.view = { scale, ox: (w - this.sheetsW * scale) / 2, oy: (hgt + this.sheetsH * scale) / 2 };
+    const top = this.banner.hidden ? pad : pad + 30; // and for the layer range header
+    const scale = Math.min((w - 2 * pad) / this.sheetsW, (hgt - top - pad) / this.sheetsH);
+    this.view = { scale, ox: (w - this.sheetsW * scale) / 2, oy: top + (hgt - top - pad + this.sheetsH * scale) / 2 };
     this.draw();
   }
 

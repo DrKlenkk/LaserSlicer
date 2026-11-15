@@ -391,15 +391,24 @@ function renderSummaries() {
     runSummary.textContent = "";
     runSummary.title = "";
     panel.setSummary("Load a model to slice it.", []);
+    panel.setRangeNote("");
     return;
   }
   const e = estimate(r.measure, estimateSettingsOf(settings));
   const lines = estimateLines(r.measure, e);
-  const base = `${r.info.layerCount} layers · ${r.parts.length} parts · ${r.sheets.length} sheet${r.sheets.length === 1 ? "" : "s"} · ${materialUse(r.sheets).toFixed(0)} % material use`;
+  const range = r.info.range;
+  const partial = !range.all;
+  const nParts = partial ? r.parts.filter((p) => p.layer >= range.from && p.layer <= range.to).length : r.parts.length;
+  const base = `${partial ? `only layers ${range.from}–${range.to} (model: 0–${r.info.layerCount - 1})` : `${r.info.layerCount} layers`} · ${nParts} parts · ${r.sheets.length} sheet${r.sheets.length === 1 ? "" : "s"} · ${materialUse(r.sheets).toFixed(0)} % material use`;
   const full = `${base} · ${estimateSummary(r.measure, e)}`;
   runSummary.textContent = !ctl.auto && ctl.stale ? `${full} · outdated` : full;
   runSummary.title = lines.join("\n");
   panel.setSummary(full, lines);
+  if (partial) {
+    const note = `Only layers ${range.from} to ${range.to} (L${String(range.from).padStart(3, "0")} to L${String(range.to).padStart(3, "0")}) of the model's 0 to ${r.info.layerCount - 1} are nested and exported.`;
+    panel.setRangeNote(range.clamped ? `${note} The range you entered lies outside the model's layers 0 to ${r.info.layerCount - 1} (or is reversed) and was adjusted.` : note, range.clamped);
+  } else if (range.clamped) panel.setRangeNote(`The range you entered covers all layers (the model has layers 0 to ${r.info.layerCount - 1}), so everything is exported.`, true);
+  else panel.setRangeNote(`All ${r.info.layerCount} layers (0 to ${r.info.layerCount - 1}) are exported.`);
 }
 
 function renderUpdate() {

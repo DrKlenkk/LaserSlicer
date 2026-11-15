@@ -58,6 +58,8 @@ export const DEFAULT_SETTINGS: Settings = {
   exportSheet: false,
   exportInnerLayer: false,
   perLayerFiles: false,
+  rangeFrom: null,
+  rangeTo: null,
 };
 
 export type Model = {
@@ -171,6 +173,8 @@ export function parseProjectFile(text: string, withModel = true): { settings: Se
     } else if (k === "rotationSteps") {
       if (!Array.isArray(v) || v.length !== 3 || v.some((n) => !Number.isInteger(n))) bad(k);
       src[k] = (v as number[]).map((n) => ((n % 4) + 4) % 4);
+    } else if (k === "rangeFrom" || k === "rangeTo") {
+      if (v !== null && !(typeof v === "number" && Number.isInteger(v) && v >= 0)) bad(k);
     } else if (k === "targetSize") {
       const t = v as { dim?: unknown; mm?: unknown } | null;
       if (t !== null && !(typeof t === "object" && ["x", "y", "z"].includes(t.dim as string) && typeof t.mm === "number" && t.mm > 0 && Number.isFinite(t.mm))) bad(k);

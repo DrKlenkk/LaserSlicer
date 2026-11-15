@@ -56,7 +56,7 @@ Collapsible groups, in this order. Model and Material start open, the rest colla
 | **Slicing** | Outline mode, samples per layer, round height to whole layers, smoothing radius, simplify tolerance, min part area, min feature. |
 | **Hollowing** | Enable, wall, solid cap layers. |
 | **Gluing aids** | Engrave next-layer outline, layer labels, label height, dowel holes, diameter, count. |
-| **Export** | Format chips (DXF, SVG, PNG, JPG), "Layers in the files" chips (CUT, ENGRAVE, LABEL, BRIDGE, SHEET border), one file per sheet / per layer, raster options (DPI preset or custom, image style, grey engrave lines), summary line, **Download all (ZIP)**. |
+| **Export** | Format chips (DXF, SVG, PNG, JPG), "Layers in the files" chips (CUT, ENGRAVE, LABEL, BRIDGE, SHEET border), **layer range** (from / to, "All layers", section 5.8), one file per sheet / per layer, raster options (DPI preset or custom, image style, grey engrave lines), summary line, **Download all (ZIP)**. |
 | **Project** | "Save settings..." and "Load settings..." (JSON), the checkbox "Include the model in the project file", and the preference "Restore the last model when the page opens". |
 
 Dropping a file anywhere on the page also loads it (an overlay says "Drop model to load"). Loading a new model resets the
@@ -73,7 +73,7 @@ hover, keyboard focus and tap; Esc closes them; the bubble flips above/below and
 |---|---|
 | **3D** (`1`) | Three.js view with orbit/zoom/pan. A segmented toggle switches between **Model** (the loaded mesh in the chosen orientation and scale, 78 % opaque, with bounding box and grid) and **Stacked result** (one extruded solid per layer, two wood tones alternating, the layer selected in the Layer tab highlighted blue; shows the outlines after hollowing, before kerf; bridges are not drawn). Stacked is disabled until a result exists. "Fit view" frames the model. |
 | **Layer** (`2`) | 2D canvas of one layer with a slider (and arrow keys): this layer's outline in red with a light red fill, dowel holes, the previous layer as a grey ghost, the **engrave lines** of the parts as dashed blue lines (exactly what is engraved: the next layer's outline inside the part), labels in green, bridge gaps in magenta. Wheel zoom, drag pan, double-click fits, a 10/50 mm grid with a "grid N mm" caption. Info line: `Layer i of N - Z a to b mm - k parts`. It shows the model outline (before kerf) except that bridged parts are drawn from their cut paths. |
-| **Sheets** (`3`) | All nested sheets side by side with captions, parts drawn as placed (kerf-compensated cut outlines, engraving, labels, bridges). Hover shows `L012-b (layer 12)`; click jumps to that layer's Layer tab. Wheel zoom, drag pan, double-click fits. |
+| **Sheets** (`3`) | All nested sheets side by side with captions, parts drawn as placed (kerf-compensated cut outlines, engraving, labels, bridges). Hover shows `L012-b (layer 12)`; click jumps to that layer's Layer tab. Wheel zoom, drag pan, double-click fits. With a layer range (section 5.8) a header at the top left says which layers the sheets hold. |
 
 ![Stacked 3D result with the selected layer highlighted](screenshots/stacked-3d.png)
 
@@ -268,6 +268,7 @@ The last four are in the exclusion list of `slicingKey` (like the export setting
 |---|---|---|---|
 | Formats (`formats`) | `["dxf"]` | subset of dxf, svg, png, jpg | Files written into the ZIP. |
 | Files (`perLayerFiles`) | off (per sheet) | bool | One file per nested sheet, or one per layer (not nested). |
+| Layer range from / to (`rangeFrom`, `rangeTo`) | `null` / `null` (all layers) | integer >= 0 or `null`, 0-based layer numbers as the UI shows them | Only parts of layers from..to (inclusive) are nested and exported (section 5.8). `null` = first / last layer. A range outside the model is clamped, a reversed one swapped. **Not export-only:** it is part of the nesting stage's key, so a change re-runs nesting only (and, as it changes the sheets, the preview is marked stale in manual mode). |
 | Resolution (`dpi`) | 300 | 1..4800 (presets 254, 300, 600, 1000, custom) | PNG/JPG resolution; stored in the file. Shown only with PNG or JPG selected. |
 | Image style (`rasterStyle`) | `filled` | `filled` / `outline` | Black filled parts vs 1 px outlines. |
 | Engrave lines and labels, grey (`rasterEngrave`) | on | bool | Draw engrave lines and labels in images; needs the matching layer chip too. |
@@ -297,7 +298,7 @@ The panel's number inputs enforce `min`/`max` and silently restore the previous 
 validates independently (`parseProject` in `src/state.ts`): positive (`thickness`, `sheetW`, `sheetH`, `scale`, `labelHeight`,
 `dowelDiameter`, `bridgeWidth`), non-negative (`kerf`, spacing, margin, smoothing, simplify, areas, hollow, cap layers, bridge
 minimum and spacing), integers (`samplesPerLayer`, `solidCapLayers`, `dowelCount`, `bridgeCount`), `samplesPerLayer >= 1`,
-`dowelCount >= 1`, `bridgeCount` 1..8, `dpi` 1..4800, `rotationSteps` three integers (normalised mod 4), enums (`axis`, `mode`, `rasterStyle`, `importUnit`), `formats` subset.
+`dowelCount >= 1`, `bridgeCount` 1..8, `rangeFrom` / `rangeTo` `null` or an integer >= 0, `dpi` 1..4800, `rotationSteps` three integers (normalised mod 4), enums (`axis`, `mode`, `rasterStyle`, `importUnit`), `formats` subset.
 Independently of the UI, the label height is clamped to at least 3 mm in the code.
 
 ---
@@ -502,7 +503,8 @@ Micro-edges under 5 micrometres produced by offsets are merged (`TINY_EDGE`). *C
 6. **Material use:** `sum(part area, outer minus holes) / sum(sheet area)`, shown as a percentage per sheet in the README and overall in the summary line.
 
 The nest is **rectangle-based**, not true-shape: round parts waste sheet area (a sphere uses about 13 % of a 600 x 400 mm sheet).
-*Caching:* key = kerf key + sheet size, spacing, margin. Bridges do not change a part's extent, so nesting does not depend on them.
+*Layer range:* only parts of layers inside the range (`rangeFrom`..`rangeTo`, section 5.8) are passed to the nesting; the other parts stay in `RunResult.parts` (the Layer tab and 3D view still show the whole model) but have no placement. The measurements for the estimates, the part count and the ZIP README cover the range only.
+*Caching:* key = kerf key + sheet size, spacing, margin + resolved layer range. Bridges do not change a part's extent, so nesting does not depend on them.
 
 ### 4.11 Holding bridges
 
@@ -545,10 +547,10 @@ Each stage stores `{ key, value }` and re-runs only if its key (a JSON string) c
 | hollow | hollowEnabled (+ hollowWall, solidCapLayers, minPartArea when on) |
 | registration | hollowEnabled, engraveNextOutline, labels, labelHeight, dowels (+ dowelDiameter, dowelCount) |
 | kerf | kerf |
-| nest | sheetW, sheetH, partSpacing, sheetMargin |
+| nest | sheetW, sheetH, partSpacing, sheetMargin, the resolved layer range (`from`, `to` after clamping to the layer count, so equivalent requests share a nesting) |
 | bridges | bridge settings (from the kerf key; independent of nesting) |
 
-Examples: a kerf change re-runs kerf, nesting and bridges only; a sheet-size change re-runs nesting only; a mode or thickness change
+Examples: a kerf change re-runs kerf, nesting and bridges only; a sheet-size change or a layer-range change re-runs nesting only; a mode or thickness change
 re-runs everything from slicing on; export settings re-run nothing. Tests count stage runs (`Pipeline.runs`).
 
 ---
@@ -592,6 +594,17 @@ outlines **and dowel holes**; ENGRAVE = next-layer outlines; LABEL = text stroke
 layers simply have no entities (DXF keeps all five layers in its LAYER table so colour mapping stays stable; SVG writes no group).
 
 **Entity order and CUT_INNER.** In DXF and SVG the entities of the cut family are always written inner rings first (closed holes and cavities, then bridged inner rings), then dowel circles, then outer outlines (closed, then bridged), then BRIDGE, ENGRAVE, LABEL. Across a sheet, all inner cuts of all parts precede all outlines. With `exportInnerLayer` the first two kinds are written on `CUT_INNER` instead of `CUT` (SVG: a `CUT_INNER` group before the `CUT` group). Bridge gaps stay on BRIDGE whatever ring they belong to. In LightBurn and similar software cut `CUT_INNER` first, then `CUT`. The `CUT_INNER` layer is listed in the DXF LAYER table only when the option is on, so with it off the file differs from earlier versions only in entity order. PNG and JPG ignore the option (they are pixel images, one colour for all cuts). The ZIP README names the layer and the cutting order when it is on.
+
+### 5.8 Layer range
+
+Use: recut one broken or lost layer without cutting the whole model again. The Export section has **Layer range to export** (from, to, "All layers"); empty = first / last layer, default all. Numbers are the 0-based layer numbers of the Layer tab (`Layer 12 of 39`, part ids `L012`). `src/core/range.ts` (`resolveRange`, pure, tested):
+
+* Values are rounded to integers and clamped to `0 .. layerCount - 1`; `from > to` is swapped; a range entirely beyond the last layer collapses to the last layer (never silently empty). Anything changed this way sets `clamped`, and the note under the fields and the summary tooltip say so ("... was adjusted"). The range is resolved in the pipeline after slicing (the layer count is known there) and returned as `RunInfo.range`.
+* **Nesting stage:** only parts of layers in the range are nested, so the sheets are exactly what will be exported. The range is in the nesting key and in no earlier one: changing it re-runs nesting only (slice, cleanup, hollow, registration, kerf and bridges stay cached). It is not an export-only setting: it is not in `EXPORT_ONLY` of `slicingKey`, so in manual mode the preview is marked stale and a download updates first.
+* The Sheets tab, the summary line (`only layers 3-5 (model: 0-8) · 3 parts · ...`), the estimates (cut length, weight, cost: measurements are taken over the range) and the README all show the range. The Sheets tab has a header at the top left, the Export section a note, the README a `LAYER RANGE:` line at the top of the summary, a `Layers: 3 of 9` count and a note under "Stacking order".
+* **Per-layer files** (`perLayerFiles`) and the PNG/JPG images use the same range (`exportDrawings`).
+* **Labels and engrave lines are those of the full model** (registration runs before, on all layers): the first layer of a range still carries the outline of its next layer, and its label is its real number, so recut layers fit the rest of the stack. The Layer tab and 3D view always show the whole model. If the range holds no part (all its layers empty) a warning says nothing will be exported.
+* Part of the project file (keys `rangeFrom`, `rangeTo`, missing = all; validated as `null` or an integer >= 0). The range stays when another model is loaded and is clamped to that model's layers (with the note).
 
 ### 5.3 DXF (R12)
 
@@ -695,6 +708,7 @@ A crashed worker sets the badge to `Worker error: ...`.
 | `src/core/registration.ts`, `font/hershey.ts` | Engrave outline, labels, dowels; stroke font. |
 | `src/core/kerf.ts` | Kerf offset. |
 | `src/core/nest.ts` | Convex hull, min-area rectangle, MaxRects, `applyPlacement`, material use. |
+| `src/core/range.ts` | Layer range: `resolveRange` (clamp, swap), `partsInRange`, `rangeText`. |
 | `src/core/bridges.ts` | Bridge planning and ring splitting. |
 | `src/core/pipeline.ts` | Staged, cached pipeline. |
 | `src/core/export/common.ts` | `Drawing`, export layer flags, sheet/layer drawings, number formatting. |
@@ -786,6 +800,7 @@ GitHub Actions (`.github/workflows/build.yml`): on every push, pull request, man
 | Hollowing, registration | `hollow`, `registration` | cavity and wall maths on a sphere, dowel runs; labels (placement, shrink, fallback), engrave-line rules, font |
 | Bridges | `bridges` | placement (straight edges, N, spacing, short rings), gap maths with kerf, splitting, pipeline stage |
 | Nesting | `nest` | hull, minimum rectangle, no overlaps, margins/spacing, oversize parts, multiple sheets |
+| Layer range | `layerRange` | `resolveRange` (clamp, swap, open ends), only in-range parts nested, estimates over the range, labels and engrave unchanged, nesting-only re-run (stage counters), per-layer and per-sheet files, README text, project validation and defaults |
 | Estimates | `estimates` | lengths, area before kerf, bridged rings without gaps, hollow volume, pricing and 0 = not set, README block, the four settings are not in the slicing key, project defaults and validation |
 | Export | `export`, `raster`, `project`, `base64`, `sessionStore` | DXF and SVG structure (parsed with `dxf-parser`), file naming, ZIP and README, export layer selection; CRC-32, PNG `pHYs`, JPEG JFIF, size limits, painting through a mock canvas; project file round trip, validation, version 2 with an embedded model (odd lengths, corrupt data); base64 against Node's encoder; the IndexedDB wrapper with no, throwing, hanging, failing and in-memory fake storage |
 | History, presets | `history` | undo / redo stacks, merge window, cap 100, no-op not recorded, redo cleared by a new step, rebase of silent changes, store integration (bulk replace is one step); preset validation, starting points, apply / match, `PresetStore` with working, throwing and missing storage |

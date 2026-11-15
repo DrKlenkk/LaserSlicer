@@ -294,3 +294,7 @@ button.warn-item:hover { background: var(--accent-soft); }
 .help-legal { margin-top: 14px; font-size: 12px; color: var(--muted); }
 .help-legal .legal-links { display: inline-flex; flex-wrap: wrap; gap: 12px; }
 @media (max-width: 760px) { .legalbar { grid-row: 4; } }
+
+/* layer range fields in the Export section */
+.range-ctl { flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+.range-ctl input { width: 70px; }

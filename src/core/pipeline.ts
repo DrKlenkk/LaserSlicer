@@ -18,6 +18,7 @@ import { addBridges } from "./bridges";
 import { nestParts, type NestResult } from "./nest";
 import { measureParts, type Measurements } from "./estimates";
 import { shapeArea } from "./poly";
+import { partsInRange, resolveRange, type LayerRange } from "./range";
 
 export type RunInfo = {
   layerCount: number;
@@ -29,6 +30,8 @@ export type RunInfo = {
   /** effective uniform scale (user scale or target size, times height rounding) */
   scale: number;
   size: [number, number, number];
+  /** layer range of the export, resolved against this model (only these layers are nested and exported) */
+  range: LayerRange;
 };
 
 export type RunResult = {
@@ -187,9 +190,11 @@ export class Pipeline {
     const kerfed = this.cKerf.value;
 
     // ---- stage 7: nesting ----
-    const nestKey = JSON.stringify([kerfKey, s.sheetW, s.sheetH, s.partSpacing, s.sheetMargin]);
+    // The layer range is resolved (clamped) first, so two requests that mean the same layers share one nesting.
+    const range = resolveRange(sliced.plan.count, s.rangeFrom, s.rangeTo);
+    const nestKey = JSON.stringify([kerfKey, s.sheetW, s.sheetH, s.partSpacing, s.sheetMargin, range.from, range.to]);
     if (this.cNest?.key !== nestKey) {
-      this.cNest = { key: nestKey, value: nestParts(kerfed.parts, s) };
+      this.cNest = { key: nestKey, value: nestParts(partsInRange(kerfed.parts, range), s) };
       this.runs.nest++;
     }
     const nested = this.cNest.value;
@@ -210,8 +215,11 @@ export class Pipeline {
     const warnings: Warning[] = [...this.meshWarnings(), ...sliced.warnings, ...clean.warnings, ...hollow.warnings, ...registered.warnings, ...kerfed.warnings, ...nested.warnings, ...bridged.warnings];
     if (kerfed.parts.length === 0)
       warnings.push({ level: "error", message: "No parts were produced: every layer is empty (the model may be too thin for this thickness, or Min part area is too large)" });
+    if (!range.all && kerfed.parts.length > 0 && nested.sheets.length === 0)
+      warnings.push({ level: "warn", message: `No parts in the layer range ${range.from} to ${range.to}: nothing will be exported` });
     const kept = new Set(kerfed.parts.map((p) => p.id));
-    const areaBeforeKerf = registered.parts.reduce((a, p) => (kept.has(p.id) ? a + shapeArea(p.cut) : a), 0);
+    const inRange = partsInRange(bridged.parts, range);
+    const areaBeforeKerf = registered.parts.reduce((a, p) => (kept.has(p.id) && p.layer >= range.from && p.layer <= range.to ? a + shapeArea(p.cut) : a), 0);
     const result: RunResult = {
       layers: hollow.layers,
       parts: bridged.parts,
@@ -225,8 +233,9 @@ export class Pipeline {
         overshoot: sliced.plan.overshoot,
         scale: oriented.scale,
         size: oriented.size,
+        range,
       },
-      measure: measureParts(bridged.parts, areaBeforeKerf, s.thickness, nested.sheets.length),
+      measure: measureParts(inRange, areaBeforeKerf, s.thickness, nested.sheets.length),
     };
     this.last = { result, settings: s };
     return result;

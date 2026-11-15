@@ -7,14 +7,21 @@ import { layerLabel } from "../layers";
 import type { ExportFile } from "./files";
 import { exportLayersOf } from "./common";
 import { estimateReadme } from "../estimates";
+import { partsInRange, rangeText } from "../range";
 
 export function buildReadme(result: RunResult, s: Settings, model: string, files: ExportFile[]): string {
   const L: string[] = [];
   const n = result.info.layerCount;
   L.push(`Laser Slicer export: ${model}`, "");
+  const range = result.info.range;
+  const parts = partsInRange(result.parts, range);
   L.push("Summary");
-  L.push(`  Layers: ${n}`);
-  L.push(`  Parts: ${result.parts.length}`);
+  if (range && !range.all) {
+    L.push(`  LAYER RANGE: ${rangeText(range, n)}. Only these layers are nested and exported; the other layers are not in these files.`);
+    if (range.clamped) L.push("  (The range set in the app lay outside the model's layers or was reversed and was adjusted.)");
+  }
+  L.push(`  Layers: ${range && !range.all ? `${range.to - range.from + 1} of ${n}` : n}`);
+  L.push(`  Parts: ${parts.length}`);
   L.push(`  Sheets: ${result.sheets.length} (${s.sheetW} x ${s.sheetH} mm), material use ${materialUse(result.sheets).toFixed(1)} %`);
   for (const sh of result.sheets) L.push(`    sheet ${sh.index + 1}: ${sh.partIds.length} parts, ${sh.usePct.toFixed(1)} % used`);
   L.push("");
@@ -34,7 +41,7 @@ export function buildReadme(result: RunResult, s: Settings, model: string, files
   L.push(`  Layers included: ${incl.join(", ") || "none"}${excl.length ? ` (left out: ${excl.join(", ")})` : ""}`);
   if (s.bridgesEnabled) {
     const gap = s.bridgeWidth + Math.max(0, s.kerf);
-    const nb = result.parts.reduce((n, p) => n + (p.bridges ?? []).reduce((m, b) => m + b.gaps.length, 0), 0);
+    const nb = parts.reduce((n, p) => n + (p.bridges ?? []).reduce((m, b) => m + b.gaps.length, 0), 0);
     L.push(`  Holding bridges: ${nb} (${s.bridgeCount} per outline, ${s.bridgeWidth} mm of material left after the kerf = gap of ${gap.toFixed(2)} mm in the cut path, outlines of at least ${s.bridgeMinLength} mm${s.bridgeHoles ? ", inner holes included" : ""}${s.bridgeMaxSpacing > 0 ? `, at most ${s.bridgeMaxSpacing} mm apart` : ""})`);
     L.push(EL.bridge ? "  Bridges are on DXF layer BRIDGE (SVG group BRIDGE): run it at low power / high speed so it scores but does not cut through, or leave the layer out for plain uncut tabs." : "  BRIDGE is not included: the gaps are left out, so the cut outlines have uncut tabs.");
   }
@@ -47,6 +54,7 @@ export function buildReadme(result: RunResult, s: Settings, model: string, files
   L.push("");
   L.push("Stacking order");
   L.push(`  Cut every part face-up and stack bottom-up without flipping: ${layerLabel(0)} is the bottom layer${n > 1 ? `, ${layerLabel(n - 1)} the top` : ""}.`);
+  if (range && !range.all) L.push(`  These files only hold ${layerLabel(range.from)} to ${layerLabel(range.to)}: labels and engrave lines are those of the full model, so the layers fit the rest of the stack.`);
   L.push("  Glue each layer onto the one below it; align it to the engraved outline of the next layer where one exists.");
   L.push("");
   L.push(`DXF layers: CUT (red), ENGRAVE (blue), LABEL (green), ${s.bridgesEnabled ? "BRIDGE (magenta), " : ""}${EL.innerLayer && EL.cut ? "CUT_INNER (orange, inner cuts: cut first), " : ""}SHEET (grey). Units: mm, Y up, R12 (AC1009).`);
