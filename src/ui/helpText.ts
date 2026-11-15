@@ -119,7 +119,7 @@ export const HELP = {
   restoreSession:
     "Off by default. When you turn it on, the last model you load is kept in this browser (IndexedDB, models up to 50 MB; it never leaves your device) and loaded again when the page opens, together with the settings the browser already remembers, so a reload brings you back to where you were. Turning it off deletes the stored copy. If the browser blocks or fills its storage, nothing is restored and the app works as usual. The slicing result is not stored, it is computed again.",
   calibration:
-    "Downloads a small ZIP (DXF, SVG and a README) to cut from a scrap of your plywood, about 160 x 80 mm; it works without a model. Kerf test: seven loose 20 mm squares and matching square holes, each pair drawn for a kerf from 0 to 0.30 mm and labelled. The pair that fits snugly shows your kerf: enter it in the Kerf field. Dowel test: five round holes around the current Dowel diameter (plus and minus 0.2 mm), labelled with the value to enter once your rod fits. The dowel holes are drawn smaller by the current Kerf, so do the kerf test first. Use the same laser settings as for the real job.",
+    "Downloads a small ZIP (DXF, SVG and a README) to cut from a scrap of your plywood, about 160 x 73 mm; it works without a model. Kerf test: seven loose 20 mm squares and matching square holes, each pair drawn for a kerf from 0 to 0.30 mm and labelled. The pair that fits snugly shows your kerf: enter it in the Kerf field. Dowel test: five round holes around the current Dowel diameter (plus and minus 0.2 mm), labelled with the value to enter once your rod fits. The dowel holes are drawn smaller by the current Kerf, so do the kerf test first. Use the same laser settings as for the real job.",
   presets:
     "Saves the Material group (thickness, sheet size, kerf, part spacing, sheet margin, density, cut and engrave speed, price per sheet) under a name and brings it back from this list; picking one changes all of those fields at once and is a single undo step (Ctrl+Z). 'Save...' asks for a name; an existing name is replaced after you confirm. 'Delete' removes the selected preset of yours. Presets live in this browser only, not in the project file. 'Starting points' are only guesses for plywood: kerf, thickness and speeds depend on your laser and your sheets, so measure and run the calibration sheet. They leave speeds and price alone, and cannot be deleted. The list shows the preset that matches the current values.",
   compare:
@@ -130,3 +130,65 @@ export type HelpKey = keyof typeof HELP;
 
 /** Keys that cover one control rather than a single Settings field. */
 export const EXTRA_HELP_KEYS: readonly HelpKey[] = ["rotate", "sheetSize", "viewToggle", "autoUpdate", "viewTraces", "exportLayers", "layerRange", "calibration", "projectModel", "restoreSession", "presets", "compare"];
+
+/** Section of docs.html (its `id`) that explains each tooltip's setting; the tooltip ends with a "Read more" link to it. */
+export const HELP_DOC: Record<HelpKey, string> = {
+  axis: "orientation",
+  rotate: "orientation",
+  importUnit: "import-unit",
+  scale: "scale",
+  targetSize: "scale",
+  thickness: "thickness",
+  sheetSize: "sheet-size",
+  kerf: "kerf",
+  partSpacing: "sheet-size",
+  sheetMargin: "sheet-size",
+  mode: "outline-modes",
+  samplesPerLayer: "outline-modes",
+  roundHeightToLayers: "layer-height",
+  smoothRadius: "smoothing",
+  simplifyTol: "simplify",
+  minPartArea: "small-parts",
+  minFeature: "small-parts",
+  hollowEnabled: "hollowing",
+  hollowWall: "hollowing",
+  solidCapLayers: "hollowing",
+  engraveNextOutline: "engrave-lines",
+  labels: "labels",
+  labelHeight: "labels",
+  dowels: "dowels",
+  dowelDiameter: "dowels",
+  dowelCount: "dowels",
+  bridgesEnabled: "bridges",
+  bridgeCount: "bridges",
+  bridgeWidth: "bridges",
+  bridgeMinLength: "bridges",
+  bridgeHoles: "bridges",
+  bridgeMaxSpacing: "bridges",
+  formats: "formats",
+  perLayerFiles: "per-layer-files",
+  dpi: "raster",
+  rasterStyle: "raster",
+  rasterEngrave: "raster",
+  autoUpdate: "auto-update",
+  viewToggle: "view-toggle",
+  viewTraces: "legend",
+  exportLayers: "layers-in-files",
+  exportInnerLayer: "inner-cuts",
+  layerRange: "layer-range",
+  density: "estimates",
+  cutSpeed: "estimates",
+  engraveSpeed: "estimates",
+  pricePerSheet: "estimates",
+  projectModel: "project",
+  restoreSession: "project",
+  calibration: "calibration",
+  presets: "presets",
+  compare: "compare",
+};
+
+/** Relative link to the documentation (a separate page next to index.html; works from file://). */
+export const DOCS_PAGE = "docs.html";
+export function docUrl(key: HelpKey): string {
+  return `${DOCS_PAGE}#${HELP_DOC[key]}`;
+}

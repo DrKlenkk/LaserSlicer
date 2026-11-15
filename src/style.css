@@ -223,8 +223,10 @@ button.warn-item:hover { background: var(--accent-soft); }
 .tip-bubble {
   position: fixed; z-index: 100; box-sizing: border-box; max-width: 320px; padding: 9px 11px; border-radius: 8px;
   background: var(--surface); color: var(--text); border: 1px solid var(--accent); font: 12.5px/1.45 var(--font);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3); pointer-events: none; text-align: left; font-weight: 400;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3); text-align: left; font-weight: 400;
 }
+.tip-bubble .tip-more { -webkit-tap-highlight-color: transparent; display: block; margin-top: 7px; width: fit-content; color: var(--accent); font-weight: 600; text-decoration: underline; padding: 2px 0; }
+.tip-bubble .tip-more:hover, .tip-bubble .tip-more:focus-visible { text-decoration: none; }
 .tip-bubble[hidden] { display: none; }
 .view-toggle { align-items: center; }
 .view-toggle .tip { margin-left: 8px; }
@@ -382,6 +384,7 @@ button.warn-item:hover { background: var(--accent-soft); }
   .tip-icon { position: relative; }
   .tip-icon::after { content: ""; position: absolute; inset: -14px; }
   .legalbar a { padding: 8px 2px; }
+  .tip-bubble .tip-more { padding: 10px 0 6px; }
   .update-wrap .btn.primary { min-height: 40px; }
   .compare-table th, .compare-table td { padding: 8px 8px; }
   /* a tall legend must scroll inside itself instead of covering the tab bar on short screens */

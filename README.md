@@ -16,7 +16,7 @@ Full technical documentation (features, settings, pipeline, output formats, arch
 
 ```
 npm install
-npm run build      # type check + produces dist/ (index.html, about 1 MB, plus the legal pages and licence files)
+npm run build      # type check + produces dist/ (index.html, about 1 MB, plus the documentation page, the legal pages and licence files)
 npm run check      # verifies the dist/ file set, no external resources, the legal pages, no analytics
 npm test           # unit tests (Vitest)
 ```
@@ -25,12 +25,14 @@ Open `dist/index.html` by double-click (`file://` works; nothing is fetched). `n
 
 ## Deployment and legal pages
 
-`dist/` is the whole site: `index.html` (the app), `impressum.html`, `datenschutz.html`, `lizenzen.html` (German, static, no JavaScript),
+`dist/` is the whole site: `index.html` (the app), `docs.html` with its screenshots in `docs-img/` (the user documentation, static, no JavaScript; from `public/`), `impressum.html`, `datenschutz.html`, `lizenzen.html` (German, static, no JavaScript),
 `LICENSE.txt` and `THIRD_PARTY_LICENSES.txt`. **Upload all files** to the host (Cloudflare for laserslicer.com); the legal links in the app
 are relative, so the same files also work unzipped from a folder. GitHub Actions uploads the whole `dist/` as the artifact `laserslicer-site`
 and, on `v*` tags, attaches `laserslicer-site.zip` (and `index.html`) to the release. The legal pages are in `public/`; `LICENSE.txt` and
 `THIRD_PARTY_LICENSES.txt` are copied from `LICENSE` and `THIRD_PARTY_LICENSES.txt` (generated with `node scripts/gen-licenses.mjs`) at build time.
-The app shows "© 2026 Louis Adrian Spencer", GPL-3.0, a link to the source and the links Impressum, Datenschutz and Lizenzen in a bar at the bottom of every view (and in the help overlay).
+The app shows "© 2026 Louis Adrian Spencer", GPL-3.0, a link to the source and the links Documentation, Impressum, Datenschutz and Lizenzen in a bar at the bottom of every view (and in the help overlay). Every tooltip ends with a "Read more" link to the matching section of `docs.html` (new tab, so the loaded model is kept); the section for each tooltip is listed in `HELP_DOC` in `src/ui/helpText.ts`.
+
+**Documentation:** open `docs.html` (next to `index.html`, or via the "Documentation" link in the app) for a full description of every setting, with screenshots.
 
 ## Use
 

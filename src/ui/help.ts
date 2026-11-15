@@ -1,5 +1,6 @@
 // Help overlay: keyboard shortcuts and a short usage guide. Opened with "?" or the button in the tab bar.
 import { h } from "./dom";
+import { DOCS_PAGE } from "./helpText";
 import { createLegalLinks } from "./legal";
 
 export const SHORTCUTS: [string, string][] = [
@@ -26,6 +27,7 @@ export function createHelp() {
     h("h2", {}, "Laser Slicer"),
     h("p", {}, "Load an STL, OBJ or 3MF model, set the thickness you measured on your plywood, and download the ZIP. Every change re-slices automatically unless \"Auto-update preview\" is off; then click Update preview (or press U)."),
     h("p", {}, "Not sure about kerf or dowel size? \"Download calibration sheet\" (Material group) gives a small ZIP to cut from scrap: squares and holes for kerf, round holes for the dowel. See its README.txt."),
+    h("p", {}, "Every setting and file is explained in the ", h("a", { href: DOCS_PAGE, target: "_blank", rel: "noopener" }, "Documentation"), " (opens in a new tab; your model stays loaded). The ? icons next to the settings link to the matching section."),
     h("h3", {}, "Gluing"),
     h("ol", {},
       h("li", {}, "Cut every part face-up; do not flip any part."),

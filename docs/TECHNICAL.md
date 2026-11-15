@@ -72,6 +72,16 @@ selected layer to 0 and frames the camera; the settings are kept.
 
 Every non-obvious control has an info icon with a tooltip (text in `src/ui/helpText.ts`, about 40 entries). Tooltips open on
 hover, keyboard focus and tap; Esc closes them; the bubble flips above/below and clamps to the viewport.
+Each bubble ends with a "Read more" link to `docs.html#<section>` (relative, `target="_blank" rel="noopener"`, so the loaded model
+stays). The section per key is the typed map `HELP_DOC` next to `HELP` in `src/ui/helpText.ts` (`docUrl(key)` builds the link;
+`Record<HelpKey, string>` makes a missing entry a compile error). To make the link usable the bubble is interactive
+(`src/ui/tooltip.ts`): on hover it stays open for 250 ms after the pointer leaves the icon and while the pointer is on the bubble;
+a tap or click pins it (closed by an outside tap, a second tap on the icon, or Esc); with the keyboard, Tab on the icon moves
+into the link (the bubble sits at the end of the page, so the browser order would not reach it), Shift+Tab or Tab on the link
+returns, Esc closes and gives the focus back to the icon. A mouse press on the bubble does not move focus (Safari would
+otherwise blur the icon and hide the bubble before the click). `test/helpText.test.ts` checks that every key has an anchor and
+that all anchors exist in `public/docs.html`; `npm run check` checks the same in `dist/`. The footer bar and the help overlay
+carry a "Documentation" link to `docs.html`.
 
 ![Tooltip on a panel control](screenshots/tooltip.png)
 
@@ -820,7 +830,7 @@ Dev only: Vite, `vite-plugin-singlefile`, TypeScript, Vitest, `dxf-parser` (test
 | `npm install` | install |
 | `npm run dev` | Vite dev server |
 | `npm run build` | `tsc --noEmit && vite build`; target es2022, everything inlined into `dist/index.html` |
-| `npm run check` | `scripts/check-dist.mjs`: `dist/` has exactly `index.html`, `impressum.html`, `datenschutz.html`, `lizenzen.html`, `LICENSE.txt`, `THIRD_PARTY_LICENSES.txt`; no external resource load in any html file (src, link, srcset, `@import`, `url()`), anchors allowed; Impressum has `#105667`, `§ 5 DDG` and the email and no ODR text; Datenschutz lists every storage key; no analytics or tracking strings; `LICENSE.txt` is the full GPL-3.0 |
+| `npm run check` | `scripts/check-dist.mjs`: `dist/` has exactly `index.html`, `docs.html`, the folder `docs-img/` (only `.png` and `.jpg`), `impressum.html`, `datenschutz.html`, `lizenzen.html`, `LICENSE.txt`, `THIRD_PARTY_LICENSES.txt`; `docs.html` and the legal pages need no JavaScript and have a viewport meta; every `HELP_DOC` anchor and every `#` link in `docs.html` exists as an id, every `<img>` of `docs.html` exists in `docs-img/`; `index.html` links to `docs.html`; no external resource load in any html file (src, link, srcset, `@import`, `url()`), anchors allowed; Impressum has `#105667`, `§ 5 DDG` and the email and no ODR text; Datenschutz lists every storage key; no analytics or tracking strings; `LICENSE.txt` is the full GPL-3.0 |
 | `npm test` | `vitest run` |
 | `npm run typecheck` | `tsc --noEmit` |
 

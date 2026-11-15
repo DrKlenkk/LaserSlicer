@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Documentation – Laser Slicer</title>
+<meta name="description" content="User documentation for Laser Slicer: slice a 3D model into plywood layers and export laser-ready files.">
+<style>
+:root{color-scheme:light dark;--bg:#f4f1ec;--surface:#fff;--border:#ddd6cb;--text:#2a2622;--muted:#6b6258;--accent:#9a5314;--tint:#f0e6d8}
+@media (prefers-color-scheme:dark){:root{--bg:#1c1a18;--surface:#2c2927;--border:#3b3733;--text:#ece7e0;--muted:#a79e93;--accent:#e0974f;--tint:#3a3128}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
+a{color:var(--accent)}
+header.top{border-bottom:1px solid var(--border);background:var(--surface)}
+.bar{max-width:78rem;margin:0 auto;padding:10px 16px;display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center}
+.bar strong{margin-right:auto}
+.wrap{max-width:78rem;margin:0 auto;padding:8px 16px 40px;display:grid;grid-template-columns:17rem minmax(0,1fr);gap:32px;align-items:start}
+nav.toc{position:sticky;top:0;max-height:100vh;overflow:auto;padding:14px 8px 24px 0;font-size:.92rem}
+nav.toc h2{font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:14px 0 4px}
+nav.toc ul{list-style:none;margin:0;padding:0}
+nav.toc li a{display:block;padding:2px 0;text-decoration:none}
+nav.toc li a:hover{text-decoration:underline}
+main{min-width:0;overflow-wrap:break-word}
+h1{font-size:1.9rem;line-height:1.25;margin:22px 0 6px}
+h2{font-size:1.35rem;line-height:1.3;margin:0 0 8px;scroll-margin-top:12px}
+h3{font-size:1.05rem;margin:16px 0 4px}
+h4{font-size:1rem;margin:0 0 2px}
+section{padding:22px 0;border-top:1px solid var(--border)}
+section:first-of-type{border-top:0}
+section[id]{scroll-margin-top:8px}
+p,ul,ol,dl{margin:8px 0}
+ul,ol{padding-left:1.3rem}
+li{margin:3px 0}
+code{font:.9em ui-monospace,Menlo,Consolas,monospace;overflow-wrap:anywhere;background:var(--tint);padding:0 .25em;border-radius:3px}
+kbd{font:.85em ui-monospace,Menlo,Consolas,monospace;border:1px solid var(--border);border-bottom-width:2px;border-radius:4px;padding:0 .35em;background:var(--surface)}
+.perma{font-size:.8em;text-decoration:none;opacity:.35;margin-left:.3em}
+h2:hover .perma,.perma:focus{opacity:1}
+.lead{color:var(--muted)}
+.muted{color:var(--muted)}
+figure{margin:14px 0;max-width:100%}
+figure img{max-width:100%;height:auto;display:block;border:1px solid var(--border);border-radius:6px;background:var(--surface)}
+figcaption{font-size:.88rem;color:var(--muted);margin-top:4px}
+.setting{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:8px 12px;margin:10px 0}
+.setting p{margin:3px 0}
+.meta{font-size:.88rem;color:var(--muted)}
+.meta span{display:inline-block;margin-right:14px}
+.meta b{color:var(--text);font-weight:600;margin-right:3px}
+.tip,.note{border-left:4px solid var(--accent);background:var(--tint);padding:8px 12px;border-radius:0 6px 6px 0}
+table.plain{border-collapse:collapse;width:100%;margin:10px 0;background:var(--surface);display:block;overflow-x:auto}
+table.plain th,table.plain td{border:1px solid var(--border);padding:6px 9px;text-align:left;vertical-align:top}
+table.plain th{font-weight:600;background:var(--tint)}
+ol.steps>li{margin:8px 0}
+dl.faq dt{font-weight:600;margin-top:12px}
+dl.faq dd{margin:2px 0 0}
+nav.bottom{border-top:1px solid var(--border);margin-top:20px;padding-top:12px;display:flex;flex-wrap:wrap;gap:6px 18px}
+@media (max-width:900px){
+ .wrap{display:block}
+ nav.toc{position:static;max-height:none;overflow:visible;border-bottom:1px solid var(--border);padding:8px 0 12px}
+ nav.toc .tg ul{columns:2}
+}
+@media (max-width:520px){nav.toc .tg ul{columns:1} h1{font-size:1.55rem}}
+</style>
+</head>
+<body>
+<header class="top"><div class="bar"><strong>Laser Slicer · Documentation</strong><a href="index.html">Open the app</a></div></header>
+<div class="wrap">
+<nav class="toc" aria-label="Table of contents">
+<div class="tg"><h2>Start here</h2><ul><li><a href="#getting-started">Getting started: load, check, export, cut, glue</a></li></ul></div><div class="tg"><h2>The interface</h2><ul><li><a href="#interface">The interface</a></li><li><a href="#tabs">3D, Layer and Sheets tabs</a></li><li><a href="#view-toggle">Model vs. stacked result (3D)</a></li><li><a href="#legend">Legend and trace colours</a></li><li><a href="#auto-update">Auto-update and Update preview</a></li><li><a href="#warnings">Warnings and notes</a></li><li><a href="#undo-redo">Undo, redo and keyboard shortcuts</a></li></ul></div><div class="tg"><h2>Model group</h2><ul><li><a href="#model">Model group</a></li><li><a href="#import-unit">Import unit</a></li><li><a href="#scale">Scale and target size</a></li><li><a href="#orientation">Slicing axis and rotation</a></li></ul></div><div class="tg"><h2>Material group</h2><ul><li><a href="#material">Material group</a></li><li><a href="#thickness">Thickness</a></li><li><a href="#sheet-size">Sheet size, part spacing, sheet margin</a></li><li><a href="#kerf">Kerf</a></li><li><a href="#calibration">Calibration sheet</a></li><li><a href="#presets">Material presets</a></li><li><a href="#compare">Compare materials</a></li><li><a href="#estimates">Estimates: weight, time, cost</a></li></ul></div><div class="tg"><h2>Slicing group</h2><ul><li><a href="#slicing">Slicing group</a></li><li><a href="#outline-modes">Outline modes (oversize, mid-plane, undersize) and samples</a></li><li><a href="#layer-height">Round height to whole layers</a></li><li><a href="#smoothing">Smoothing</a></li><li><a href="#simplify">Simplify tolerance</a></li><li><a href="#small-parts">Minimum part area and minimum feature</a></li><li><a href="#hollowing">Hollowing (wall, solid caps)</a></li><li><a href="#gluing-aids">Gluing aids</a></li><li><a href="#engrave-lines">Engraved next-layer outline</a></li><li><a href="#labels">Layer labels</a></li><li><a href="#dowels">Dowel holes</a></li><li><a href="#bridges">Holding bridges</a></li><li><a href="#nesting">How parts are placed on sheets</a></li></ul></div><div class="tg"><h2>Export</h2><ul><li><a href="#export">Export group and the ZIP file</a></li><li><a href="#formats">File formats (DXF, SVG, PNG, JPG, assembly guide)</a></li><li><a href="#layers-in-files">Layers in the files (CUT, ENGRAVE, LABEL, BRIDGE, SHEET)</a></li><li><a href="#inner-cuts">Inner cuts first / CUT_INNER</a></li><li><a href="#cut-order">Cutting order and travel</a></li><li><a href="#layer-range">Export a layer range</a></li><li><a href="#per-layer-files">One file per layer</a></li><li><a href="#raster">PNG/JPG options (DPI, style, engrave)</a></li><li><a href="#assembly-guide">Assembly guide</a></li><li><a href="#project">Project files and session restore</a></li></ul></div><div class="tg"><h2>At the laser and beyond</h2><ul><li><a href="#laser-workflow">At the laser: LightBurn &amp; co.</a></li><li><a href="#mobile">Phones and tablets</a></li><li><a href="#troubleshooting">Troubleshooting / FAQ</a></li><li><a href="#privacy">Privacy, offline use and licence</a></li><li><a href="#glossary">Glossary</a></li></ul></div>
+</nav>
+<main>
+<h1>Laser Slicer documentation</h1>
+<p class="lead">Turn a 3D model into plywood layers: load, check, export, cut, glue. This page explains every setting, with examples for beginners. Info icons in the app link here.</p>
+<section id="getting-started">
+<h2>Getting started: load, check, export, cut, glue <a class="perma" href="#getting-started" aria-label="Link to this section">#</a></h2>
+<p>Laser Slicer turns a 3D model into flat layers of plywood (or any sheet material). You cut the layers with a laser cutter, stack them and glue them, and you get the shape back. Everything runs in your browser; nothing is uploaded.</p>
+<figure><img src="docs-img/overview.png" width="1200" height="780" alt="The Laser Slicer window with a sphere loaded, the Sheets tab open and the legend visible" loading="lazy"><figcaption>The whole window: settings panel on the left, the three tabs on the right, status bar at the bottom.</figcaption></figure>
+<ol class="steps">
+<li><b>Load a model.</b> Drop an STL, OBJ or 3MF file on the page, or press <em>Choose file…</em> in the Model group. Look at the size readout (in mm). If it is tiny or huge, change the <a href="#import-unit">Import unit</a>. Use <a href="#scale">Scale or Target size</a> to get the size you want.</li>
+<li><b>Enter your material.</b> In the Material group type the <em>measured</em> <a href="#thickness">thickness</a> of your plywood (use calipers), the <a href="#sheet-size">sheet size</a> and the <a href="#kerf">kerf</a>. If you do not know your kerf, cut the <a href="#calibration">calibration sheet</a> first. Pick the <a href="#orientation">slicing axis</a> so the model stands the way you want.</li>
+<li><b>Check the result.</b> Open the <a href="#tabs">3D tab</a> and switch to <em>Stacked result</em>, step through layers in the <em>Layer</em> tab, and look at the <em>Sheets</em> tab to see how the parts sit on the sheets. Read the <a href="#warnings">warnings</a> in the status bar. For a first try the defaults are fine; see <a href="#outline-modes">Outline modes</a> and <a href="#gluing-aids">Gluing aids</a> when you want to improve things.</li>
+<li><b>Export.</b> In the Export group choose formats (DXF is the one you cut with) and press <em>Download all (ZIP)</em>. The ZIP holds one file per sheet and a <code>README.txt</code> with all settings and warnings.</li>
+<li><b>Cut and glue.</b> Open the DXF in your laser software and assign the colours as described in <a href="#laser-workflow">At the laser</a>. Cut every part face-up. Stack bottom-up starting with layer 0, gluing each part exactly on the engraved outline of the part below. If you use dowels, thread the rod through the holes. In the default Oversize mode, sand the glued block to the final shape.</li>
+</ol>
+<p class="note">Never flip a part. Every part is cut and stacked face-up so the engraved lines and labels stay on the side you glue to.</p>
+</section>
+<section id="interface">
+<h2>The interface <a class="perma" href="#interface" aria-label="Link to this section">#</a></h2>
+<p>The window has three areas.</p>
+<ul>
+<li><b>Settings panel (left).</b> Collapsible groups, in this order: <em>Model</em>, <em>Material</em>, <em>Holding bridges</em>, <em>Slicing</em>, <em>Hollowing</em>, <em>Gluing aids</em>, <em>Export</em> and <em>Project</em>. Model and Material start open, the others collapsed. Almost every control has a small info icon: hover it, focus it with the keyboard or tap it to read a short explanation and a <em>Read more</em> link to this page.</li>
+<li><b>Tab bar and view (right).</b> The tabs <em>3D</em>, <em>Layer</em> and <em>Sheets</em>, the undo and redo buttons, the <em>Auto-update preview</em> checkbox and the <em>?</em> help button. See <a href="#tabs">the tabs</a>.</li>
+<li><b>Status bar (bottom).</b> A progress bar while slicing, the latest message, a summary (<code>layers - parts - sheets - material use</code>), the warnings button and a worker badge. Below it a bar with copyright, licence and the legal links.</li>
+</ul>
+<p>Dropping a file anywhere on the page loads it. Loading a new model resets the selected layer to 0 but keeps all your settings. The page follows your system light or dark theme.</p>
+<p>The summary line also shows the cut length and, once you have entered speeds or a price, a rough <a href="#estimates">time and cost</a>. Hover it for the full list.</p>
+</section>
+<section id="tabs">
+<h2>3D, Layer and Sheets tabs <a class="perma" href="#tabs" aria-label="Link to this section">#</a></h2>
+<table class="plain"><thead><tr><th>Tab</th><th>What it shows</th></tr></thead><tbody>
+<tr><td><b>3D</b> (key <kbd>1</kbd>)</td><td>An orbitable 3D view (drag to rotate, wheel to zoom, right-drag or two fingers to pan). Switch between your <em>Model</em> and the <em>Stacked result</em>, see <a href="#view-toggle">below</a>. <em>Fit view</em> (key <kbd>F</kbd>) frames the model.</td></tr>
+<tr><td><b>Layer</b> (key <kbd>2</kbd>)</td><td>One layer in 2D with a slider (or arrow keys). It shows that layer's outline in red, the previous layer as a grey ghost, the engraved next-layer outline as dashed blue lines, labels in green, dowel holes and, with bridges, the gaps in magenta. The info line says <code>Layer i of N - Z a to b mm - k parts</code>. Wheel to zoom, drag to pan, double-click to fit.</td></tr>
+<tr><td><b>Sheets</b> (key <kbd>3</kbd>)</td><td>All nested sheets side by side exactly as they will be cut (with kerf applied). Hover a part to see its name, click it to jump to its layer. With a <a href="#layer-range">layer range</a> a header says which layers the sheets hold.</td></tr>
+</tbody></table>
+<figure><img src="docs-img/layer-tab.png" width="1080" height="800" alt="The Layer tab showing a plate with holes: outline, holes and a green label" loading="lazy"><figcaption>The Layer tab showing layer 1 of 3: use it to check one layer closely.</figcaption></figure>
+<p>Layer numbers start at 0 for the bottom layer. Part names look like <code>L012</code>; a second separate piece in the same layer is <code>L012-b</code>.</p>
+</section>
+<section id="view-toggle">
+<h2>Model vs. stacked result (3D) <a class="perma" href="#view-toggle" aria-label="Link to this section">#</a></h2>
+<p>The segmented toggle in the 3D tab switches between two views (shortcut <kbd>M</kbd>):</p>
+<ul>
+<li><b>Model</b>: the mesh you loaded, in the size and orientation you set, with a grid and bounding box.</li>
+<li><b>Stacked result</b>: one solid slab per layer, alternating two wood tones, as the model will look once glued. The layer selected in the Layer tab is highlighted blue.</li>
+</ul>
+<p>Use the stacked view to check steps, thin walls and hollowing before you export. It is available once slicing has finished. It shows outlines before kerf and does not draw bridges.</p>
+<figure><img src="docs-img/stacked-3d.jpg" width="1080" height="800" alt="Stacked 3D result of a stepped tower with one layer highlighted" loading="lazy"><figcaption>Stacked result. The layer currently selected in the Layer tab is highlighted blue; that is only a view aid, the real parts are wood-coloured.</figcaption></figure>
+</section>
+<section id="legend">
+<h2>Legend and trace colours <a class="perma" href="#legend" aria-label="Link to this section">#</a></h2>
+<p>The Layer and Sheets tabs have a small legend at the bottom right (collapsible; on phones it starts collapsed). Its rows are named like the layers in the exported files, so the colours on screen tell you what each line will be at the laser.</p>
+<table class="plain"><thead><tr><th>Row</th><th>Colour</th><th>Meaning</th></tr></thead><tbody>
+<tr><td><code>CUT</code></td><td>red</td><td>Part outlines, and dowel holes.</td></tr>
+<tr><td><code>ENGRAVE</code></td><td>blue (dashed in the Layer tab)</td><td>The next-layer outline to glue on.</td></tr>
+<tr><td><code>LABEL</code></td><td>green</td><td>Layer numbers.</td></tr>
+<tr><td><code>BRIDGE</code></td><td>magenta</td><td>Gaps of the holding bridges (only with bridges on).</td></tr>
+<tr><td><code>SHEET</code></td><td>grey</td><td>Sheet border (not exported unless you choose it).</td></tr>
+<tr><td><code>CUT_INNER</code></td><td>orange</td><td>Export only: the inner cuts if you put them on their own layer.</td></tr>
+<tr><td>Previous / Hover</td><td>grey / red fill</td><td>The previous layer in the Layer tab; the highlighted part in the Sheets tab.</td></tr>
+</tbody></table>
+<p>The checkbox in front of a row shows or hides that trace in both tabs. It is <b>view only</b>: it does not re-slice and does not change the exported files. Which layers go into the files is chosen separately in <a href="#layers-in-files">Layers in the files</a>. The choice is remembered in the browser.</p>
+<figure><img src="docs-img/legend.png" width="400" height="263" alt="The legend box with all rows" loading="lazy"><figcaption>The legend.</figcaption></figure>
+</section>
+<section id="auto-update">
+<h2>Auto-update and Update preview <a class="perma" href="#auto-update" aria-label="Link to this section">#</a></h2>
+<p><b>Auto-update preview</b> (checkbox in the tab bar, on by default) re-slices the model about 0.3 seconds after every change, so the preview always follows your settings.</p>
+<p>For large or slow models turn it off. Changes are then collected and an <b>Update preview</b> button appears at the top right of every tab (shortcut <kbd>U</kbd>) with a note such as "settings changed" or "not sliced yet". A newly loaded model is shown in 3D but not sliced until you update. <em>Download all (ZIP)</em> always updates first, so the files always match the settings you see. Turning auto-update back on updates at once if anything changed.</p>
+<p>Settings that only affect the export (formats, DPI, image style, layer chips, file mode) never re-slice. The choice is remembered in the browser and is not part of the project file.</p>
+<figure><img src="docs-img/auto-update.png" width="700" height="97" alt="Update preview button and stale note at the top right" loading="lazy"><figcaption>With auto-update off, the button and note appear when settings changed.</figcaption></figure>
+</section>
+<section id="warnings">
+<h2>Warnings and notes <a class="perma" href="#warnings" aria-label="Link to this section">#</a></h2>
+<p>Problems found while loading or slicing are listed behind the button in the status bar, e.g. <code>0 errors, 3 warnings, 1 note</code>. Click it to open the list: errors and warnings are open, notes are collapsed. An entry that belongs to a layer is a button that jumps to that layer. Esc or a click outside closes the list. The same list is written to the <code>README.txt</code> in the ZIP.</p>
+<figure><img src="docs-img/warnings.png" width="840" height="109" alt="Status bar with a warning count and the opened warnings list for a broken mesh" loading="lazy"><figcaption>A broken mesh: warning count and the opened list.</figcaption></figure>
+<table class="plain"><thead><tr><th>Level</th><th>Typical message</th><th>What to do</th></tr></thead><tbody>
+<tr><td>Warning</td><td>N open edges / non-manifold edges</td><td>The mesh is not watertight. The tool closes gaps per layer with a straight line; check the affected layers. Repair the mesh in your modelling program if the result looks wrong.</td></tr>
+<tr><td>Info</td><td>Degenerate triangles removed</td><td>Harmless clean-up.</td></tr>
+<tr><td>Warning</td><td>Part removed (area below min part area) / Hole removed</td><td>Tiny pieces were deleted. See <a href="#small-parts">Minimum part area</a>.</td></tr>
+<tr><td>Info / warning</td><td>Label does not fit under the next layer / is shrunk / too small</td><td>The label was placed inside the part or made smaller. See <a href="#labels">Layer labels</a>.</td></tr>
+<tr><td>Warning / info</td><td>Dowels: run shorter than 2 layers, no room, only K of N fit</td><td>See <a href="#dowels">Dowel holes</a>.</td></tr>
+<tr><td>Info</td><td>Outlines too short for N bridges</td><td>See <a href="#bridges">Holding bridges</a>.</td></tr>
+<tr><td>Error</td><td>Part (w x h) larger than the usable sheet area and left out</td><td>Make the sheet bigger, reduce the margin or scale the model down.</td></tr>
+<tr><td>Error</td><td>No parts were produced</td><td>The model is thinner than one layer, or Min part area is too large.</td></tr>
+<tr><td>Error (status bar)</td><td>Too many layers (above 5000)</td><td>Increase the material thickness or scale the model down.</td></tr>
+</tbody></table>
+<p>Errors that stop an action (wrong file type, not a valid STL/OBJ/3MF file, no triangles) appear in red in the status bar and keep your previous model. Export problems appear under the download button.</p>
+</section>
+<section id="undo-redo">
+<h2>Undo, redo and keyboard shortcuts <a class="perma" href="#undo-redo" aria-label="Link to this section">#</a></h2>
+<p>Every settings change can be undone (up to 100 steps) with the two arrow buttons next to <em>Auto-update preview</em> or with the keys below. Rapid edits of one field within a second are one step; applying a preset, loading a project or resetting is one step. Loading a model is not an undo step (loading a project file is). Undo is ignored while you type in a field, where the browser's own undo works.</p>
+<table class="plain"><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
+<tr><td><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></td><td>3D, Layer, Sheets tab</td></tr>
+<tr><td>Arrow keys</td><td>Previous / next layer</td></tr>
+<tr><td><kbd>PgUp</kbd> / <kbd>PgDn</kbd></td><td>10 layers up / down</td></tr>
+<tr><td><kbd>Home</kbd> / <kbd>End</kbd></td><td>First / last layer</td></tr>
+<tr><td><kbd>M</kbd></td><td>3D tab: Model / Stacked result</td></tr>
+<tr><td><kbd>F</kbd></td><td>3D tab: frame the model</td></tr>
+<tr><td><kbd>U</kbd></td><td>Update preview (auto-update off)</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> (Cmd on a Mac)</td><td>Undo</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Y</kbd> or <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></td><td>Redo</td></tr>
+<tr><td><kbd>?</kbd></td><td>Help overlay</td></tr>
+<tr><td><kbd>Esc</kbd></td><td>Close help, warnings or a tooltip</td></tr>
+</tbody></table>
+<p>Shortcuts are ignored while a text field, a drop-down or the layer slider has focus. A number field is applied when you leave it or press Enter.</p>
+</section>
+<section id="model">
+<h2>Model group <a class="perma" href="#model" aria-label="Link to this section">#</a></h2>
+<p>Everything about getting the model into the right size and orientation: the drop zone (<em>Choose file…</em>; STL, OBJ and 3MF), the file name and triangle count, a size readout in mm, <a href="#import-unit">Import unit</a>, <a href="#scale">Scale and Target size</a> with <em>Reset 100 %</em>, and <a href="#orientation">Slicing axis and Rotate</a>.</p>
+<p>The size readout always shows the final size in millimetres after unit, scale and rotation. Check it first: if it does not match what you expect, fix the unit or the scale before anything else.</p>
+</section>
+<section id="import-unit">
+<h2>Import unit <a class="perma" href="#import-unit" aria-label="Link to this section">#</a></h2>
+<div class="setting"><h4>Import unit</h4><p class="meta"><span><b>Default</b> mm (millimetre)</span> <span><b>Range</b> micron, mm, cm, m, inch, foot</span></p><p>The unit the model was drawn in. STL and OBJ files have no units, so the app cannot know. The model is multiplied by 0.001 (micron), 1 (mm), 10 (cm), 1000 (m), 25.4 (inch) or 304.8 (foot) to get millimetres. A 3MF file states its unit and sets this field for you (the status bar says so).</p></div>
+<p><b>When to change it:</b> the model loads tiny (a 40 mm cup appears as 0.04 mm: it was in metres) or huge (it appears 25 times too big: it was in inches but read as mm). <b>Tip:</b> after changing the unit the Scale stays at 100 %; only use Scale or Target size for real resizing.</p>
+</section>
+<section id="scale">
+<h2>Scale and target size <a class="perma" href="#scale" aria-label="Link to this section">#</a></h2>
+<div class="setting"><h4>Scale</h4><p class="meta"><span><b>Default</b> 100 %</span> <span><b>Range</b> greater than 0</span></p><p>Resizes the whole model in percent, proportions locked. It applies on top of the Import unit. The field shows the effective scale, including a change made through Target size.</p></div>
+<div class="setting"><h4>Target size along one axis</h4><p class="meta"><span><b>Default</b> not set</span> <span><b>Range</b> X, Y or Z, greater than 0 mm</span></p><p>Pick X, Y or Z and type the size you want in mm; the rest follows. Typing a Scale percentage afterwards cancels the target size. <em>Reset 100 %</em> clears both.</p></div>
+<p class="tip"><b>Beginner tip.</b> Know the height you want? Enter it as Target size on Z (after choosing the axis and rotation). Easier than calculating a percentage.</p>
+</section>
+<section id="orientation">
+<h2>Slicing axis and rotation <a class="perma" href="#orientation" aria-label="Link to this section">#</a></h2>
+<div class="setting"><h4>Slicing axis (points up)</h4><p class="meta"><span><b>Default</b> +Z</span> <span><b>Range</b> +X, -X, +Y, -Y, +Z, -Z</span></p><p>Layers are cut perpendicular to this axis and the selected axis points up in the finished stack. +Z and -Z give the same layers in opposite order (the bottom becomes the top).</p></div>
+<div class="setting"><h4>Rotate</h4><p class="meta"><span><b>Default</b> none</span> <span><b>Range</b> 90 degree steps about X, Y, Z</span></p><p>Each click on <em>X 90°</em>, <em>Y 90°</em> or <em>Z 90°</em> adds a quarter turn after the axis has been chosen. <em>Reset</em> removes all rotation. A note under the buttons shows the rotation in effect.</p></div>
+<p><b>How to choose:</b> every layer is a flat slice, so the stack is stepped. Pick the direction where the shape changes slowly (a vase stands up, a flat plate lies flat), and where overhangs are short. A tall thin model needs many layers and a small sheet; a flat one needs few layers and big parts. Compare directions in the <a href="#view-toggle">stacked view</a>.</p>
+</section>
+<section id="material">
+<h2>Material group <a class="perma" href="#material" aria-label="Link to this section">#</a></h2>
+<p>Describes your plywood and your laser: <a href="#presets">Preset</a> list and <a href="#compare">Compare materials</a>, <a href="#thickness">Thickness</a>, <a href="#sheet-size">Sheet W/H</a>, <a href="#kerf">Kerf</a>, <a href="#sheet-size">Part spacing and Sheet margin</a>, the <a href="#estimates">estimate values</a> (Density, Cut speed, Engrave speed, Price per sheet) and <a href="#calibration">Download calibration sheet</a>. Thickness, sheet and kerf determine the geometry; the estimate values never change the files.</p>
+</section>
+<section id="thickness">
+<h2>Thickness <a class="perma" href="#thickness" aria-label="Link to this section">#</a></h2>
+<div class="setting"><h4>Thickness</h4><p class="meta"><span><b>Default</b> 4.0 mm</span> <span><b>Range</b> at least 0.1 mm</span></p><p>Thickness of one sheet, which is also the height of one layer. The number of layers is the model height divided by this value, rounded up.</p></div>
+<p><b>Why measure:</b> plywood sold as 4 mm is often 3.7 to 3.9 mm. With 50 layers, 3.8 mm instead of 4.0 mm makes the stack 10 mm shorter than planned. Measure with calipers in several places and use the average. Want the final height to be exact? Use <a href="#layer-height">Round height to whole layers</a>.</p>
+</section>
+<section id="sheet-size">
+<h2>Sheet size, part spacing, sheet margin <a class="perma" href="#sheet-size" aria-label="Link to this section">#</a></h2>
+<div class="setting"><h4>Sheet W / Sheet H</h4><p class="meta"><span><b>Default</b> 600 x 400 mm</span> <span><b>Range</b> at least 10 mm each</span></p><p>Size of one sheet (or of your laser bed if smaller). Parts are placed on as many sheets of this size as needed. Width and height are only the two directions in the file; swapping them does not change what is cut.</p></div>
+<div class="setting"><h4>Part spacing</h4><p class="meta"><span><b>Default</b> 3 mm</span> <span><b>Range</b> 0 or more</span></p><p>Minimum gap between neighbouring parts, measured between the final cut lines (kerf is already applied). Too small and heat from one cut scorches the neighbour; too large wastes material. 2 to 5 mm is typical.</p></div>
+<div class="setting"><h4>Sheet margin</h4><p class="meta"><span><b>Default</b> 5 mm</span> <span><b>Range</b> 0 or more</span></p><p>A border at the sheet edge where no parts go: keeps cuts away from warped edges, clamps or bed limits. 3 to 10 mm is typical. A part must fit in the sheet minus the margin on both sides, otherwise it is reported and left out.</p></div>
+<p class="tip"><b>Beginner tip.</b> Set the sheet size to what you actually put on the bed. A part larger than the usable area gets an error in the <a href="#warnings">warnings</a>.</p>
+</section>
+<section id="kerf">
+<h2>Kerf <a class="perma" href="#kerf" aria-label="Link to this section">#</a></h2>
+<div class="setting"><h4>Kerf</h4><p class="meta"><span><b>Default</b> 0.15 mm</span> <span><b>Range</b> 0 or more</span></p><p>The width of material the laser burns away; typically 0.1 to 0.3 mm for a CO2 laser on plywood. The beam follows the path with its centre, so the cut outlines are enlarged by half the kerf on each side and holes shrink by it. Then finished parts have the size of the model. Engraved lines are never offset.</p></div>
+<p><b>How it works:</b> without compensation every part would come out one kerf too small and every hole one kerf too big, so layers would not fit their dowels and the stack would be slightly undersized. Set <b>0</b> if your laser software already compensates. A wrong value makes layers slightly too big or too small, which is visible in a tall stack.</p>
+<p class="tip"><b>Beginner tip.</b> Do not guess: run the <a href="#calibration">calibration sheet</a> and enter the kerf that fits snugly.</p>
+</section>
+<section id="calibration">
+<h2>Calibration sheet <a class="perma" href="#calibration" aria-label="Link to this section">#</a></h2>
+<p><b>Download calibration sheet</b> (Material group, works without a model) gives a small ZIP with a DXF, an SVG and a <code>README.txt</code>. Cut it from a scrap of your plywood, about 160 x 73 mm (with the default 6 mm dowel; the height grows a few mm with a larger dowel diameter), with the same laser settings as for the real job.</p>
+<ul>
+<li><b>Kerf test.</b> Seven 20 mm squares and matching square holes, each pair drawn for a kerf from 0 to 0.30 mm in 0.05 steps and labelled. The pair that fits <em>snugly</em> shows your kerf: enter it in <a href="#kerf">Kerf</a>.</li>
+<li><b>Dowel test.</b> Five round holes around the current Dowel diameter (minus and plus 0.2 mm), labelled with the value to enter once your rod fits.</li>
+</ul>
+<p>Do the kerf test first: the dowel holes are drawn smaller by the current kerf.</p>
+<figure><img src="docs-img/calibration.png" width="1006" height="463" alt="The calibration sheet: seven square pairs and five round holes" loading="lazy"><figcaption>The calibration sheet.</figcaption></figure>
+</section>
+<section id="presets">
+<h2>Material presets <a class="perma" href="#presets" aria-label="Link to this section">#</a></h2>
+<p>A preset stores thickness, sheet size, kerf, part spacing, sheet margin, density, cut speed, engrave speed and price per sheet under a name. Picking one changes all of them at once (one undo step).</p>
+<ul>
+<li><b>Starting points</b> (built in): 3, 4 and 6 mm plywood. They are only guesses (kerf 0.15, or 0.2 for 6 mm; sheet 600 x 400; spacing 3; margin 5; density 0.65). They leave speeds and price alone, and cannot be deleted. Measure your own sheets and run the calibration sheet.</li>
+<li><b>Save…</b> asks for a name and stores your current values (an existing name is replaced after a confirm). <b>Delete</b> removes one of your presets.</li>
+<li>The list shows the preset that matches the current values, and clears when you edit a field.</li>
+<li>Presets live in this browser only, not in the project file.</li>
+</ul>
+</section>
+<section id="compare">
+<h2>Compare materials <a class="perma" href="#compare" aria-label="Link to this section">#</a></h2>
+<p>Answers "which plywood should I buy?". <b>Compare materials…</b> (Material group, needs a model) slices the model with your current settings and then with every preset, one after another in the background. The table shows for each: thickness, layers, parts, sheets, sheet use, cut length, rough time (needs speeds), weight, cost (needs a price) and the number of warnings. The best values are marked. <b>Use</b> applies that row's preset (one undo step).</p>
+<p>A preset replaces thickness, sheet size, kerf, spacing, margin, density, speeds and price. Everything else, including the outline mode, comes from your current settings; a layer range is ignored. Your preview is not touched; <em>Cancel</em> stops the comparison.</p>
+<figure><img src="docs-img/compare.png" width="980" height="386" alt="The Compare materials dialog with a table of presets" loading="lazy"><figcaption>Compare materials with cut speed 20 mm/s and a price of 5 per sheet.</figcaption></figure>
+</section>
+<section id="estimates">
+<h2>Estimates: weight, time, cost <a class="perma" href="#estimates" aria-label="Link to this section">#</a></h2>
+<p>Four optional values give you a rough idea of weight, time and cost. <b>0 means not set</b> and that estimate is hidden. They never change the slicing or the files.</p>
+<div class="setting"><h4>Density</h4><p class="meta"><span><b>Default</b> 0.65 g/cm³</span> <span><b>Range</b> 0 or more</span></p><p>Used for the weight (glued volume x density). Plywood is about 0.6 to 0.7, MDF about 0.75. The volume is the sum of part areas (holes and cavities excluded, before kerf) times the thickness.</p></div>
+<div class="setting"><h4>Cut speed</h4><p class="meta"><span><b>Default</b> 0 (not set)</span> <span><b>Range</b> mm/s</span></p><p>Your laser's cutting speed for this material. Time = cut length / speed.</p></div>
+<div class="setting"><h4>Engrave speed</h4><p class="meta"><span><b>Default</b> 0 (not set)</span> <span><b>Range</b> mm/s</span></p><p>Your laser's engraving speed. Engrave lines and label strokes together.</p></div>
+<div class="setting"><h4>Price per sheet</h4><p class="meta"><span><b>Default</b> 0 (not set)</span> <span><b>Range</b> 0 or more, any currency</span></p><p>Cost = price x number of sheets used; a partly used sheet counts whole.</p></div>
+<p>The time is a <b>lower bound</b>: it ignores travel moves, acceleration, corners, several passes and the BRIDGE layer speed. The full list (cut and engrave length, travel between cuts, glued volume, weight, time, cost) appears when you hover the summary line, in the Export group, and in the ZIP's <code>README.txt</code>.</p>
+</section>
+<section id="slicing">
+<h2>Slicing group <a class="perma" href="#slicing" aria-label="Link to this section">#</a></h2>
+<p>Controls how each layer's outline is taken from the model and cleaned up: <a href="#outline-modes">Outline mode and Samples per layer</a>, <a href="#layer-height">Round height to whole layers</a>, <a href="#smoothing">Smooth outlines</a>, <a href="#simplify">Simplify tolerance</a> and <a href="#small-parts">Min part area and Min feature</a>. The defaults suit most models; change them when you see a specific problem.</p>
+</section>
+<section id="outline-modes">
+<h2>Outline modes (oversize, mid-plane, undersize) and samples <a class="perma" href="#outline-modes" aria-label="Link to this section">#</a></h2>
+<p>A layer is as thick as one sheet, but the model shape changes within that thickness, so the app has to decide which outline the flat part gets.</p>
+<div class="setting"><h4>Outline mode</h4><p class="meta"><span><b>Default</b> Oversize (sand down)</span> <span><b>Range</b> Oversize, Mid-plane, Undersize</span></p><p><b>Oversize</b>: each part covers the model everywhere inside its layer. Glue up, then sand the block down to shape. <b>Mid-plane</b>: the section in the middle of the layer; closest on average but with small steps both ways. <b>Undersize</b>: the part never sticks out of the model, so nothing needs sanding, but the result is slightly smaller and thin details can vanish.</p></div>
+<div class="setting"><h4>Samples per layer</h4><p class="meta"><span><b>Default</b> 3</span> <span><b>Range</b> whole number, at least 1</span></p><p>How many horizontal cross sections are looked at within a layer. Oversize uses their union, Undersize their intersection, so more samples find sloped or curved details a single section would miss. Use 5 or more for steep curves. Has no effect in Mid-plane mode. More samples slow slicing slightly.</p></div>
+<figure><img src="docs-img/outline-modes.png" width="1356" height="423" alt="A cone stacked in oversize, mid-plane and undersize modes side by side" loading="lazy"><figcaption>The same cone in the three modes.</figcaption></figure>
+<p class="tip"><b>Beginner tip.</b> Start with Oversize and sand. It is the forgiving choice: you can always remove wood, never add it.</p>
+</section>
+<section id="layer-height">
+<h2>Round height to whole layers <a class="perma" href="#layer-height" aria-label="Link to this section">#</a></h2>
+<div class="setting"><h4>Round height to whole layers</h4><p class="meta"><span><b>Default</b> off</span> <span><b>Range</b> on / off</span></p><p>Scales the whole model slightly in all directions (proportions kept) so its height is an exact whole number of layers. Without it the top layer is only partly filled and the stack ends a bit taller than the model. The scale change is at most half a layer in height.</p></div>
+<p><b>When:</b> the final height matters more than the exact size, for example a lid that must be exactly as tall as your layers allow.</p>
+</section>
+<section id="smoothing">
+<h2>Smoothing <a class="perma" href="#smoothing" aria-label="Link to this section">#</a></h2>
+<div class="setting"><h4>Smooth outlines (0 = off)</h4><p class="meta"><span><b>Default</b> 0 mm</span> <span><b>Range</b> 0 or more mm</span></p><p>Cleans ragged outlines (small steps, notches, wobbly inside corners) from rough or noisy meshes by rounding with this radius. 0.5 to 1 mm is typical, never more than a fifth of your thinnest wall.</p></div>
+<p><b>How it works:</b> smoothing follows the outline mode, so the mode's promise holds. Oversize only adds material (notches and inside corners are filled and rounded, outside corners stay sharp). Undersize only removes material (spikes, bumps and outside corners are shaved). Mid-plane does both. Anything narrower than twice the radius is lost: slots and gaps in Oversize; thin walls, islands and spikes in the other modes. It does not turn the flat facets of a coarse circle into a smooth curve; export a finer mesh for that.</p>
+<p class="tip"><b>Beginner tip: "it does nothing!"</b> Smoothing is mode-aware. In the default <em>Oversize</em> mode it only rounds <em>concave</em> (inside) corners, so a convex shape such as a cylinder or a cube looks unchanged. In <em>Undersize</em> mode it rounds <em>convex</em> (outside) corners; in <em>Mid-plane</em> mode both. To see an effect on a convex part, switch to Undersize or Mid-plane, or try a part with notches and inside corners.</p>
+<figure><img src="docs-img/smoothing.png" width="912" height="428" alt="A 12-sided prism layer in undersize mode with smoothing 0 mm and 2 mm side by side" loading="lazy"><figcaption>A 12-sided prism (18 mm across) in Undersize mode: smoothing 0 mm on the left, 2 mm on the right. Its outside corners are shaved into round ones.</figcaption></figure>
+</section>
+<section id="simplify">
+<h2>Simplify tolerance <a class="perma" href="#simplify" aria-label="Link to this section">#</a></h2>
+<div class="setting"><h4>Simplify tolerance</h4><p class="meta"><span><b>Default</b> 0.05 mm</span> <span><b>Range</b> 0 or more mm</span></p><p>Removes nearly-straight points from the outlines. No removed point is further from the outline than this. Meshes often produce thousands of tiny segments that make files large and the laser stutter on smooth curves. Typical 0.02 to 0.1; 0 turns it off. In Oversize mode simplification never cuts into the model and in Undersize never goes outside it. High values give faceted curves.</p></div>
+</section>
+<section id="small-parts">
+<h2>Minimum part area and minimum feature <a class="perma" href="#small-parts" aria-label="Link to this section">#</a></h2>
+<div class="setting"><h4>Min part area</h4><p class="meta"><span><b>Default</b> 4 mm²</span> <span><b>Range</b> 0 or more mm²</span></p><p>Pieces smaller than this area, and holes smaller than this, are deleted. They are usually mesh noise or specks too small to cut or glue. Each removal is reported in the warnings. Typical 2 to 10; 0 keeps everything.</p></div>
+<div class="setting"><h4>Min feature (0 = off)</h4><p class="meta"><span><b>Default</b> 0 mm</span> <span><b>Range</b> 0 or more mm</span></p><p>Removes thin parts of an outline: any neck, spike or sliver narrower than this vanishes, while corners and larger shapes keep their size. A typical value is 1 to 2 mm, about the thinnest piece you can cut and glue reliably. It permanently loses detail and, unlike Min part area, also affects thin parts of big shapes.</p></div>
+<p><b>Parts missing?</b> Lower Min part area (or set it to 0) and check Min feature, then read the <a href="#warnings">warnings</a>: each removed part is listed.</p>
+</section>
+<section id="hollowing">
+<h2>Hollowing (wall, solid caps) <a class="perma" href="#hollowing" aria-label="Link to this section">#</a></h2>
+<p>Cuts a cavity out of the inner layers to save material, weight and cutting time. A wall of solid material remains at the model's outline and at every glue joint, and the bottom and top layers stay solid. Good for big domes or spheres, pointless for thin shapes.</p>
+<div class="setting"><h4>Hollow inner layers</h4><p class="meta"><span><b>Default</b> off</span> <span><b>Range</b> on / off</span></p><p>Turns hollowing on. Layers that are too narrow stay solid. If no layer has room for a cavity, a notice is shown.</p></div>
+<div class="setting"><h4>Wall</h4><p class="meta"><span><b>Default</b> 15 mm</span> <span><b>Range</b> 0 or more mm</span></p><p>Thickness of the solid wall around the cavity, measured inside the outlines of the layer below, the layer itself and the layer above. This keeps a ring at least this wide at every glue joint and leaves material to sand in Oversize mode. Thicker walls are stronger and give more glue area but save less material.</p></div>
+<div class="setting"><h4>Solid cap layers</h4><p class="meta"><span><b>Default</b> 1</span> <span><b>Range</b> whole number, 0 or more</span></p><p>How many layers at the bottom and top stay completely solid. The first and last layer are always solid. Use 2 or 3 for a stronger floor and lid, or if you plan to drill or sand the ends.</p></div>
+<figure><img src="docs-img/hollowing.png" width="1112" height="514" alt="A hollowed sphere: Layer tab at the equator and stacked 3D result" loading="lazy"><figcaption>Hollowing on a sphere: layer 7 (the equator) is a ring with a 15 mm wall. In the 3D stack the blue band is that selected layer.</figcaption></figure>
+<p><b>Note:</b> the cavity is fully enclosed (no vent hole). Poke one in afterwards if trapped air or glue fumes matter. Thin hollow walls usually leave no room for <a href="#dowels">dowels</a>.</p>
+</section>
+<section id="gluing-aids">
+<h2>Gluing aids <a class="perma" href="#gluing-aids" aria-label="Link to this section">#</a></h2>
+<p>Stacking 40 near-identical discs is easy to get wrong. These aids make it fool-proof: an <a href="#engrave-lines">engraved outline</a> shows where the next layer goes, <a href="#labels">labels</a> number the parts, and <a href="#dowels">dowel holes</a> let you thread a rod through the stack. The <a href="#assembly-guide">assembly guide</a> adds a printable overview. Stacking rules: cut face-up, stack bottom-up, never flip a part, glue each part on the engraved outline of the part below.</p>
+</section>
+<section id="engrave-lines">
+<h2>Engraved next-layer outline <a class="perma" href="#engrave-lines" aria-label="Link to this section">#</a></h2>
+<div class="setting"><h4>Engrave next-layer outline</h4><p class="meta"><span><b>Default</b> on</span> <span><b>Range</b> on / off</span></p><p>Engraves a light line on top of each part showing where the next layer up goes. You glue each part exactly on that line. Stretches where the next layer's edge lies on the part's own edge are left out (they would only retrace the cut line), so a part completely covered by the next layer has none. The top layer has no next layer, so it has none either.</p></div>
+<p>The line is <em>engraved</em>, not cut: run the ENGRAVE layer at low power (see <a href="#laser-workflow">At the laser</a>). Strongly recommended.</p>
+<figure><img src="docs-img/engrave-lines.png" width="1080" height="800" alt="A stepped tower layer with a blue engraved ring inside the part" loading="lazy"><figcaption>The blue ring is the outline of the next layer.</figcaption></figure>
+</section>
+<section id="labels">
+<h2>Layer labels <a class="perma" href="#labels" aria-label="Link to this section">#</a></h2>
+<div class="setting"><h4>Layer labels</h4><p class="meta"><span><b>Default</b> on</span> <span><b>Range</b> on / off</span></p><p>Engraves the layer number (like <code>L12</code>, or <code>L12-b</code> for a second piece of the same layer) on each part. The label is placed in the area the next layer will cover, so it disappears inside the glued stack.</p></div>
+<div class="setting"><h4>Label height</h4><p class="meta"><span><b>Default</b> 6 mm</span> <span><b>Range</b> 3 mm or more</span></p><p>Height of the letters. If they do not fit in the joint area they are shrunk step by step down to 3 mm; if they still do not fit they are placed anywhere on the part. Typical 5 to 8; below 3 mm is hard to read on plywood.</p></div>
+<p>Turn labels off for clean parts, but then you must keep the order yourself. Messages such as "label does not fit" or "shrunk" in the <a href="#warnings">warnings</a> only say the label is smaller or visible on the finished part.</p>
+<figure><img src="docs-img/labels-dowels.png" width="411" height="394" alt="Several parts on a sheet with green labels and dowel holes" loading="lazy"><figcaption>Detail of a sheet: green layer labels and dowel holes in the parts.</figcaption></figure>
+</section>
+<section id="dowels">
+<h2>Dowel holes <a class="perma" href="#dowels" aria-label="Link to this section">#</a></h2>
+<div class="setting"><h4>Dowel holes</h4><p class="meta"><span><b>Default</b> off</span> <span><b>Range</b> on / off</span></p><p>Adds round holes at identical positions in a run of consecutive layers so you can thread a wooden rod through the stack while gluing. This stops layers from sliding.</p></div>
+<div class="setting"><h4>Dowel diameter</h4><p class="meta"><span><b>Default</b> 6 mm</span> <span><b>Range</b> 1 mm or more</span></p><p>Diameter of your actual rod or bamboo skewer. The hole in the cut path is made smaller by the kerf, so after burning it comes out at this size. Add 0.1 to 0.2 mm for a loose fit that is easier to glue. Larger holes need more room, so fewer layers get holes.</p></div>
+<div class="setting"><h4>Dowel count</h4><p class="meta"><span><b>Default</b> 2</span> <span><b>Range</b> whole number, 1 or more</span></p><p>Holes per run of layers, placed as far apart as possible. Use 2 to lock rotation; 1 only keeps position and lets layers swivel. If the layers have room for fewer, you get fewer and a notice.</p></div>
+<p><b>How it works:</b> holes stay at least 3 mm away from every outline and cavity. A run of layers ends where the layers get too narrow, and a new run starts with its own holes. Runs of a single layer get no holes. If none were placed, read the <a href="#warnings">warnings</a>. Calibrate the hole size with the <a href="#calibration">calibration sheet</a>.</p>
+</section>
+<section id="bridges">
+<h2>Holding bridges <a class="perma" href="#bridges" aria-label="Link to this section">#</a></h2>
+<p>Short uncut tabs that keep each cut part attached to the sheet so it cannot fall, tilt or get pushed into the beam while the rest is being cut. After the job you break the parts out and sand the small stub. Bridges sit on straight edges where possible, evenly spaced. The gaps live on their own file layer, <code>BRIDGE</code> (magenta): give it low power or high speed so it only scores the plywood and the web stays, or leave BRIDGE out of the export to get plain uncut tabs.</p>
+<div class="setting"><h4>Add holding bridges</h4><p class="meta"><span><b>Default</b> off</span> <span><b>Range</b> on / off</span></p><p>Turns bridges on.</p></div>
+<div class="setting"><h4>Bridges per outline</h4><p class="meta"><span><b>Default</b> 2</span> <span><b>Range</b> 1 to 8</span></p><p>How many bridges each outline gets, spread evenly (2 puts them on opposite sides). 2 or 3 hold a small part; use 4 or more for large or heavy parts. An outline too short gets fewer, with a notice.</p></div>
+<div class="setting"><h4>Bridge width</h4><p class="meta"><span><b>Default</b> 0.5 mm</span> <span><b>Range</b> at least 0.1 mm</span></p><p>Material left per bridge, measured after kerf. The gap in the cut path is this width plus the kerf, so the remaining web is exactly this wide. 0.5 mm is typical for 3 to 4 mm plywood: holds the part, snaps easily. Wider holds better but needs more sanding.</p></div>
+<div class="setting"><h4>Min outline length</h4><p class="meta"><span><b>Default</b> 40 mm</span> <span><b>Range</b> 0 or more mm</span></p><p>Outlines with a shorter perimeter get no bridges, so small holes and tiny parts are not weakened. 40 mm is about a 10 mm square. Dowel holes never get bridges.</p></div>
+<div class="setting"><h4>Also bridge inner holes</h4><p class="meta"><span><b>Default</b> off</span> <span><b>Range</b> on / off</span></p><p>Also bridges the inner outlines (the scrap inside holes and cavities), so that scrap does not drop out and jam. Off by default because the scrap is waste anyway.</p></div>
+<div class="setting"><h4>Max spacing (0 = off)</h4><p class="meta"><span><b>Default</b> 0 (off)</span> <span><b>Range</b> 0 or more mm</span></p><p>For long outlines: add bridges so that their spacing is at most this many mm (for example 150 for big plates). Up to 64 bridges per outline.</p></div>
+<figure><img src="docs-img/bridges.png" width="940" height="473" alt="Composite: a plate with bridge gaps circled in blue and a zoomed view of one gap" loading="lazy"><figcaption>Left: a plate with holding bridges; right: zoom on one gap. The blue circles mark the gaps and were added to this picture for the documentation; they are not part of the export. The gaps themselves are the magenta lines.</figcaption></figure>
+</section>
+<section id="nesting">
+<h2>How parts are placed on sheets <a class="perma" href="#nesting" aria-label="Link to this section">#</a></h2>
+<p>The app places the parts on as many sheets of your size as needed. This is automatic; there is nothing to set besides <a href="#sheet-size">sheet size, part spacing and sheet margin</a>.</p>
+<ul>
+<li>Each part is turned to its smallest bounding <b>rectangle</b> and packed as a rectangle (parts may also be turned 90 degrees). Round parts therefore waste sheet area: a sphere uses only about 13 % of a 600 x 400 mm sheet.</li>
+<li>Parts are placed layer by layer, largest first. Each part tries all open sheets before a new sheet is started.</li>
+<li>The summary shows <em>material use</em> as a percentage. Hover a part in the Sheets tab for its name; click to jump to its layer.</li>
+<li>A part bigger than the usable area (sheet minus margins) is reported and left out.</li>
+</ul>
+<figure><img src="docs-img/nesting.png" width="1080" height="425" alt="Two sheets in the Sheets tab holding the layers of a 60 mm sphere" loading="lazy"><figcaption>A 60 mm sphere on 240 x 180 mm sheets: 12 parts on the first sheet and 3 on the second.</figcaption></figure>
+</section>
+<section id="export">
+<h2>Export group and the ZIP file <a class="perma" href="#export" aria-label="Link to this section">#</a></h2>
+<p>The Export group collects everything about the files: <a href="#formats">Formats</a>, <a href="#layers-in-files">Layers in the files</a>, <a href="#inner-cuts">Inner cuts on own layer</a>, <a href="#layer-range">Layer range</a>, <a href="#per-layer-files">Files</a> (per sheet or per layer) and the <a href="#raster">image options</a>, with a summary and <b>Download all (ZIP)</b>.</p>
+<p>The download is always one ZIP named <code>&lt;model&gt;_laser.zip</code>. Inside:</p>
+<ul>
+<li>one file per sheet and format: <code>&lt;model&gt;_sheet01.dxf</code>, <code>_sheet02</code>, ... (or <code>&lt;model&gt;_L012.dxf</code> per layer),</li>
+<li><code>assembly.html</code> if you ticked the <a href="#assembly-guide">assembly guide</a>,</li>
+<li><code>README.txt</code>: summary, estimates, all settings used, the stacking order, DXF layer colours and every warning.</li>
+</ul>
+<p>Export settings never re-slice. Download always brings the preview up to date first.</p>
+</section>
+<section id="formats">
+<h2>File formats (DXF, SVG, PNG, JPG, assembly guide) <a class="perma" href="#formats" aria-label="Link to this section">#</a></h2>
+<div class="setting"><h4>Formats</h4><p class="meta"><span><b>Default</b> DXF only</span> <span><b>Range</b> any combination</span></p><p>Tick the files you want in the ZIP.</p></div>
+<table class="plain"><thead><tr><th>Format</th><th>Use</th></tr></thead><tbody>
+<tr><td><b>DXF</b></td><td>The file to cut with. AutoCAD R12 format, millimetres, Y up, layers as described in <a href="#layers-in-files">Layers in the files</a>. Opens in most laser software.</td></tr>
+<tr><td><b>SVG</b></td><td>The same drawing, 1 unit = 1 mm, layers as groups. A second vector option for software that prefers SVG.</td></tr>
+<tr><td><b>PNG / JPG</b></td><td>Pictures for engraving, previewing or tracing. <em>Not for cutting directly.</em> See <a href="#raster">PNG/JPG options</a>.</td></tr>
+<tr><td><b>Assembly guide (HTML)</b></td><td>A printable gluing guide, see <a href="#assembly-guide">below</a>.</td></tr>
+</tbody></table>
+</section>
+<section id="layers-in-files">
+<h2>Layers in the files (CUT, ENGRAVE, LABEL, BRIDGE, SHEET) <a class="perma" href="#layers-in-files" aria-label="Link to this section">#</a></h2>
+<p>These chips choose what is written into DXF, SVG, PNG and JPG. They are independent of the legend checkboxes, which only change the view. At least one must stay selected.</p>
+<table class="plain"><thead><tr><th>Layer</th><th>Default</th><th>Contains</th></tr></thead><tbody>
+<tr><td><code>CUT</code></td><td>on</td><td>Part outlines and dowel holes. Without it the files do not cut the parts out (a note warns you).</td></tr>
+<tr><td><code>ENGRAVE</code></td><td>on</td><td>The next-layer outline.</td></tr>
+<tr><td><code>LABEL</code></td><td>on</td><td>The layer numbers (as lines, no text entities, so no font is needed).</td></tr>
+<tr><td><code>BRIDGE</code></td><td>on</td><td>The bridge gaps. Without it the gaps stay uncut tabs.</td></tr>
+<tr><td><code>SHEET border</code></td><td>off</td><td>A frame around the sheet (grey in images).</td></tr>
+</tbody></table>
+<p>Use this, for example, to make one file with the cut lines only and a second with the engraving only. In the DXF every layer exists with a fixed colour, even if empty, so your colour mapping stays stable.</p>
+</section>
+<section id="inner-cuts">
+<h2>Inner cuts first / CUT_INNER <a class="perma" href="#inner-cuts" aria-label="Link to this section">#</a></h2>
+<div class="setting"><h4>Inner cuts on own layer (CUT_INNER)</h4><p class="meta"><span><b>Default</b> off</span> <span><b>Range</b> on / off</span></p><p>Puts holes, hollowing cavities and dowel holes on a separate layer <code>CUT_INNER</code> (orange) in DXF and SVG, so only the outer outlines stay on <code>CUT</code>. In LightBurn and similar software you can then cut CUT_INNER first and CUT last, so a part cannot drop or shift before its holes are cut.</p></div>
+<p>Even without this option the files list inner cuts before outlines. The option just lets you control the order in your software. PNG and JPG ignore it. Bridge gaps on inner rings stay on BRIDGE.</p>
+</section>
+<section id="cut-order">
+<h2>Cutting order and travel <a class="perma" href="#cut-order" aria-label="Link to this section">#</a></h2>
+<p>In DXF and SVG each sheet is written in a sensible order: sheet border (if chosen), <b>engraving</b>, <b>labels</b>, then all <b>holes and dowel circles</b> of the sheet, then all <b>outlines</b> and finally the bridge gaps. A part is therefore marked before it can move, and no outline is cut before every hole of its sheet. Inside each group the path follows a nearest-neighbour route from the sheet's lower-left corner. The travel between cuts (about half of an unordered route on a multi-part sheet) is shown in the estimates and the ZIP README.</p>
+<p>Your laser software may re-order things (LightBurn has its own order and optimisation); see <a href="#laser-workflow">At the laser</a>.</p>
+</section>
+<section id="layer-range">
+<h2>Export a layer range <a class="perma" href="#layer-range" aria-label="Link to this section">#</a></h2>
+<div class="setting"><h4>Layer range to export (From / To)</h4><p class="meta"><span><b>Default</b> empty (all layers)</span> <span><b>Range</b> 0 to last layer</span></p><p>Exports only some layers, for example to recut one that broke or went missing. Use the same numbers as the Layer tab and part names (layer 0 is the bottom, <code>L012</code> is layer 12). An empty field means no limit; <em>All layers</em> resets.</p></div>
+<p>Only those layers are nested, so the Sheets tab, the summary and the estimates show exactly what will be cut. Labels and engrave lines stay those of the full model, so a recut layer fits the rest of the stack. A range outside the model is clamped (the note under the fields says so) and a reversed range is swapped. Files per layer, the images and the assembly guide follow the range too.</p>
+<figure><img src="docs-img/layer-range.png" width="287" height="85" alt="Export group with From and To fields set and the range note" loading="lazy"><figcaption>Only the From and To fields of the Export group, set to recut a few layers.</figcaption></figure>
+</section>
+<section id="per-layer-files">
+<h2>One file per layer <a class="perma" href="#per-layer-files" aria-label="Link to this section">#</a></h2>
+<div class="setting"><h4>Files</h4><p class="meta"><span><b>Default</b> One file per sheet</span> <span><b>Range</b> One file per sheet, One file per layer</span></p><p><b>Per sheet</b> (default): all parts nested together on sheets of your size, which is what you cut, with the fewest sheets. <b>Per layer</b>: each layer in its own file with only that layer's parts, not nested to the sheet; layers without parts are skipped.</p></div>
+<p>Per-layer files suit cutting one layer at a time or finding a layer's parts easily, but they use material less efficiently.</p>
+</section>
+<section id="raster">
+<h2>PNG/JPG options (DPI, style, engrave) <a class="perma" href="#raster" aria-label="Link to this section">#</a></h2>
+<p>These appear when PNG or JPG is ticked. Images are for engraving, previewing or tracing, not for cutting without tracing. PNG gives sharper edges; JPG (quality 95) is smaller.</p>
+<div class="setting"><h4>Resolution</h4><p class="meta"><span><b>Default</b> 300 DPI</span> <span><b>Range</b> presets or Custom (1 to 4800)</span></p><p>Dots per inch; the DPI is stored in the file so it opens at true size. 254 DPI is exactly 10 pixels per mm. 600 or more gives sharper edges and much bigger files. Very large sheets are refused above a size limit, and the message suggests a lower value.</p></div>
+<div class="setting"><h4>Image style</h4><p class="meta"><span><b>Default</b> Filled (black parts)</span> <span><b>Range</b> Filled, Outline (1 px lines)</span></p><p>Filled draws each part as a solid black shape with holes white, for engraving or raster work. Outline draws only the cut lines as 1 pixel lines, useful as a tracing reference.</p></div>
+<div class="setting"><h4>Engrave lines and labels (grey)</h4><p class="meta"><span><b>Default</b> on</span> <span><b>Range</b> on / off</span></p><p>Also draws the engraved outline and the labels in grey. Turn it off for pure black part shapes. The DXF and SVG are not affected.</p></div>
+</section>
+<section id="assembly-guide">
+<h2>Assembly guide <a class="perma" href="#assembly-guide" aria-label="Link to this section">#</a></h2>
+<p>Tick <b>Assembly guide (HTML)</b> in the formats and the ZIP gets <code>assembly.html</code>: a printable A4 gluing guide. Gluing 20 or more layers is error-prone; this removes the guesswork.</p>
+<ul>
+<li>A header with model name, date, material, layers, parts, sheets, outline mode, drawing scale and estimates, and a short "how to glue" list.</li>
+<li>One block per layer: its id, the position (bottom / top), one line per part with the sheet it is on (so you can find it in the cut-out pile), the dowel hole count and a drawing of the layer in its model position with the layer below dashed.</li>
+<li>All drawings use one scale, so sizes can be compared. It follows the layer range.</li>
+</ul>
+<p>It is one file that opens in any browser, needs no network or script, and prints in black and white (about three layers per page).</p>
+<figure><img src="docs-img/assembly-guide.png" width="690" height="885" alt="The first page of the assembly guide with header and first layer block" loading="lazy"><figcaption>The assembly guide: the page header and the block of the first layer (the following layers continue below).</figcaption></figure>
+</section>
+<section id="project">
+<h2>Project files and session restore <a class="perma" href="#project" aria-label="Link to this section">#</a></h2>
+<p>The <b>Project</b> group saves your work.</p>
+<div class="setting"><h4>Save settings… / Load settings…</h4><p class="meta"><span><b>Range</b> .json file</span></p><p>Saves all settings (not presets, not the view) as <code>laser-slicer-project.json</code> and loads them again. Loading is one undo step.</p></div>
+<div class="setting"><h4>Include the model in the project file</h4><p class="meta"><span><b>Default</b> off</span> <span><b>Range</b> on / off</span></p><p>Also stores the original STL, OBJ or 3MF in the project file (the file grows by about a third of the model size). Loading brings back model and settings in one step. Needs a loaded model. A damaged model in a project file is reported and nothing is changed.</p></div>
+<div class="setting"><h4>Restore the last model when the page opens</h4><p class="meta"><span><b>Default</b> off</span> <span><b>Range</b> on / off</span></p><p>Keeps the last model in this browser (never leaves your device, models up to 50 MB) and loads it again when the page opens. Turning it off deletes the stored copy. The slicing result is not stored; it is computed again.</p></div>
+<p>Independent of this, the app remembers your last <em>settings</em> in the browser. Presets, the auto-update choice and the hidden legend traces are also stored in the browser and are not part of the project file. If the browser blocks storage the app still works, it just starts with defaults.</p>
+</section>
+<section id="laser-workflow">
+<h2>At the laser: LightBurn &amp; co. <a class="perma" href="#laser-workflow" aria-label="Link to this section">#</a></h2>
+<p>Open the DXF (or SVG) in your laser software. The file layers carry fixed colours, so the software puts each into its own layer, and you give each colour its own settings. The colours are AutoCAD colour indices (ACI).</p>
+<table class="plain"><thead><tr><th>File layer</th><th>ACI colour</th><th>Set it to</th><th>Typical power</th></tr></thead><tbody>
+<tr><td><code>CUT</code></td><td>1 red</td><td>Line / cut (through)</td><td>Cutting power and speed for your plywood</td></tr>
+<tr><td><code>CUT_INNER</code></td><td>30 orange</td><td>Line / cut, and order it <b>before</b> CUT</td><td>Same as CUT</td></tr>
+<tr><td><code>ENGRAVE</code></td><td>5 blue</td><td>Line / score (mark only)</td><td>Low power, fast</td></tr>
+<tr><td><code>LABEL</code></td><td>3 green</td><td>Line / score (mark only)</td><td>Low power, fast</td></tr>
+<tr><td><code>BRIDGE</code></td><td>6 magenta</td><td>Line / score (does not cut through) or leave out</td><td>Low power so the web remains</td></tr>
+<tr><td><code>SHEET</code></td><td>8 grey</td><td>Do not output (frame for reference)</td><td>Off</td></tr>
+</tbody></table>
+<ol>
+<li>Import the DXF; check the size (the DXF is in millimetres, 1:1).</li>
+<li>Set a mode and speed/power for each colour as in the table. Test engraving power on a scrap: the glue line should be visible but not burn through.</li>
+<li>Set the <b>order</b> of the layers: engraving and labels first, then CUT_INNER (if you use it), then CUT last, and BRIDGE (if scored) before CUT. Cutting the outline last keeps the part from moving before it is marked.</li>
+<li>Place the plywood at the sheet origin your file expects (the lower-left corner of the sheet is 0,0), or use the software's origin settings.</li>
+<li>Do a test cut of the <a href="#calibration">calibration sheet</a> with the same settings.</li>
+</ol>
+<p class="note"><b>General guidance only.</b> The steps above are generic and not specific to one program; menu names differ between LightBurn, LaserGRBL, RDWorks and others, so use your software's own manual for the details. The DXF was only verified by reading it back with a DXF parser. It has not been tested in LightBurn, LibreCAD or other software, so check the imported colours, size and layer order before the first real job. Using PNG/JPG is not recommended for cutting.</p>
+<p>If your software ignores layer colours, export separate files with <a href="#layers-in-files">Layers in the files</a>: one with only CUT (and CUT_INNER), one with only ENGRAVE and LABEL.</p>
+</section>
+<section id="mobile">
+<h2>Phones and tablets <a class="perma" href="#mobile" aria-label="Link to this section">#</a></h2>
+<p>On a window up to 820 px wide (phones, small tablets) the settings panel becomes a drawer. Tap <b>Settings</b> in the tab bar to open it; <em>Close</em>, a tap on the dimmed view or Esc closes it, and choosing a model file closes it too, so you see the model. The views take the full width, the legend starts collapsed and buttons are large enough for touch. Everything else works as on the desktop.</p>
+<p>You can slice and download on a phone, but you will probably still need a computer to open the DXF in your laser software. The phone layout was only tested with emulated devices, not on real hardware.</p>
+<figure><img src="docs-img/mobile.png" width="390" height="664" alt="The app on a phone showing the Sheets tab" loading="lazy"><figcaption>Phone layout.</figcaption></figure>
+<figure><img src="docs-img/mobile-drawer.png" width="390" height="664" alt="The app on a phone with the settings drawer open" loading="lazy"><figcaption>The settings drawer.</figcaption></figure>
+</section>
+<section id="troubleshooting">
+<h2>Troubleshooting / FAQ <a class="perma" href="#troubleshooting" aria-label="Link to this section">#</a></h2>
+<dl class="faq">
+<dt>The model is tiny or gigantic.</dt><dd>STL and OBJ have no units. Change the <a href="#import-unit">Import unit</a> (mm, cm, m, inch, ...) until the size readout is right. Then use Target size if needed.</dd>
+<dt>The stack comes out too small or too tall.</dt><dd>Measure the real <a href="#thickness">thickness</a> with calipers. Consider <a href="#layer-height">Round height to whole layers</a>.</dd>
+<dt>Parts are missing from a layer or the sheets.</dt><dd>Check the <a href="#warnings">warnings</a>. Likely causes: <a href="#small-parts">Min part area</a> or Min feature removed them; a part is bigger than the usable sheet (make the sheet bigger or the margin smaller); Undersize mode removed a thin detail; the layer lies above the model in Mid-plane mode ("Layer N is empty").</dd>
+<dt>Parts do not fit together, holes are too tight or too loose.</dt><dd>Check the <a href="#kerf">Kerf</a> with the <a href="#calibration">calibration sheet</a>. Also check that your laser software does not add its own kerf offset (then set Kerf to 0 here) and that the file is imported at 100 %.</dd>
+<dt>The dowel does not fit.</dt><dd>Run the dowel test of the calibration sheet and enter the value of the hole that fits. Do the kerf test first.</dd>
+<dt>No dowel holes appear.</dt><dd>Dowels need two or more consecutive layers with enough room (holes keep 3 mm from every outline). Reduce the Dowel diameter or count, or turn hollowing off. See the warnings.</dd>
+<dt>Warnings about the mesh (open edges, non-manifold).</dt><dd>The model is not watertight. The tool patches gaps per layer, usually fine for small gaps. For large gaps the layers can be wrong: look at those layers and repair the model in your modelling software.</dd>
+<dt>Label warnings.</dt><dd>"Does not fit under the next layer" means the label is on a visible part of the part and will not be hidden; "shrunk" means smaller letters. Reduce <a href="#labels">Label height</a>, or ignore them.</dd>
+<dt>The preview does not update.</dt><dd>Auto-update may be off: click <em>Update preview</em> or press U.</dd>
+<dt>The page is slow with a large model.</dt><dd>Turn off <a href="#auto-update">Auto-update</a> and raise <a href="#simplify">Simplify tolerance</a>. Fewer samples per layer help a little.</dd>
+<dt>Parts fall or tilt while cutting.</dt><dd>Use <a href="#bridges">Holding bridges</a>, or tape or weights.</dd>
+<dt>The outline is cut before the holes.</dt><dd>Turn on <a href="#inner-cuts">Inner cuts on own layer</a> and put CUT last in your laser software.</dd>
+<dt>Cut-outs are scorched.</dt><dd>Raise <a href="#sheet-size">Part spacing</a>, lower power or raise speed in your laser software.</dd>
+<dt>The ZIP download is refused.</dt><dd>Read the message under the button: no format or no layer selected, or a PNG/JPG would be too big (lower the DPI).</dd>
+<dt>My settings disappeared.</dt><dd>They are stored in this browser. A private window or cleared site data starts fresh. Save a <a href="#project">project file</a> to keep them.</dd>
+</dl>
+</section>
+<section id="privacy">
+<h2>Privacy, offline use and licence <a class="perma" href="#privacy" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><b>Everything stays on your device.</b> The model is read and sliced in your browser. Nothing is uploaded, no analytics, no accounts.</li>
+<li><b>Offline.</b> The app is a single HTML file; you can save the site folder and open <code>index.html</code> and this page from your disk without a network. The legal links and this documentation are relative, so they work from the folder too.</li>
+<li><b>Stored in the browser:</b> settings, material presets, a few view preferences and, only if you switch it on, the last model. See <a href="#project">Project files and session restore</a>.</li>
+<li><b>Licence.</b> Free software under the GNU General Public License, version 3 only. The source is on <a href="https://github.com/DrKlenkk/LaserSlicer">GitHub</a>. See Lizenzen below for third-party licences.</li>
+<li><b>Tested</b> in Chromium. Firefox, Safari and Edge are untested.</li>
+</ul>
+</section>
+<section id="glossary">
+<h2>Glossary <a class="perma" href="#glossary" aria-label="Link to this section">#</a></h2>
+<dl class="faq">
+<dt>ACI</dt><dd>AutoCAD Colour Index: the numbers behind the layer colours in a DXF (1 red, 3 green, 5 blue, 6 magenta, 8 grey).</dd>
+<dt>Bridge / tab</dt><dd>A short uncut stretch in an outline that keeps a part attached to the sheet until you break it out.</dd>
+<dt>Cap layers</dt><dd>The solid layers kept at the bottom and top of a hollowed stack.</dd>
+<dt>DXF</dt><dd>A common drawing exchange format; here the old, simple R12 version in millimetres.</dd>
+<dt>Dowel</dt><dd>A wooden rod pushed through aligned holes to keep layers lined up.</dd>
+<dt>Engrave / score</dt><dd>Marking the surface with low power instead of cutting through.</dd>
+<dt>Island</dt><dd>A separate piece of one layer's outline; it becomes its own part (<code>L012-b</code>).</dd>
+<dt>Joint</dt><dd>The overlap between a part and the next layer; where glue goes and where labels sit.</dd>
+<dt>Kerf</dt><dd>The width of material the laser burns away.</dd>
+<dt>Layer</dt><dd>One flat slice of the model, as thick as one sheet of material. Layer 0 is the bottom.</dd>
+<dt>Mesh / watertight</dt><dd>The triangles of a 3D model. Watertight means closed without gaps.</dd>
+<dt>Nesting</dt><dd>Arranging parts on sheets without overlap.</dd>
+<dt>Oversize / mid-plane / undersize</dt><dd>The three ways to derive a layer outline from the model, see <a href="#outline-modes">Outline modes</a>.</dd>
+<dt>Sheet use</dt><dd>The share of sheet area covered by parts.</dd>
+<dt>Stack</dt><dd>The glued pile of layers.</dd>
+</dl>
+</section>
+<nav class="bottom" aria-label="Legal"><a href="index.html">Open the app</a> <a href="impressum.html">Impressum</a> <a href="datenschutz.html">Datenschutz</a> <a href="lizenzen.html">Lizenzen</a></nav>
+</main>
+</div>
+</body>
+</html>

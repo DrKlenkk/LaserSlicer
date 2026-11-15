@@ -1,15 +1,23 @@
-// Verifies dist/ is the deployable site: the self-contained index.html, the three German legal pages and the two licence files,
-// with no resource loaded from any external origin and no analytics or tracking code.
-import { readdirSync, readFileSync, statSync } from "node:fs";
+// Verifies dist/ is the deployable site: the self-contained index.html, the documentation page (docs.html with its
+// docs-img/ screenshots), the three German legal pages and the two licence files, with no resource loaded from any
+// external origin and no analytics or tracking code. Also checks that every tooltip link (HELP_DOC) points to a section
+// of docs.html and that every screenshot docs.html shows exists.
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 
 const fail = (msg) => {
   console.error("CHECK FAILED: " + msg);
   process.exit(1);
 };
 
-const EXPECTED = ["LICENSE.txt", "THIRD_PARTY_LICENSES.txt", "datenschutz.html", "impressum.html", "index.html", "lizenzen.html"];
-const files = readdirSync("dist").sort();
-if (files.join("|") !== EXPECTED.join("|")) fail(`dist must contain exactly ${EXPECTED.join(", ")}, found: ${files.join(", ")}`);
+const EXPECTED = ["LICENSE.txt", "THIRD_PARTY_LICENSES.txt", "datenschutz.html", "docs-img", "docs.html", "impressum.html", "index.html", "lizenzen.html"];
+const entries = readdirSync("dist").sort();
+if (!entries.includes("docs.html")) fail("dist/docs.html is missing (the documentation page lives in public/docs.html)");
+if (entries.join("|") !== EXPECTED.join("|")) fail(`dist must contain exactly ${EXPECTED.join(", ")}, found: ${entries.join(", ")}`);
+if (!statSync("dist/docs-img").isDirectory()) fail("dist/docs-img must be a directory");
+// Screenshots: only png and jpg, no subfolders.
+const images = readdirSync("dist/docs-img").sort();
+for (const i of images) if (!/^[\w.-]+\.(png|jpg)$/.test(i) || !statSync(`dist/docs-img/${i}`).isFile()) fail(`dist/docs-img/${i}: only .png and .jpg files are allowed`);
+const files = entries.filter((e) => e !== "docs-img");
 
 const HTML = files.filter((f) => f.endsWith(".html"));
 const read = (f) => readFileSync(`dist/${f}`, "utf8");
@@ -59,9 +67,9 @@ for (const f of HTML) {
   if (bad.length) fail(`${f}: network URLs found outside comments, namespaces and <a href>:\n  ${bad.join("\n  ")}`);
 }
 
-// The legal pages must work without JavaScript and on phones.
+// The legal pages and the documentation must work without JavaScript and on phones.
 const index = read("index.html");
-for (const f of ["impressum.html", "datenschutz.html", "lizenzen.html"]) {
+for (const f of ["impressum.html", "datenschutz.html", "lizenzen.html", "docs.html"]) {
   if (/<script\b/i.test(read(f))) fail(`${f}: legal pages must work without JavaScript`);
   if (!/name="viewport"/.test(read(f))) fail(`${f}: viewport meta missing`);
 }
@@ -84,6 +92,22 @@ for (const needle of ["© 2026 Louis Adrian Spencer", "GPL-3.0", "https://github
   if (!index.includes(needle)) fail(`index.html lacks "${needle}"`);
 }
 
+// Documentation: the app links to it, every tooltip anchor exists in it, every screenshot it shows exists.
+if (!/docs\.html/.test(index)) fail("index.html does not link to docs.html");
+const docs = read("docs.html");
+const ids = new Set([...docs.matchAll(/\sid\s*=\s*["']([^"']+)["']/g)].map((m) => m[1]));
+const helpSrc = readFileSync("src/ui/helpText.ts", "utf8");
+const mapSrc = helpSrc.match(/export const HELP_DOC[^=]*=\s*\{([\s\S]*?)\n\};/);
+if (!mapSrc) fail("HELP_DOC not found in src/ui/helpText.ts");
+const mapping = [...mapSrc[1].matchAll(/^\s*(\w+):\s*"([^"]+)"/gm)];
+if (mapping.length < 40) fail(`HELP_DOC has only ${mapping.length} entries`);
+for (const [, key, anchor] of mapping) if (!ids.has(anchor)) fail(`tooltip "${key}" links to docs.html#${anchor}, but docs.html has no id="${anchor}"`);
+for (const m of docs.matchAll(/\shref\s*=\s*["']#([^"']+)["']/g)) if (!ids.has(m[1])) fail(`docs.html links to #${m[1]}, which does not exist`);
+const shown = [...docs.matchAll(/<img\b[^>]*\ssrc\s*=\s*["']([^"']+)["']/gi)].map((m) => m[1]);
+for (const src of shown) {
+  if (!/^docs-img\/[\w.-]+\.(png|jpg)$/.test(src)) fail(`docs.html: image "${src}" must be docs-img/<name>.png or .jpg`);
+  if (!existsSync(`dist/${src}`)) fail(`docs.html shows ${src}, which is missing in dist/`);
+}
 // Licence files.
 const lic = read("LICENSE.txt");
 if (!/GNU GENERAL PUBLIC LICENSE\s+Version 3, 29 June 2007/.test(lic) || !lic.includes("Copyright (c) 2026 Louis Adrian Spencer")) fail("LICENSE.txt is not the GPL-3.0 with the copyright line");
@@ -101,4 +125,5 @@ for (const f of files) {
 }
 
 const sizes = files.map((f) => `${f} ${(statSync(`dist/${f}`).size / 1024).toFixed(1)} KiB`).join(", ");
-console.log(`dist OK: ${sizes}; no external resources, no analytics`);
+const imgKiB = images.reduce((n, i) => n + statSync(`dist/docs-img/${i}`).size, 0) / 1024;
+console.log(`dist OK: ${sizes}; docs-img ${images.length} images ${imgKiB.toFixed(0)} KiB; ${mapping.length} tooltip links resolve; no external resources, no analytics`);

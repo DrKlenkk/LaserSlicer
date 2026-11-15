@@ -1,4 +1,4 @@
-// Calibration sheet: a small drawing (about 160 x 80 mm) with a kerf test and a dowel test. Pure geometry plus the file bundle;
+// Calibration sheet: a small drawing (about 160 x 73 mm) with a kerf test and a dowel test. Pure geometry plus the file bundle;
 // no DOM, no clipper (all shapes are rectangles and circles). Y up, origin lower-left, mm.
 //
 // Kerf test: KERF_VALUES.length pairs of a nominal 20 mm square and a 20 mm square hole. For a test kerf k the square's cut path is

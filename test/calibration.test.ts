@@ -36,7 +36,7 @@ describe("calibration sheet geometry", () => {
   const d = c.drawing;
   const sheet = { x0: 0, x1: c.width, y0: 0, y1: c.height };
 
-  it("is about 160 x 80 mm and everything fits on it", () => {
+  it("is about 160 x 73 mm and everything fits on it", () => {
     expect(c.width).toBeLessThanOrEqual(160);
     expect(c.height).toBeLessThanOrEqual(100);
     for (const r of [...d.outerClosed!, ...d.innerClosed!]) expect(inside(bb(r), sheet)).toBe(true);

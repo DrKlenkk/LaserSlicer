@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_SETTINGS } from "../src/state";
-import { EXTRA_HELP_KEYS, HELP } from "../src/ui/helpText";
+import { EXTRA_HELP_KEYS, HELP, HELP_DOC, docUrl } from "../src/ui/helpText";
 import { placeTooltip } from "../src/ui/tooltip";
 
 const uiSource = readdirSync("src/ui").filter((f) => f.endsWith(".ts") && f !== "helpText.ts").map((f) => readFileSync(`src/ui/${f}`, "utf8")).join("\n") + readFileSync("src/main.ts", "utf8");
@@ -51,5 +51,35 @@ describe("tooltip placement", () => {
       expect(p.top).toBeGreaterThanOrEqual(8);
       expect(p.top + 200).toBeLessThanOrEqual(vh - 8);
     }
+  });
+});
+
+// Every section id of public/docs.html that the documentation promises (the anchors the tooltips may link to are a subset).
+const DOC_SECTIONS = ["getting-started", "interface", "tabs", "view-toggle", "legend", "auto-update", "warnings", "undo-redo", "model", "import-unit", "scale", "orientation", "material", "thickness", "sheet-size", "kerf", "calibration", "presets", "compare", "estimates", "slicing", "outline-modes", "layer-height", "smoothing", "simplify", "small-parts", "hollowing", "gluing-aids", "engrave-lines", "labels", "dowels", "bridges", "nesting", "export", "formats", "layers-in-files", "inner-cuts", "cut-order", "layer-range", "per-layer-files", "raster", "assembly-guide", "project", "laser-workflow", "mobile", "troubleshooting", "privacy", "glossary"];
+
+describe("documentation links", () => {
+  it("maps every help key to an anchor (and nothing else)", () => {
+    expect(Object.keys(HELP_DOC).sort()).toEqual(Object.keys(HELP).sort());
+    for (const [k, a] of Object.entries(HELP_DOC)) expect(a, k).toMatch(/^[a-z][a-z0-9-]*$/);
+  });
+  it("builds relative links to docs.html", () => {
+    expect(docUrl("kerf")).toBe("docs.html#kerf");
+    expect(docUrl("dowelCount")).toBe("docs.html#dowels");
+  });
+  it("only maps to documented sections", () => {
+    for (const [k, a] of Object.entries(HELP_DOC)) expect(DOC_SECTIONS, `${k} -> ${a}`).toContain(a);
+  });
+  it("public/docs.html exists and has every anchor", () => {
+    let html = "";
+    try {
+      html = readFileSync("public/docs.html", "utf8");
+    } catch {
+      throw new Error("public/docs.html is missing: the documentation page has not been added yet");
+    }
+    const ids = new Set([...html.matchAll(/\sid\s*=\s*["']([^"']+)["']/g)].map((m) => m[1]));
+    const missing = DOC_SECTIONS.filter((a) => !ids.has(a));
+    expect(missing, `docs.html lacks the section ids: ${missing.join(", ")}`).toEqual([]);
+    const used = [...new Set(Object.values(HELP_DOC))].filter((a) => !ids.has(a));
+    expect(used, `tooltip anchors missing in docs.html: ${used.join(", ")}`).toEqual([]);
   });
 });
