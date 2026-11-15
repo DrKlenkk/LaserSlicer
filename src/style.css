@@ -174,8 +174,10 @@ button.warn-item:hover { background: var(--accent-soft); }
 
 /* layer tab */
 .layer-view { position: absolute; inset: 0; display: flex; flex-direction: column; }
-.layer-canvas { flex: 1; min-height: 0; width: 100%; display: block; cursor: grab; touch-action: none; outline: none; }
-.layer-canvas:active { cursor: grabbing; }
+.layer-canvas { flex: 1; min-height: 0; width: 100%; display: block; cursor: grab; cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath d='M14 2l4 5h-3v5h5v-3l5 5-5 5v-3h-5v5h3l-4 5-4-5h3v-5H8v3l-5-5 5-5v3h5V7h-3z' fill='white' stroke='%23111' stroke-width='1.6' stroke-linejoin='round'/%3E%3C/svg%3E") 14 14, grab; touch-action: none; outline: none; }
+.layer-canvas:active { cursor: grabbing; cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath d='M14 2l4 5h-3v5h5v-3l5 5-5 5v-3h-5v5h3l-4 5-4-5h3v-5H8v3l-5-5 5-5v3h5V7h-3z' fill='white' stroke='%23111' stroke-width='1.6' stroke-linejoin='round'/%3E%3C/svg%3E") 14 14, grabbing; }
+.layer-canvas.over-part:active { cursor: grabbing; }
+.layer-canvas.over-part { cursor: pointer; cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M4 2l15 10-7 1.5 4 7.5-3 1.5-4-7.5-5 5z' fill='white' stroke='%23111' stroke-width='1.6' stroke-linejoin='round'/%3E%3C/svg%3E") 3 2, pointer; }
 .layer-info { position: absolute; top: 10px; left: 12px; padding: 4px 10px; border-radius: 6px; background: color-mix(in srgb, var(--surface) 85%, transparent); border: 1px solid var(--border); font-variant-numeric: tabular-nums; }
 .layer-empty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); pointer-events: none; }
 .layer-bar { display: flex; align-items: center; gap: 14px; padding: 8px 12px; border-top: 1px solid var(--border); background: var(--panel); }
@@ -409,7 +411,7 @@ button.warn-item:hover { background: var(--accent-soft); }
 .measure-box { position: absolute; top: 10px; right: 12px; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; z-index: 2; }
 .measure-box .measure-btn.active { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
 .measure-readout { padding: 4px 10px; border-radius: 6px; background: color-mix(in srgb, var(--surface) 90%, transparent); border: 1px solid var(--border); font-size: 12px; font-variant-numeric: tabular-nums; max-width: 60vw; }
-.layer-canvas.measuring { cursor: crosshair; }
+.layer-canvas.measuring, .layer-canvas.measuring:active { cursor: crosshair; }
 
 /* explode and section sliders of the 3D stacked view */
 .stack-controls { position: absolute; right: 12px; bottom: 12px; z-index: 2; display: flex; flex-direction: column; gap: 6px; width: min(270px, calc(100% - 128px)); padding: 8px 10px; border-radius: 8px; background: color-mix(in srgb, var(--surface) 90%, transparent); border: 1px solid var(--border); font-size: 12px; }

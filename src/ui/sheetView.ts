@@ -7,9 +7,9 @@ import { cutPaths } from "../core/bridges";
 import { h } from "./dom";
 import { createLegend } from "./legend";
 import { traceVisibility as vis, traceVisibility } from "../traceVisibility";
-import { sheetAtX } from "../core/measure";
+import { sheetAtX, type Circle } from "../core/measure";
 import { sheetOrigins } from "../core/offcut";
-import { MeasureTool } from "./measureTool";
+import { MeasureTool, mods } from "./measureTool";
 
 type View = { scale: number; ox: number; oy: number }; // screen = o + world * (scale, -scale)
 /** `path` = closed cut shape (hover fill, hit-test), `cutPath` = what is stroked (bridged rings open), `bridgePath` = the gaps */
@@ -51,6 +51,7 @@ export class SheetView {
   private measureTool: MeasureTool;
   /** vertices to snap to, in view coordinates (sheet offset applied): part rings and sheet corners */
   private snapGroups: Vec2[][] = [];
+  private snapCircles: Circle[] = [];
   /** left edge of every sheet in the view (the first sheet may be narrower: an offcut) */
   private origins: number[] = [];
 
@@ -73,7 +74,8 @@ export class SheetView {
     );
     window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => legend.refresh());
     this.measureTool = new MeasureTool(root, {
-      vertices: () => this.snapGroups,
+      rings: () => this.snapGroups,
+      circles: () => this.snapCircles,
       scale: () => this.view.scale,
       changed: () => {
         this.canvas.classList.toggle("measuring", this.measureTool.active);
@@ -104,16 +106,19 @@ export class SheetView {
         return;
       }
       if (this.measureTool.active) {
-        this.measureTool.move(this.toWorld(e));
+        this.measureTool.move(this.toWorld(e), mods(e));
         return;
       }
       this.setHover(this.hit(e), e);
     });
-    c.addEventListener("pointerleave", () => this.setHover(null));
+    c.addEventListener("pointerleave", () => {
+      this.setHover(null);
+      this.measureTool.leave();
+    });
     c.addEventListener("pointerup", (e) => {
       const wasClick = this.drag && this.drag.moved < 4;
       this.drag = null;
-      if (wasClick && this.measureTool.active) this.measureTool.click(this.toWorld(e));
+      if (wasClick && this.measureTool.active) this.measureTool.click(this.toWorld(e), mods(e));
       else if (wasClick) {
         const p = this.hit(e);
         if (p) this.onPart(p.part.layer, p.part.id);
@@ -130,6 +135,7 @@ export class SheetView {
     this.tip.hidden = true;
     this.placed = [];
     this.snapGroups = [];
+    this.snapCircles = [];
     this.measureTool.clear();
     this.sheetsW = this.sheetsH = 0;
     this.origins = r ? sheetOrigins(r.sheets.map((s) => s.w), GAP) : [];
@@ -157,6 +163,7 @@ export class SheetView {
           minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y);
         }
         for (const ring of [part.cut.outer, ...part.cut.holes]) this.snapGroups.push(ring.map(([x, y]) => [ox + x, y] as Vec2));
+        for (const c of part.holes) this.snapCircles.push({ c: [ox + c.c[0], c.c[1]], r: c.d / 2 });
         this.placed.push({ part, sheet: pl.sheet, ox, path, cutPath, bridgePath, minX, minY, maxX, maxY });
       }
       for (const s of r.sheets) {
@@ -224,7 +231,7 @@ export class SheetView {
       this.tip.style.top = `${e.clientY - r.top + 12}px`;
       this.tip.hidden = false;
     } else this.tip.hidden = true;
-    this.canvas.style.cursor = p ? "pointer" : "";
+    this.canvas.classList.toggle("over-part", !!p);
   }
 
   private onWheel(e: WheelEvent) {

@@ -6,7 +6,7 @@ import { h } from "./dom";
 import { createLegend } from "./legend";
 import { traceVisibility as vis, traceVisibility } from "../traceVisibility";
 import type { Vec2 } from "../core/types";
-import { MeasureTool } from "./measureTool";
+import { MeasureTool, mods } from "./measureTool";
 
 type View = { scale: number; ox: number; oy: number }; // screen = o + world * scale (y flipped)
 
@@ -42,7 +42,8 @@ export class LayerView2D {
     );
     window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => legend.refresh());
     this.measureTool = new MeasureTool(root, {
-      vertices: () => (this.result ? this.result.layers[this.layer].shapes.flatMap((s) => [s.outer, ...s.holes]) : []),
+      rings: () => (this.result ? this.result.layers[this.layer].shapes.flatMap((s) => [s.outer, ...s.holes]) : []),
+      circles: () => (this.result ? this.result.parts.filter((p) => p.layer === this.layer).flatMap((p) => p.holes.map((c) => ({ c: c.c, r: c.d / 2 }))) : []),
       scale: () => this.view.scale,
       changed: () => {
         this.canvas.classList.toggle("measuring", this.measureTool.active);
@@ -61,7 +62,7 @@ export class LayerView2D {
     });
     this.canvas.addEventListener("pointermove", (e) => {
       if (!this.drag) {
-        this.measureTool.move(this.toWorld(e));
+        this.measureTool.move(this.toWorld(e), mods(e));
         return;
       }
       const dx = e.clientX - this.drag.x, dy = e.clientY - this.drag.y;
@@ -72,10 +73,11 @@ export class LayerView2D {
     });
     const end = () => (this.drag = null);
     this.canvas.addEventListener("pointerup", (e) => {
-      if (this.drag && this.drag.moved < 4) this.measureTool.click(this.toWorld(e));
+      if (this.drag && this.drag.moved < 4) this.measureTool.click(this.toWorld(e), mods(e));
       this.drag = null;
     });
     this.canvas.addEventListener("pointercancel", end);
+    this.canvas.addEventListener("pointerleave", () => this.measureTool.leave());
     this.canvas.addEventListener("dblclick", () => this.fit());
     new ResizeObserver(() => this.draw()).observe(root);
     this.updateUi();
