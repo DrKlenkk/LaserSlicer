@@ -1,7 +1,7 @@
 // Bootstrap: wires store <-> worker <-> UI.
 import { infoIcon } from "./ui/tooltip";
 import "./style.css";
-import { Store, parseProjectFile, type ProjectModel } from "./state";
+import { Store, DEFAULT_SETTINGS, parseProjectFile, type ProjectModel } from "./state";
 import { WorkerClient, StaleJobError } from "./worker/client";
 import { createPanel, type OrientInfo } from "./ui/panel";
 import { Viewport3D } from "./ui/viewport3d";
@@ -25,6 +25,7 @@ import { SessionStore } from "./sessionStore";
 import { createLegalBar } from "./ui/legal";
 import type { Settings } from "./core/types";
 import { createDrawer } from "./ui/drawer";
+import { buildDemoStl, DEMO_FILE_NAME } from "./core/demo";
 import { exportLayersOf } from "./core/export/common";
 import { estimate, estimateLines, estimateSettingsOf, estimateSummary } from "./core/estimates";
 
@@ -104,7 +105,7 @@ worker.ping().then(
     workerBadge.textContent = `Worker: ready (ping ${ms.toFixed(1)} ms)`;
     workerBadge.className = "badge ok";
     store.setStatus("Ready. Load an STL, OBJ or 3MF model.");
-    void restoreSession();
+    void restoreSession().then(loadDemo);
   },
   (e: Error) => {
     workerBadge.textContent = `Worker: ${e.message}`;
@@ -132,12 +133,16 @@ const session = new SessionStore();
 /** Original bytes and name of the last model that loaded: embedded by "Save settings" and remembered for the next start.
  *  The worker gets a copy (a transferred buffer is detached), so this stays valid; it costs one copy of the file in memory. */
 let lastSource: ProjectModel | null = null;
+/** lastSource is the built-in demo: it may go into a project file, but session restore never keeps it */
+let lastSourceIsDemo = false;
 
 type LoadOpts = {
   /** project load: these settings (including their import unit) replace the current ones in the same store update as the model */
   settings?: Settings;
   /** session restore: leave all settings alone, even a 3MF's unit (the saved settings already hold the user's choice) */
   restored?: boolean;
+  /** the built-in demo model: only loaded while nothing else is, never stored for the next start, resets the model orientation settings */
+  demo?: boolean;
 };
 
 /** Loads model bytes through the normal path. Throws on failure after the store has been left as it was. */
@@ -162,18 +167,19 @@ async function loadModelBytes(name: string, bytes: Uint8Array, opts: LoadOpts = 
       buffer = bytes.slice().buffer as ArrayBuffer; // a copy: the worker takes ownership of what it gets
     }
     const r = await worker.load(buffer, kind);
-    if (opts.restored && store.get().model) return; // the user loaded something while the restore was running
+    if ((opts.restored || opts.demo) && store.get().model) return; // the user loaded something while the restore / demo was running
     // A 3MF file is authoritative about its unit: set it in the same update as the model (one orient, one run).
     // STL and OBJ keep whatever unit is set (it is a project setting). A project's own unit wins over the 3MF's, and a restore changes nothing.
-    const unitChanged = !opts.settings && !opts.restored && declared !== null && declared !== store.get().settings.importUnit;
+    const unitChanged = !opts.settings && !opts.restored && !opts.demo && declared !== null && declared !== store.get().settings.importUnit;
     lastSource = { name, bytes };
+    lastSourceIsDemo = !!opts.demo;
     store.set({
       model: { fileName: name, mesh: { positions: r.positions, indices: r.indices, bbox: r.bbox }, stats: r.stats },
-      ...(opts.settings ? { settings: opts.settings } : unitChanged ? { settings: { ...store.get().settings, importUnit: declared! } } : {}),
+      ...(opts.settings ? { settings: opts.settings } : opts.demo ? demoSettings() : unitChanged ? { settings: { ...store.get().settings, importUnit: declared! } } : {}),
       result: null,
       layer: 0,
     }, opts.settings ? "step" : "silent"); // a project is one undo step; a 3MF's unit rides along with the model (not a step)
-    if (!opts.restored && loadUiPrefs().restoreSession) void session.save(name, bytes);
+    if (!opts.restored && !opts.demo && loadUiPrefs().restoreSession) void session.save(name, bytes);
     const unitNote = unitChanged ? ` 3MF declares ${THREEMF_UNIT_PLURAL[declared!]} — import unit set to ${THREEMF_UNIT_NAME[declared!]}.` : "";
     lastFitModel = null; // fit camera for the new model
     const s = r.stats;
@@ -182,6 +188,11 @@ async function loadModelBytes(name: string, bytes: Uint8Array, opts: LoadOpts = 
     if (s.nonManifoldEdges) problems.push(`${s.nonManifoldEdges} non-manifold edges`);
     if (s.degenerateRemoved) problems.push(`${s.degenerateRemoved} degenerate triangles removed`);
     const lead = opts.restored ? "Restored the last model. " : "";
+    if (opts.demo) {
+      const prior = store.get().status;
+      store.setStatus((prior.level === "warn" ? `${prior.text} ` : "") + "Demo model loaded — choose your own STL, OBJ or 3MF file", prior.level === "warn" ? "warn" : "info");
+      return;
+    }
     store.setStatus(
       lead + (problems.length ? `Loaded ${name}: mesh problems (${problems.join(", ")}); slicing will try to repair.` : `Loaded ${name}: ${s.triangles.toLocaleString()} triangles, closed mesh.`) + unitNote,
       problems.length ? "warn" : "info",
@@ -189,6 +200,24 @@ async function loadModelBytes(name: string, bytes: Uint8Array, opts: LoadOpts = 
   } catch (e) {
     if (ctl.auto && ctl.stale) scheduleRun(true); // the load cancelled a run in flight; the old model is still there
     throw e;
+  }
+}
+
+/** The demo is 70 x 70 x 40 mm, Z up: settings left over from an earlier model (unit, scale, target size, axis, rotation) would distort it. Returns a store patch, or {} when nothing differs. */
+function demoSettings(): { settings?: Settings } {
+  const cur = store.get().settings;
+  const d = DEFAULT_SETTINGS;
+  const same = cur.importUnit === d.importUnit && cur.scale === d.scale && cur.targetSize === d.targetSize && cur.axis === d.axis && cur.rotationSteps.every((n, i) => n === d.rotationSteps[i]);
+  return same ? {} : { settings: { ...cur, importUnit: d.importUnit, scale: d.scale, targetSize: d.targetSize, axis: d.axis, rotationSteps: [...d.rotationSteps] } };
+}
+
+/** Start-up with no model (and none restored): the generated demo part, through the normal load path. */
+async function loadDemo() {
+  if (store.get().model) return;
+  try {
+    await loadModelBytes(DEMO_FILE_NAME, buildDemoStl(), { demo: true });
+  } catch (e) {
+    store.setStatus(`Could not load the demo model (${e instanceof Error ? e.message : String(e)}). Load an STL, OBJ or 3MF model.`, "warn");
   }
 }
 
@@ -249,7 +278,7 @@ const panel = createPanel(panelEl, store, {
   setRestoreSession(on) {
     saveUiPrefs({ ...loadUiPrefs(), restoreSession: on });
     if (!on) void session.clear();
-    else if (lastSource) void session.save(lastSource.name, lastSource.bytes);
+    else if (lastSource && !lastSourceIsDemo) void session.save(lastSource.name, lastSource.bytes);
   },
   async exportZip() {
     const m = store.get().model;

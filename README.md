@@ -36,6 +36,7 @@ The app shows "© 2026 Louis Adrian Spencer", GPL-3.0, a link to the source and 
 
 ## Use
 
+0. On a first visit the page opens with a small **demo model** (a base, a stepped tower and a through hole), already sliced, so you can look around; it is not stored anywhere. Loading your own file replaces it.
 1. Drop a model on the page (or "Choose file..."). STL and OBJ have no units, so choose the **Import unit** (mm, cm, m, inch, ...) if the model loads at the wrong size; a 3MF file sets it from its own unit. Use scale or target size for the rest.
 2. Pick the slicing axis (the selected axis points up) and rotate in 90 degree steps.
 3. Enter the **measured** plywood thickness (calipers; "4 mm" is often 3.7-3.9), sheet size and kerf.
