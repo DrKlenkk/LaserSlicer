@@ -1,0 +1,36 @@
+Laser Slicer export: box30x20x10
+
+Summary
+  Layers: 3
+  Parts: 3
+  Sheets: 1 (600 x 400 mm), material use 0.8 %
+    sheet 1: 3 parts, 0.8 % used
+
+Estimates (from the geometry and the Material settings; cutting time is rough)
+  Cut length: 302 mm
+  Engrave length: 66 mm (engrave lines and label strokes)
+  Glued volume: 7.2 cm3 (part area 18.0 cm2 x thickness, before kerf)
+  Weight: 5 g
+  Not shown, setting is 0: speeds (time), price per sheet (cost)
+
+Settings used
+  Axis: +Z, extra rotation steps (X,Y,Z): 0,0,0
+  Scale: 100.00 %, model size 30.00 x 20.00 x 10.00 mm
+  Material thickness: 4 mm, kerf: 0.15 mm, part spacing: 3 mm, sheet margin: 5 mm
+  Mode: oversize, samples per layer: 3, simplify tolerance: 0.05 mm, smoothing radius: off
+  Min part area: 4 mm2, min feature: 0 mm
+  Formats: dxf, files per sheet
+  Layers included: CUT, ENGRAVE, LABEL (left out: SHEET border)
+  Inner cuts (holes, cavities, dowel holes) are written before the outer outlines in every part's DXF and SVG data.
+
+Stacking order
+  Cut every part face-up and stack bottom-up without flipping: L000 is the bottom layer, L002 the top.
+  Glue each layer onto the one below it; align it to the engraved outline of the next layer where one exists.
+
+DXF layers: CUT (red), ENGRAVE (blue), LABEL (green), SHEET (grey). Units: mm, Y up, R12 (AC1009).
+
+Files
+  box30x20x10_sheet01.dxf
+
+Warnings (0)
+  none
