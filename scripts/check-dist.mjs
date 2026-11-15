@@ -1,5 +1,5 @@
 // Verifies dist/ is the deployable site: the self-contained index.html, the documentation page (docs.html with its
-// docs-img/ screenshots), the three German legal pages, 404.html, the two licence files and the SEO files (robots.txt,
+// docs-img/ screenshots), the German legal pages (impressum, datenschutz, lizenzen) with English translations of the first two (legal-notice, privacy), 404.html, the two licence files and the SEO files (robots.txt,
 // sitemap.xml, og-image.png, favicon.svg, apple-touch-icon.png), with no resource loaded from any external origin and
 // no analytics or tracking code. Absolute URLs on https://laserslicer.com are allowed only as metadata (canonical, Open
 // Graph, Twitter card, JSON-LD, sitemap, robots), never as a resource load. Also checks that every tooltip link (HELP_DOC) points to a section
@@ -11,7 +11,7 @@ const fail = (msg) => {
   process.exit(1);
 };
 
-const EXPECTED = ["404.html", "LICENSE.txt", "THIRD_PARTY_LICENSES.txt", "apple-touch-icon.png", "datenschutz.html", "docs-img", "docs.html", "favicon.svg", "impressum.html", "index.html", "lizenzen.html", "og-image.png", "robots.txt", "sitemap.xml"];
+const EXPECTED = ["404.html", "LICENSE.txt", "THIRD_PARTY_LICENSES.txt", "apple-touch-icon.png", "datenschutz.html", "docs-img", "docs.html", "favicon.svg", "impressum.html", "index.html", "legal-notice.html", "lizenzen.html", "og-image.png", "privacy.html", "robots.txt", "sitemap.xml"];
 const entries = readdirSync("dist").sort();
 if (!entries.includes("docs.html")) fail("dist/docs.html is missing (the documentation page lives in public/docs.html)");
 if (entries.join("|") !== EXPECTED.join("|")) fail(`dist must contain exactly ${EXPECTED.join(", ")}, found: ${entries.join(", ")}`);
@@ -85,7 +85,7 @@ for (const f of HTML) {
 
 // The legal pages and the documentation must work without JavaScript and on phones.
 const index = read("index.html");
-for (const f of ["impressum.html", "datenschutz.html", "lizenzen.html", "docs.html"]) {
+for (const f of ["impressum.html", "datenschutz.html", "lizenzen.html", "legal-notice.html", "privacy.html", "docs.html"]) {
   if (/<script\b/i.test(read(f))) fail(`${f}: legal pages must work without JavaScript`);
   if (!/name="viewport"/.test(read(f))) fail(`${f}: viewport meta missing`);
 }
@@ -98,13 +98,27 @@ for (const needle of ["#105667", "§ 5 DDG", "§ 18 Abs. 1 MStV", "info@lasersli
 for (const forbidden of ["ec.europa.eu/consumers/odr", "OS-Plattform", "Umsatzsteuer", "Handelsregister"]) {
   if (imp.includes(forbidden)) fail(`impressum.html must not contain "${forbidden}"`);
 }
+// English legal notice: a faithful translation with identical operator data, pointing to the binding German version.
+const impEn = read("legal-notice.html");
+for (const needle of ["#105667", "§ 5 DDG", "§ 18 para. 1 MStV", "info@laserslicer.com", "Louis Adrian Spencer", "Europaring 90", "53757 Sankt Augustin", "c/o Online-Impressum.de", 'href="impressum.html"', "legally binding"]) {
+  if (!impEn.includes(needle)) fail(`legal-notice.html lacks "${needle}"`);
+}
+if (!imp.includes('href="legal-notice.html"')) fail("impressum.html does not link to legal-notice.html");
 const ds = read("datenschutz.html");
 for (const needle of ["laserslicer.settings.v1", "laserslicer.ui.v1", "laserslicer.presets.v1", "laserslicer.legend.collapsed", "laserslicer.session", "Stand: 15. November 2026", "Cloudflare, Inc."]) {
   if (!ds.includes(needle)) fail(`datenschutz.html lacks "${needle}"`);
 }
 
+const dsEn = read("privacy.html");
+for (const needle of ["laserslicer.settings.v1", "laserslicer.ui.v1", "laserslicer.presets.v1", "laserslicer.legend.collapsed", "laserslicer.session", "Last updated: 15 November 2026", "Cloudflare, Inc.", "Louis Adrian Spencer", "Europaring 90", "info@laserslicer.com", 'href="datenschutz.html"', "legally binding"]) {
+  if (!dsEn.includes(needle)) fail(`privacy.html lacks "${needle}"`);
+}
+if (!ds.includes('href="privacy.html"')) fail("datenschutz.html does not link to privacy.html");
+// The operator's address is the only one that may appear anywhere in dist (no other mailbox).
+for (const f of HTML) for (const m of read(f).matchAll(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g)) if (m[0] !== "info@laserslicer.com") fail(`${f}: unexpected email address ${m[0]}`);
+
 // The app shows the notices and links to the legal pages (relative links).
-for (const needle of ["© 2026 Louis Adrian Spencer", "GPL-3.0", "https://github.com/DrKlenkk/LaserSlicer", "impressum.html", "datenschutz.html", "lizenzen.html"]) {
+for (const needle of ["© 2026 Louis Adrian Spencer", "GPL-3.0", "https://github.com/DrKlenkk/LaserSlicer", "impressum.html", "datenschutz.html", "lizenzen.html", "legal-notice.html", "privacy.html"]) {
   if (!index.includes(needle)) fail(`index.html lacks "${needle}"`);
 }
 

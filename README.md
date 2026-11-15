@@ -81,7 +81,7 @@ npm run dev        # Vite dev server
 ```
 
 `dist/` is the whole site: `index.html` (the app, one file of about 1 MB), `docs.html` with its screenshots in `docs-img/`, the German legal pages
-(`impressum.html`, `datenschutz.html`, `lizenzen.html`), `404.html`, `LICENSE.txt`, `THIRD_PARTY_LICENSES.txt`, `robots.txt`, `sitemap.xml`,
+(`impressum.html`, `datenschutz.html`, `lizenzen.html`) with English translations of the first two (`legal-notice.html`, `privacy.html`), `404.html`, `LICENSE.txt`, `THIRD_PARTY_LICENSES.txt`, `robots.txt`, `sitemap.xml`,
 `og-image.png`, `favicon.svg` and `apple-touch-icon.png`.
 
 **Deployment:** upload **all** files of `dist/` to the host, including `docs-img/`, `robots.txt`, `sitemap.xml`, `og-image.png` and `404.html`.

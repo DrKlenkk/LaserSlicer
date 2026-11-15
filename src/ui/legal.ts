@@ -1,4 +1,4 @@
-// Legal notice shown in every state of the app: copyright, licence, source code and the three legal pages.
+// Legal notice shown in every state of the app: copyright, licence, source code and the legal pages (German, with English translations of Impressum and Datenschutz).
 // The pages are static files next to index.html (relative links work on the web and from file://); they open in a new
 // tab so the loaded model and the settings in this page are not lost.
 import { h } from "./dom";
@@ -19,6 +19,7 @@ export function createLegalLinks(): HTMLElement {
     link("impressum.html", "Impressum"),
     link("datenschutz.html", "Datenschutz"),
     link("lizenzen.html", "Lizenzen"),
+    h("span", { class: "legal-en" }, link("legal-notice.html", "Legal notice (EN)"), link("privacy.html", "Privacy (EN)")),
   );
 }
 

@@ -286,6 +286,7 @@ button.warn-item:hover { background: var(--accent-soft); }
 .legalbar a, .help-legal a { color: var(--muted); text-decoration: underline; padding: 2px 0; }
 .legalbar a:hover, .help-legal a:hover { color: var(--accent); }
 .legal-links { display: inline-flex; gap: 14px; }
+.legal-en { display: inline-flex; gap: 14px; }
 .help-legal { margin-top: 14px; font-size: 12px; color: var(--muted); }
 .help-legal .legal-links { display: inline-flex; flex-wrap: wrap; gap: 12px; }
 
@@ -367,6 +368,7 @@ button.warn-item:hover { background: var(--accent-soft); }
   .legalbar { flex-wrap: nowrap; justify-content: space-between; gap: 8px; padding: 2px 10px; font-size: 11px; white-space: nowrap; }
   .legalbar a { padding: 6px 0; }
   .legal-links { gap: 10px; }
+  .legalbar .legal-en { display: none; } /* the footer stays on one line; the pages are linked from the help overlay and the other legal pages */
   .help-legal { margin-top: 8px; }
 }
 
