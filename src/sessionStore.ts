@@ -113,4 +113,24 @@ export class SessionStore {
       return false;
     }
   }
+
+  /** Deletes the whole database without creating it. For start-up when the user has not opted in: removes a record that an earlier version stored by default. */
+  async purge(): Promise<boolean> {
+    try {
+      const f = this.getFactory();
+      if (!f) return false;
+      await withTimeout(
+        new Promise<void>((resolve, reject) => {
+          const r = f.deleteDatabase(DB_NAME);
+          r.onsuccess = () => resolve();
+          r.onerror = () => reject(r.error ?? new Error("cannot delete storage"));
+          r.onblocked = () => resolve(); // deletion completes when the other connection closes
+        }),
+        this.timeoutMs,
+      );
+      return true;
+    } catch {
+      return false;
+    }
+  }
 }

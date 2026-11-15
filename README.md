@@ -1,7 +1,9 @@
 # Laser Slicer
 
+Copyright (c) 2026 Louis Adrian Spencer. Free software under the GNU General Public License, version 3 only (GPL-3.0-only); see `LICENSE`. Source: https://github.com/DrKlenkk/LaserSlicer
+
 Slices a 3D model (STL, OBJ, 3MF) into flat layers and exports laser-ready files (DXF, SVG, PNG, JPG in one ZIP) for
-plywood that is stacked and glued into the shape. It is one offline HTML file: no server, no network, no install for users.
+plywood that is stacked and glued into the shape. The tool itself is one offline HTML file (`index.html`): no server, no network, no install for users. The deployable site adds the legal pages and licence files (see Deployment).
 
 ![Layer tab: hollowed sphere with dowel holes, label and next-layer outline](docs/screenshots/layer-tab.png)
 ![Sheets tab with the colour legend](docs/screenshots/sheets-legend.png)
@@ -14,13 +16,21 @@ Full technical documentation (features, settings, pipeline, output formats, arch
 
 ```
 npm install
-npm run build      # type check + produces dist/index.html (one self-contained file, about 1 MB)
-npm run check      # verifies dist/ has no network references
+npm run build      # type check + produces dist/ (index.html, about 1 MB, plus the legal pages and licence files)
+npm run check      # verifies the dist/ file set, no external resources, the legal pages, no analytics
 npm test           # unit tests (Vitest)
 ```
 
-Open `dist/index.html` by double-click (`file://` works; nothing is fetched). Copy that single file anywhere.
-`npm run dev` starts the Vite dev server.
+Open `dist/index.html` by double-click (`file://` works; nothing is fetched). `npm run dev` starts the Vite dev server.
+
+## Deployment and legal pages
+
+`dist/` is the whole site: `index.html` (the app), `impressum.html`, `datenschutz.html`, `lizenzen.html` (German, static, no JavaScript),
+`LICENSE.txt` and `THIRD_PARTY_LICENSES.txt`. **Upload all files** to the host (Cloudflare for laserslicer.com); the legal links in the app
+are relative, so the same files also work unzipped from a folder. GitHub Actions uploads the whole `dist/` as the artifact `laserslicer-site`
+and, on `v*` tags, attaches `laserslicer-site.zip` (and `index.html`) to the release. The legal pages are in `public/`; `LICENSE.txt` and
+`THIRD_PARTY_LICENSES.txt` are copied from `LICENSE` and `THIRD_PARTY_LICENSES.txt` (generated with `node scripts/gen-licenses.mjs`) at build time.
+The app shows "© 2026 Louis Adrian Spencer", GPL-3.0, a link to the source and the links Impressum, Datenschutz and Lizenzen in a bar at the bottom of every view (and in the help overlay).
 
 ## Use
 
@@ -59,7 +69,7 @@ the project file.
 Press `?` in the app for the shortcuts: 1/2/3 tabs, arrows / PgUp / PgDn / Home / End step layers, M toggles model and stacked
 result, F frames the model, U updates the preview (auto-update off), Ctrl+Z / Ctrl+Y (Cmd on a Mac; also Ctrl+Shift+Z) undo and redo settings changes (also the two buttons next to "Auto-update preview"; not while you type in a field, where the browser's own undo works). Loading a model is not an undo step, loading a project file is one.
 **Material presets**: the Preset list in the Material group applies thickness, sheet size, kerf, spacing, margin, density, speeds and price at once (one undo step). "Save..." stores your current values under a name (an existing name is replaced after a confirm), "Delete" removes one of yours. Presets are kept in the browser, not in the project file. The three "starting point" presets are only guesses for plywood: measure your sheets and run the calibration sheet. "Project" in the panel saves and loads the settings as a `.json` file; tick "Include the model in the project file" to embed the model too (the file grows by about a third of the model size), and loading it brings back model and settings together.
-The last settings and the last model are also kept in this browser, so reloading the page brings you back to where you were (switch off with "Restore the last model when the page opens"; models over 50 MB are not remembered).
+The last settings are kept in this browser. The last model is only kept if you switch on "Restore the last model when the page opens" (off by default; models over 50 MB are not remembered); switching it off deletes it.
 
 ### Modes
 
@@ -94,4 +104,6 @@ Dowels put holes at identical positions in every layer of a run so a rod aligns 
 - The Hershey-style font is a hand-redrawn reconstruction, see `DECISIONS.md`. clipper2-js bugs and other deviations from `docs/PLAN.md` are listed there too.
 - A hollow cavity is fully enclosed (no vent hole). Dowels need room: thin hollow walls usually leave no run of two layers.
 
-Third-party licences: `THIRD_PARTY_LICENSES.txt` (also embedded in `dist/index.html`).
+## Licence
+
+GPL-3.0-only, see `LICENSE`. Third-party licences: `THIRD_PARTY_LICENSES.txt` (also embedded in `dist/index.html`).

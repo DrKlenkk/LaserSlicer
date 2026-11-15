@@ -20,6 +20,7 @@ import type { Tab } from "./state";
 import { UpdateController, slicingKey, type RunAction } from "./updateController";
 import { loadUiPrefs, saveUiPrefs } from "./uiPrefs";
 import { SessionStore } from "./sessionStore";
+import { createLegalBar } from "./ui/legal";
 import type { Settings } from "./core/types";
 import { exportLayersOf } from "./core/export/common";
 import { estimate, estimateLines, estimateSettingsOf, estimateSummary } from "./core/estimates";
@@ -76,7 +77,7 @@ const statusBar = h("footer", { class: "statusbar" }, progressBar, statusMsg, pr
 const dropOverlay = h("div", { class: "drop-overlay", hidden: true }, "Drop model to load");
 
 app.append(
-  h("div", { class: "layout" }, panelEl, h("main", { class: "main" }, tabBar, h("div", { class: "stage" }, viewEl, layerEl, sheetsEl, fitBtn, viewToggle, updateWrap)), statusBar),
+  h("div", { class: "layout" }, panelEl, h("main", { class: "main" }, tabBar, h("div", { class: "stage" }, viewEl, layerEl, sheetsEl, fitBtn, viewToggle, updateWrap)), statusBar, createLegalBar()),
   dropOverlay,
   help.el,
 );
@@ -209,9 +210,12 @@ async function loadProject(text: string, fileName: string): Promise<string> {
   return `Loaded ${model.name} and the settings from ${fileName}`;
 }
 
-/** At start-up: bring back the last model when the preference is on and a record exists. Failure is only a status note. */
+/** At start-up: bring back the last model when the preference is on (opt-in) and a record exists; when it is off, delete any old record. Failure is only a status note. */
 async function restoreSession() {
-  if (!loadUiPrefs().restoreSession) return;
+  if (!loadUiPrefs().restoreSession) {
+    void session.purge(); // opt-in: a record from an earlier version (stored by default) is not kept
+    return;
+  }
   const rec = await session.load(); // null on any storage problem
   if (!rec || store.get().model) return;
   try {

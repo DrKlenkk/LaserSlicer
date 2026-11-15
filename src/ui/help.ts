@@ -1,5 +1,6 @@
 // Help overlay: keyboard shortcuts and a short usage guide. Opened with "?" or the button in the tab bar.
 import { h } from "./dom";
+import { createLegalLinks } from "./legal";
 
 export const SHORTCUTS: [string, string][] = [
   ["1 / 2 / 3", "3D, Layer and Sheets tab"],
@@ -34,6 +35,7 @@ export function createHelp() {
       h("li", {}, "Oversize mode: sand the glued block down to the shape.")),
     h("h3", {}, "Keyboard"),
     h("table", { class: "help-keys" }, ...rows),
+    h("p", { class: "help-legal" }, "© 2026 Louis Adrian Spencer · GPL-3.0 · ", createLegalLinks()),
   );
   const overlay = h("div", { class: "help-overlay", id: "help", hidden: true }, box);
   overlay.addEventListener("pointerdown", (e) => {

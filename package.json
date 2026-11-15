@@ -2,6 +2,9 @@
   "name": "laser-slicer",
   "version": "0.1.0",
   "private": true,
+  "license": "GPL-3.0-only",
+  "author": "Louis Adrian Spencer",
+  "repository": { "type": "git", "url": "https://github.com/DrKlenkk/LaserSlicer.git" },
   "type": "module",
   "scripts": {
     "dev": "vite",

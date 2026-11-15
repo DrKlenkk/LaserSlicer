@@ -1,6 +1,13 @@
-Third-party licences bundled into this application
+Third-party licences bundled into this application (Laser Slicer, GPL-3.0-only, (c) 2026 Louis Adrian Spencer)
+
+This file lists every third-party component whose code or data is contained in index.html, with its version,
+copyright line and licence text. All of these licences are compatible with the GPL-3.0.
+The declared dependencies of clipper2-js (@angular/common, @angular/core, rxjs, zone.js, tslib) are not part of the
+bundle: none of their code is included in index.html (checked in the built file).
 
 ==== three 0.187.0 (MIT) ====
+Copyright: Copyright © 2010-2026 three.js authors
+
 The MIT License
 
 Copyright © 2010-2026 three.js authors
@@ -23,7 +30,9 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
-==== clipper2-js 1.2.4 (Boost Software License) ====
+==== clipper2-js 1.2.4 (BSL-1.0) ====
+Copyright: Clipper2 by Angus Johnson (https://github.com/AngusJohnson/Clipper2); TypeScript port clipper2-js by its authors
+
 Clipper2 (c) Angus Johnson; clipper2-js is a TypeScript port of it.
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -51,6 +60,8 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 ==== polylabel 2.1.0 (ISC) ====
+Copyright: Copyright (c) 2026 Mapbox
+
 ISC License
 Copyright (c) 2026 Mapbox
 
@@ -67,6 +78,8 @@ ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 SOFTWARE.
 
 ==== tinyqueue 3.0.0 (ISC) ====
+Copyright: Copyright (c) 2017, Vladimir Agafonkin
+
 ISC License
 
 Copyright (c) 2017, Vladimir Agafonkin
@@ -84,6 +97,8 @@ TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
 THIS SOFTWARE.
 
 ==== fflate 0.8.3 (MIT) ====
+Copyright: Copyright (c) 2026 Arjun Barrett
+
 MIT License
 
 Copyright (c) 2026 Arjun Barrett
@@ -106,6 +121,46 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-==== Hershey single-stroke font (public domain format) ====
-The glyph encoding used in src/core/font/hershey.ts follows the Hershey vector font format (A. V. Hershey, US Naval Weapons
-Laboratory, public domain). The outlines in the file were redrawn for this project in the Simplex style; no licence applies.
+==== vite 8.3.8 (MIT) ====
+Copyright: Copyright (c) 2019-present, VoidZero Inc. and Vite contributors
+
+Vite is released under the MIT license:
+
+MIT License
+
+Copyright (c) 2019-present, VoidZero Inc. and Vite contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+==== Hershey single-stroke font data format (public domain; attribution required) ====
+The usual Hershey usage notice (wording as commonly distributed with the font data):
+
+  The Hershey Fonts were originally created by Dr. A. V. Hershey while working at the
+  U. S. National Bureau of Standards.
+
+  The format of the font data in this distribution was originally created by
+  James Hurt, Cognition, Inc., 900 Technology Park Drive, Billerica, MA 01821.
+
+  The Hershey fonts may be used by anyone for any purpose, commercial or otherwise,
+  provided that these acknowledgements are distributed with the font data. The font data
+  may be converted into any other format except the format distributed by the U.S. NTIS
+  (which holds the rights to the distribution and use of the font data in that format).
+
+The glyph outlines in src/core/font/hershey.ts were redrawn for this project in the Simplex style and use the
+common single-stroke vertex encoding (the .jhf encoding); they are not a copy of the NTIS distribution format.

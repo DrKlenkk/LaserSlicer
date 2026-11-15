@@ -30,10 +30,10 @@ below.
 
 | Constraint | Detail |
 |---|---|
-| One offline HTML file | `npm run build` produces `dist/index.html` (about 1 MB) with all JS, CSS and the worker inlined (`vite-plugin-singlefile`, worker as an inline Blob, `?worker&inline`). It runs from `file://` by double-click. |
-| No network | Nothing is fetched at run time. `npm run check` (`scripts/check-dist.mjs`) fails the build if `dist/` holds anything but `index.html` or contains network URLs outside comments and XML namespace names. |
+| One offline HTML app | `npm run build` produces `dist/index.html` (about 1 MB) with all JS, CSS and the worker inlined (`vite-plugin-singlefile`, worker as an inline Blob, `?worker&inline`). It runs from `file://` by double-click. |
+| No network | Nothing is fetched at run time. `npm run check` (`scripts/check-dist.mjs`) fails if `dist/` holds anything but the expected files (section 7.6) or any html file loads a resource from an external origin. The only absolute URLs outside comments are `<a href>` links (repository, Cloudflare privacy page) and XML namespace names. |
 | Worker | All heavy geometry (parsing, welding, slicing, nesting, export, image rendering) runs in one Web Worker. The main thread does UI, 3D rendering, 3MF parsing and the cheap orientation for the 3D preview. |
-| No install, no server | State lives in the page, in `localStorage` and in IndexedDB (the last model, see 2.7); nothing leaves the browser. |
+| No install, no server | State lives in the page, in `localStorage` and, opt-in only, in IndexedDB (the last model, see 2.7); nothing leaves the browser. |
 | Tested browser | **Chromium only** (headless Playwright, software GL). Firefox, Safari and Edge, and `file://` behaviour there, are untested. |
 | Units | Millimetres everywhere after import. STL and OBJ carry no units, so the *Import unit* setting says what the file is in (default millimetres); 3MF declares its unit and sets that setting on load. Y axis up in all outputs. |
 
@@ -173,8 +173,8 @@ so.
 |---|---|---|
 | Settings | `localStorage` key `laserslicer.settings.v1` | The full settings object, saved on every change, merged over defaults on load (new keys get defaults). |
 | Material presets | `laserslicer.presets.v1` | `[{ "name", "values": { thickness, sheetW, ... } }]`, my presets only (section 2.8). Not in the project file. |
-| UI prefs | `laserslicer.ui.v1` | `autoUpdate`, `hiddenTraces`, `restoreSession` (default on). Not in the project file. |
-| Last model | IndexedDB database `laserslicer.session`, record `last` | `{ name, bytes, savedAt }`: the original file bytes of the last model that loaded, at most 50 MB (`SESSION_MAX_BYTES`). Written after a successful load, loaded again at start-up when `restoreSession` is on. |
+| UI prefs | `laserslicer.ui.v1` | `autoUpdate`, `hiddenTraces`, `restoreSession` (default **off**, opt-in). Not in the project file. |
+| Last model | IndexedDB database `laserslicer.session`, record `last` | `{ name, bytes, savedAt }`: the original file bytes of the last model that loaded, at most 50 MB (`SESSION_MAX_BYTES`). Written after a successful load only when `restoreSession` is on (opt-in), loaded again at start-up. With it off, start-up deletes the whole database (`SessionStore.purge`, which creates nothing), so a record stored by an earlier version (default on) does not stay. |
 | Legend state | `laserslicer.legend.collapsed` | Legend collapsed or not. |
 | Project file | `laser-slicer-project.json` (download) | `{ "format": "laser-slicer-project", "version": 2, "settings": {...}, "model": { "name": "part.stl", "data": "<base64>" } }`. `model` is present only when the checkbox was ticked: the original file bytes, byte for byte. Version 1 files (settings only) load as before. |
 
@@ -184,7 +184,7 @@ default; unknown keys are ignored.
 
 **Model in the project file.** A version 2 file with a `model` loads the model first, through the normal load path (STL, OBJ or 3MF parsing in the worker or, for 3MF, on the main thread), and the project's settings are applied in the same store update as the model, so there is one orient and one run, and (later) one undo step. The project's own `importUnit` wins over a unit declared inside an embedded 3MF. If the embedded data is damaged (bad base64, empty, a name without an STL/OBJ/3MF extension) or the model does not parse, one message is shown (status bar and Project group) and neither the current model nor the current settings change. A `model` key in a version 1 file is ignored; later versions are read like version 2.
 
-**Session restore.** The main thread keeps the original bytes and name of the last loaded model (a copy; the worker receives another copy because transferred buffers are detached), used for the checkbox and for the IndexedDB record. At start-up, once the worker answers, the record is loaded through the same path if the preference is on and no model has been loaded meanwhile. A restore never changes settings (not even the unit of a 3MF): the settings are already remembered in `localStorage`. A record that cannot be loaded produces only a status-bar note and is deleted. Files over 50 MB are not stored (and the previous record is removed). Turning the preference off deletes the record. All IndexedDB access (`src/sessionStore.ts`) is in try/catch with a 4 s timeout, and returns null or false on any problem, so the app works unchanged when IndexedDB is missing, blocked or full.
+**Session restore.** The main thread keeps the original bytes and name of the last loaded model (a copy; the worker receives another copy because transferred buffers are detached), used for the checkbox and for the IndexedDB record. At start-up, once the worker answers, the record is loaded through the same path if the preference is on (it is off by default; when off, the database is deleted instead) and no model has been loaded meanwhile. A restore never changes settings (not even the unit of a 3MF): the settings are already remembered in `localStorage`. A record that cannot be loaded produces only a status-bar note and is deleted. Files over 50 MB are not stored (and the previous record is removed). Turning the preference off deletes the record. All IndexedDB access (`src/sessionStore.ts`) is in try/catch with a 4 s timeout, and returns null or false on any problem, so the app works unchanged when IndexedDB is missing, blocked or full.
 
 ---
 
@@ -286,7 +286,7 @@ not included: the files will not cut the parts out."
 | Pref | Default | Where |
 |---|---|---|
 | Auto-update preview (`autoUpdate`) | on | `laserslicer.ui.v1` |
-| Restore the last model at start-up (`restoreSession`) | on | `laserslicer.ui.v1` (the model itself is in IndexedDB) |
+| Restore the last model at start-up (`restoreSession`, opt-in) | off | `laserslicer.ui.v1` (the model itself is in IndexedDB) |
 | Hidden traces (`hiddenTraces`: cut, engrave, label, bridge, sheet, ghost) | none | `laserslicer.ui.v1` |
 | Legend collapsed | expanded | `laserslicer.legend.collapsed` |
 | 3D view mode, selected tab, selected layer | Model, 3D, 0 | memory only |
@@ -677,7 +677,8 @@ A crashed worker sets the badge to `Worker error: ...`.
 | `src/sessionStore.ts` | IndexedDB record of the last model; every call guarded, with timeout. |
 | `src/core/base64.ts` | Chunked base64 encode/decode for the model in the project file. |
 | `src/updateController.ts` | DOM-free state machine for auto/stale/running and run ids; `slicingKey`. |
-| `src/uiPrefs.ts`, `src/traceVisibility.ts` | Persisted view prefs (auto-update, hidden traces, restore last model); shared trace-visibility state. |
+| `src/uiPrefs.ts`, `src/traceVisibility.ts` | Persisted view prefs (auto-update, hidden traces, restore last model, default off); shared trace-visibility state. |
+| `src/ui/legal.ts`, `public/*.html` | Legal bar (copyright, GPL-3.0, source link, Impressum, Datenschutz, Lizenzen; also in the help overlay) and the static German legal pages. |
 | `src/core/types.ts` | `Settings`, `Mesh`, `Shape`, `Part`, `Layer`, `Sheet`, `Placement`, `Warning`. |
 | `src/core/loaders.ts`, `mesh.ts` | STL/OBJ/soup parsing; welding, bbox, edge statistics. |
 | `src/core/transform.ts` | Axis rotations, quarter turns, import unit, scale, drop to Z = 0. |
@@ -746,7 +747,9 @@ last checkbox click counts; `ensureFresh()` runs or awaits a slicing run first, 
 | fflate | 0.8.3 | MIT | ZIP |
 | Hershey single-stroke font | n/a | public-domain format (glyphs here are a reconstruction) | labels |
 
-Dev only: Vite, `vite-plugin-singlefile`, TypeScript, Vitest, `dxf-parser` (tests), `@types/*`. The licence texts are in `THIRD_PARTY_LICENSES.txt` and embedded as an HTML comment in `dist/index.html`.
+Not bundled although `license-checker` lists them (declared dependencies of clipper2-js): `@angular/common`, `@angular/core`, `rxjs`, `zone.js`, `tslib`; the built `index.html` contains none of their code. Vite's small module-preload helper is in the bundle and listed in `THIRD_PARTY_LICENSES.txt`. The project itself is GPL-3.0-only (`LICENSE`); all bundled licences are GPL-compatible.
+
+Dev only: Vite, `vite-plugin-singlefile`, TypeScript, Vitest, `dxf-parser` (tests), `@types/*`. The licence texts are in `THIRD_PARTY_LICENSES.txt` (generated by `scripts/gen-licenses.mjs`, includes the Hershey notice), embedded as an HTML comment in `dist/index.html` and deployed as `dist/THIRD_PARTY_LICENSES.txt`.
 
 ### 7.6 Build and CI
 
@@ -755,13 +758,13 @@ Dev only: Vite, `vite-plugin-singlefile`, TypeScript, Vitest, `dxf-parser` (test
 | `npm install` | install |
 | `npm run dev` | Vite dev server |
 | `npm run build` | `tsc --noEmit && vite build`; target es2022, everything inlined into `dist/index.html` |
-| `npm run check` | `scripts/check-dist.mjs`: `dist/` has exactly `index.html`, no network URLs outside comments (XML namespace names allowed), no external script or stylesheet tags |
+| `npm run check` | `scripts/check-dist.mjs`: `dist/` has exactly `index.html`, `impressum.html`, `datenschutz.html`, `lizenzen.html`, `LICENSE.txt`, `THIRD_PARTY_LICENSES.txt`; no external resource load in any html file (src, link, srcset, `@import`, `url()`), anchors allowed; Impressum has `#105667`, `§ 5 DDG` and the email and no ODR text; Datenschutz lists every storage key; no analytics or tracking strings; `LICENSE.txt` is the full GPL-3.0 |
 | `npm test` | `vitest run` |
 | `npm run typecheck` | `tsc --noEmit` |
 
 GitHub Actions (`.github/workflows/build.yml`): on every push, pull request, manual dispatch and `v*` tag, on Ubuntu with Node 22: `npm ci`, `npm test`, `npm run build`,
-`npm run check`, then upload `dist/index.html` as the artifact `laser-slicer`. On tags matching `v*` the same file is attached to a GitHub release
-(`softprops/action-gh-release`). The job has `contents: write` only for that step.
+`npm run check`, then upload all of `dist/` as the artifact `laserslicer-site`. On tags matching `v*` `laserslicer-site.zip` (the contents of `dist/`) and `index.html` are attached to a GitHub release
+(`softprops/action-gh-release`). The job has `contents: write` only for that step. Deployment is manual: the operator uploads all files to Cloudflare.
 
 ---
 

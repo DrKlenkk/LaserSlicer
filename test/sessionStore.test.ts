@@ -92,10 +92,43 @@ describe("session store", () => {
 });
 
 describe("restore preference", () => {
-  it("defaults to on and follows a stored boolean", () => {
-    expect(parseUiPrefs(null).restoreSession).toBe(true);
+  it("defaults to off (opt-in) and follows a stored boolean", () => {
+    expect(parseUiPrefs(null).restoreSession).toBe(false); // opt-in: off unless the user turned it on
+    expect(parseUiPrefs("not json").restoreSession).toBe(false);
+    expect(parseUiPrefs('{"restoreSession":true}').restoreSession).toBe(true);
     expect(parseUiPrefs('{"restoreSession":false}').restoreSession).toBe(false);
-    expect(parseUiPrefs('{"restoreSession":"no"}').restoreSession).toBe(true);
-    expect(parseUiPrefs('{"autoUpdate":false}').restoreSession).toBe(true);
+    expect(parseUiPrefs('{"restoreSession":"yes"}').restoreSession).toBe(false);
+    expect(parseUiPrefs('{"autoUpdate":false}').restoreSession).toBe(false);
+  });
+});
+
+describe("purge (clean-up for users who never opted in)", () => {
+  it("deletes the whole database without opening it", async () => {
+    const deleted: string[] = [];
+    let opened = false;
+    const f = {
+      open() { opened = true; return {}; },
+      deleteDatabase(n: string) {
+        deleted.push(n);
+        const r: Record<string, unknown> = {};
+        setTimeout(() => (r.onsuccess as () => void)?.(), 0);
+        return r;
+      },
+    } as unknown as IDBFactory;
+    expect(await new SessionStore(() => f).purge()).toBe(true);
+    expect(deleted).toEqual(["laserslicer.session"]);
+    expect(opened).toBe(false);
+  });
+  it("is false, never an exception, without IndexedDB or on errors", async () => {
+    expect(await new SessionStore(() => undefined).purge()).toBe(false);
+    expect(await new SessionStore(() => { throw new Error("SecurityError"); }).purge()).toBe(false);
+    const f = {
+      deleteDatabase() {
+        const r: Record<string, unknown> = {};
+        setTimeout(() => { r.error = new Error("x"); (r.onerror as () => void)?.(); }, 0);
+        return r;
+      },
+    } as unknown as IDBFactory;
+    expect(await new SessionStore(() => f).purge()).toBe(false);
   });
 });

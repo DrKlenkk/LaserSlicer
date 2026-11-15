@@ -1,8 +1,8 @@
 // Generates THIRD_PARTY_LICENSES.txt from the licence files of the runtime
-// dependencies that end up bundled into dist/index.html.
+// dependencies that end up bundled into dist/index.html (run: node scripts/gen-licenses.mjs).
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 
-const pkgs = ["three", "clipper2-js", "polylabel", "tinyqueue", "fflate"]; // tinyqueue is polylabel's only dependency
+const pkgs = ["three", "clipper2-js", "polylabel", "tinyqueue", "fflate", "vite"]; // tinyqueue is polylabel's only dependency; vite supplies the small module-preload helper in the bundle
 // clipper2-js ships no licence file; use the standard Boost Software License 1.0 text.
 const BOOST = `Clipper2 (c) Angus Johnson; clipper2-js is a TypeScript port of it.
 
@@ -30,18 +30,52 @@ FOR ANY DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT OR OTHERWISE,
 ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.`;
 
-let out = "Third-party licences bundled into this application\n\n";
+// clipper2-js ships no licence file and no copyright line.
+const COPYRIGHT_FALLBACK = {
+  "clipper2-js": "Clipper2 by Angus Johnson (https://github.com/AngusJohnson/Clipper2); TypeScript port clipper2-js by its authors",
+};
+
+const HERSHEY = `The usual Hershey usage notice (wording as commonly distributed with the font data):
+
+  The Hershey Fonts were originally created by Dr. A. V. Hershey while working at the
+  U. S. National Bureau of Standards.
+
+  The format of the font data in this distribution was originally created by
+  James Hurt, Cognition, Inc., 900 Technology Park Drive, Billerica, MA 01821.
+
+  The Hershey fonts may be used by anyone for any purpose, commercial or otherwise,
+  provided that these acknowledgements are distributed with the font data. The font data
+  may be converted into any other format except the format distributed by the U.S. NTIS
+  (which holds the rights to the distribution and use of the font data in that format).
+
+The glyph outlines in src/core/font/hershey.ts were redrawn for this project in the Simplex style and use the
+common single-stroke vertex encoding (the .jhf encoding); they are not a copy of the NTIS distribution format.`;
+
+const copyrightOf = (name, text) => {
+  if (COPYRIGHT_FALLBACK[name]) return COPYRIGHT_FALLBACK[name];
+  const m = text.match(/^.*copyright.*\d{4}.*$/im);
+  return m ? m[0].trim() : "(see licence text)";
+};
+
+let out = `Third-party licences bundled into this application (Laser Slicer, GPL-3.0-only, (c) 2026 Louis Adrian Spencer)
+
+This file lists every third-party component whose code or data is contained in index.html, with its version,
+copyright line and licence text. All of these licences are compatible with the GPL-3.0.
+The declared dependencies of clipper2-js (@angular/common, @angular/core, rxjs, zone.js, tslib) are not part of the
+bundle: none of their code is included in index.html (checked in the built file).
+
+`;
 for (const name of pkgs) {
   const dir = `node_modules/${name}`;
   const pj = JSON.parse(readFileSync(`${dir}/package.json`, "utf8"));
   const file = ["LICENSE", "LICENSE.md", "LICENSE.txt", "LICENCE"].map((f) => `${dir}/${f}`).find(existsSync);
-  out += `==== ${name} ${pj.version} (${pj.license}) ====\n`;
-  out += file ? readFileSync(file, "utf8").trim() : name === "clipper2-js" ? BOOST : `(no licence file found; licence: ${pj.license})`;
-  out += "\n\n";
+  let text = file ? readFileSync(file, "utf8").trim() : name === "clipper2-js" ? BOOST : `(no licence file found; licence: ${pj.license})`;
+  if (name === "vite") text = text.split("\n# Licenses of bundled dependencies")[0].replace(/^# Vite core license\n/, "").trim(); // only the Vite core part ships in the bundle
+  const spdx = name === "clipper2-js" ? "BSL-1.0" : pj.license;
+  out += `==== ${name} ${pj.version} (${spdx}) ====\n`;
+  out += `Copyright: ${copyrightOf(name, text)}\n\n`;
+  out += text + "\n\n";
 }
-out += `==== Hershey single-stroke font (public domain format) ====
-The glyph encoding used in src/core/font/hershey.ts follows the Hershey vector font format (A. V. Hershey, US Naval Weapons
-Laboratory, public domain). The outlines in the file were redrawn for this project in the Simplex style; no licence applies.
-`;
+out += `==== Hershey single-stroke font data format (public domain; attribution required) ====\n${HERSHEY}\n`;
 writeFileSync("THIRD_PARTY_LICENSES.txt", out);
 console.log("wrote THIRD_PARTY_LICENSES.txt");
