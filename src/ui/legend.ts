@@ -2,6 +2,7 @@
 // Each row with a `trace` has a checkbox that shows or hides that trace in the view (shared by both views, saved in the UI prefs).
 // Names are the DXF layers, so the colours can be assigned to cut / engrave in LightBurn and similar software.
 import { h } from "./dom";
+import { isNarrow } from "./drawer";
 import { infoIcon } from "./tooltip";
 import { traceVisibility } from "../traceVisibility";
 import type { TraceId } from "../uiPrefs";
@@ -12,9 +13,10 @@ const KEY = "laserslicer.legend.collapsed";
 
 function readCollapsed(): boolean {
   try {
-    return localStorage.getItem(KEY) === "1";
+    const v = localStorage.getItem(KEY);
+    return v === null ? isNarrow() : v === "1"; // not chosen yet: collapsed on phones, where it would cover the view
   } catch {
-    return false;
+    return isNarrow();
   }
 }
 

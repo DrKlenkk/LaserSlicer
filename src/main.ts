@@ -24,6 +24,7 @@ import { loadUiPrefs, saveUiPrefs } from "./uiPrefs";
 import { SessionStore } from "./sessionStore";
 import { createLegalBar } from "./ui/legal";
 import type { Settings } from "./core/types";
+import { createDrawer } from "./ui/drawer";
 import { exportLayersOf } from "./core/export/common";
 import { estimate, estimateLines, estimateSettingsOf, estimateSummary } from "./core/estimates";
 
@@ -49,6 +50,7 @@ const compare = createCompareDialog({
   start: (entries, onRow, onProgress) => worker.compare(entries, onRow, onProgress),
   apply: (name) => panel.applyPreset(name),
 });
+tabBar.append(h("span", { class: "tabs-break", "aria-hidden": "true" })); // phone layout: wraps the three tabs onto their own row
 const tabButtons = tabs.map((t) => {
   const b = h("button", { type: "button", role: "tab", id: `tab-${t.id}`, onclick: () => store.set({ tab: t.id }) }, t.label);
   tabBar.append(b);
@@ -56,7 +58,7 @@ const tabButtons = tabs.map((t) => {
 });
 const autoCb = h("input", { type: "checkbox", id: "auto-update" });
 autoCb.checked = ctl.auto;
-const autoLabel = h("label", { class: "auto-update" }, autoCb, h("span", {}, "Auto-update preview"), infoIcon("autoUpdate"));
+const autoLabel = h("label", { class: "auto-update", title: "Auto-update preview" }, autoCb, h("span", {}, "Auto-update preview"), infoIcon("autoUpdate"));
 const updateNote = h("span", { class: "update-note", id: "update-note" }, "● settings changed");
 const updateBtn = h("button", { type: "button", class: "btn primary", id: "update-preview", title: "Slice with the current settings (U)" }, "Update preview");
 const updateWrap = h("div", { class: "update-wrap", id: "update-wrap", hidden: true }, updateNote, updateBtn);
@@ -83,8 +85,10 @@ const warnings = createWarnings((w) => {
 const statusBar = h("footer", { class: "statusbar" }, progressBar, statusMsg, progressText, runSummary, warnings.button, workerBadge, warnings.panel);
 const dropOverlay = h("div", { class: "drop-overlay", hidden: true }, "Drop model to load");
 
+const layoutEl = h("div", { class: "layout" });
+layoutEl.append(panelEl, h("main", { class: "main" }, tabBar, h("div", { class: "stage" }, viewEl, layerEl, sheetsEl, fitBtn, viewToggle, updateWrap)), statusBar, createLegalBar());
 app.append(
-  h("div", { class: "layout" }, panelEl, h("main", { class: "main" }, tabBar, h("div", { class: "stage" }, viewEl, layerEl, sheetsEl, fitBtn, viewToggle, updateWrap)), statusBar, createLegalBar()),
+  layoutEl,
   dropOverlay,
   help.el,
   compare.el,
@@ -197,6 +201,7 @@ async function openFile(file: File) {
   store.setStatus(`Loading ${file.name}…`);
   try {
     await loadModelBytes(file.name, new Uint8Array(await file.arrayBuffer()));
+    drawer.close(); // phone layout: show the model, not the settings drawer
   } catch (e) {
     store.setStatus(`Could not load ${file.name}: ${e instanceof Error ? e.message : String(e)}`, "error");
   }
@@ -279,6 +284,8 @@ window.addEventListener("drop", (e) => {
   const f = e.dataTransfer?.files?.[0];
   if (f) void openFile(f);
 });
+
+const drawer = createDrawer(layoutEl, panelEl, tabBar);
 
 // ---------- derived: oriented model ----------
 let oriented: Oriented | null = null;

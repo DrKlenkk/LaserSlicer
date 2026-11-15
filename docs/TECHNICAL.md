@@ -44,6 +44,14 @@ below.
 The window has a parameter panel on the left, a main area with a tab bar on the right, and a status bar at the bottom.
 The page follows the system light/dark theme (`prefers-color-scheme`).
 
+**Phone and small tablet layout (window 820 px wide or narrower).** The panel becomes an off-canvas drawer (`src/ui/drawer.ts`, CSS at the end of `src/style.css`):
+a **Settings** button at the start of the tab bar opens it (width `min(380px, 92vw)`, scrolls inside itself, every group works as on the desktop);
+the **Close** button, a tap on the dimmed view, or Esc closes it, and loading a model through "Choose file..." closes it too so the model is visible.
+The views take the full width. The tab bar wraps (below 560 px: Settings, undo/redo, auto-update and help on the first row, the three tabs full width on the second),
+**Update preview** sits below the 3D toggle / Fit view row, the status bar and the legal bar wrap, and the legend starts collapsed (until the user chooses) and scrolls inside itself.
+Buttons, tabs, chips, group headers, inputs and selects are at least 40 px high (also on any touch screen above the breakpoint, e.g. an iPad in landscape, which keeps the desktop layout); number inputs use 16 px text so iOS does not zoom.
+The drawer state is a class on the layout element only: not a setting, not undone, not saved; it resets when the window leaves the narrow range (rotation). The canvases follow their `ResizeObserver`s, so opening the drawer (an overlay) or rotating re-fits them. Above 820 px the layout is unchanged.
+
 ### 2.1 Parameter panel
 
 Collapsible groups, in this order. Model and Material start open, the rest collapsed.
@@ -754,7 +762,7 @@ A crashed worker sets the badge to `Worker error: ...`.
 | `src/worker/slicer.worker.ts`, `client.ts`, `protocol.ts` | Worker entry, promise wrapper, message types. |
 | `src/ui/panel.ts`, `exportDialog.ts`, `compareDialog.ts` | Parameter panel, export section, material comparison dialog. |
 | `src/ui/viewport3d.ts`, `layerView2d.ts`, `sheetView.ts` | The three tabs. |
-| `src/ui/legend.ts`, `warnings.ts`, `tooltip.ts`, `helpText.ts`, `help.ts`, `load3mf.ts`, `dom.ts` | Legend, warnings list, tooltips and their texts, help overlay, 3MF parse, DOM helper. |
+| `src/ui/legend.ts`, `warnings.ts`, `tooltip.ts`, `helpText.ts`, `help.ts`, `load3mf.ts`, `dom.ts`, `drawer.ts` | Legend, warnings list, tooltips and their texts, help overlay, 3MF parse, DOM helper, settings drawer of the phone layout. |
 | `scripts/gen-licenses.mjs`, `scripts/check-dist.mjs` | Licence file generator; dist verification. |
 | `test/` | Vitest suites and fixtures (section 8). |
 
@@ -862,6 +870,7 @@ checked by hand in Chromium).
 
 * **Rectangle-only nesting.** Each part is packed as its minimum-area rectangle (MaxRects); no true-shape nesting, no nesting of a small part inside another's cavity. Round parts waste material. A part larger than the sheet is reported and left out. (True-shape nesting was an optional v2 in the plan.)
 * **Calibration sheet is a guide, not a measurement.** It assumes the fit feel of a 20 mm square in a 20 mm hole; wood swelling, burn marks and the laser focus change the result by a few hundredths. Not cut on a real laser here.
+* **Phones and tablets:** the layout was checked in Chromium with Playwright device emulation (iPhone 13, Pixel 7, iPad Mini, both orientations), not on real devices or in Safari. 3D orbit, Layer and Sheets pan/zoom use pointer events and were not tested with real multi-touch (pinch). On a landscape phone the view is only about 190 px high.
 * **Chromium only.** Firefox, Safari, Edge and `file://` there are untested. Image export needs `OffscreenCanvas` in workers.
 * **DXF not tested in LightBurn or LibreCAD**, only parsed with `dxf-parser`. The same holds for the BRIDGE layer workflow and for `CUT_INNER` (colour ACI 30 and the cut-first workflow in LightBurn were not checked).
 * **Hershey font is a reconstruction.** Glyphs follow the Hershey encoding and Simplex style but were drawn by hand, not copied from the original table. Only digits, A-Z, a-z, `-` and space exist. Descender letters can overshoot the label box.

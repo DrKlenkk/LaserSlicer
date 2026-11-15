@@ -43,6 +43,7 @@ The app shows "© 2026 Louis Adrian Spencer", GPL-3.0, a link to the source and 
    `CUT` (red), `ENGRAVE` (blue), `LABEL` (green) and, with holding bridges, `BRIDGE` (magenta); the legend also lists the export-only `CUT_INNER` (orange), so they can be assigned to cut / engrave in LightBurn and similar software.
    The checkbox in front of each legend row shows or hides that trace in both tabs (view only: it does not re-slice and
    does not change the files; remembered in the browser).
+   On a phone or small tablet (up to 820 px wide) the settings panel is a drawer: tap **Settings** in the tab bar.
    Not sure about kerf or dowel diameter? **Download calibration sheet** (Material group, works without a model) gives a small ZIP
    (DXF, SVG, README.txt) to cut from scrap: seven 20 mm squares with matching holes for kerf 0 to 0.30 mm, and five round holes around your dowel
    diameter. The pair that fits snugly shows your kerf; the hole that fits your rod gives the dowel diameter. Do the kerf test first.
@@ -101,6 +102,7 @@ Dowels put holes at identical positions in every layer of a run so a rod aligns 
 ## Limitations
 
 - Nesting packs each part's minimum-area **rectangle** (MaxRects); round parts waste sheet area. A part larger than the sheet is reported and left out.
+- The phone and tablet layout was tested with emulated devices in Chromium only, not on real devices or with real touch gestures.
 - Developed and tested in **Chromium** only (headless Playwright). Firefox and Edge, and LightBurn / LibreCAD import of the DXF, are not tested.
 - The Hershey-style font is a hand-redrawn reconstruction, see `DECISIONS.md`. clipper2-js bugs and other deviations from `docs/PLAN.md` are listed there too.
 - A hollow cavity is fully enclosed (no vent hole). Dowels need room: thin hollow walls usually leave no run of two layers.
