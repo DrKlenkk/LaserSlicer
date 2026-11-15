@@ -17,6 +17,8 @@ export type Measurements = {
   volume: number;
   /** sheets used (partial sheets count whole) */
   sheets: number;
+  /** rapid travel between entities in the cutting order (mm, summed over the sheets, from each sheet's origin); not part of the time estimate */
+  travelLength: number;
 };
 
 /** The four settings the estimates need. 0 means "not set". */
@@ -51,7 +53,7 @@ function ringLength(r: Vec2[]): number {
  * @param areaBeforeKerf summed area of the same parts before kerf compensation (mm2)
  * @param sheetCount number of sheets the nesting used
  */
-export function measureParts(parts: Part[], areaBeforeKerf: number, thickness: number, sheetCount: number): Measurements {
+export function measureParts(parts: Part[], areaBeforeKerf: number, thickness: number, sheetCount: number, travelLength = 0): Measurements {
   let cut = 0, engrave = 0;
   for (const p of parts) {
     const k = cutPathsByKind(p);
@@ -61,7 +63,7 @@ export function measureParts(parts: Part[], areaBeforeKerf: number, thickness: n
     for (const l of p.engrave) engrave += pathLength(l);
     for (const l of p.label) engrave += pathLength(l);
   }
-  return { cutLength: cut, engraveLength: engrave, area: areaBeforeKerf, volume: areaBeforeKerf * thickness, sheets: sheetCount };
+  return { cutLength: cut, engraveLength: engrave, area: areaBeforeKerf, volume: areaBeforeKerf * thickness, sheets: sheetCount, travelLength };
 }
 
 const set = (v: number) => Number.isFinite(v) && v > 0;
@@ -90,7 +92,7 @@ const fmtCost = (c: number) => c.toFixed(2);
 
 /** The full list, one `label: value` entry per line (run info tooltip, ZIP README). Unset estimates are left out. */
 export function estimateLines(m: Measurements, e: Estimates): string[] {
-  const L = [`Cut length: ${fmtLength(m.cutLength)}`, `Engrave length: ${fmtLength(m.engraveLength)} (engrave lines and label strokes)`, `Glued volume: ${fmtVolume(m.volume)} (part area ${(m.area / 100).toFixed(1)} cm2 x thickness, before kerf)`];
+  const L = [`Cut length: ${fmtLength(m.cutLength)}`, `Engrave length: ${fmtLength(m.engraveLength)} (engrave lines and label strokes)`, `Travel between cuts: ${fmtLength(m.travelLength)} (rapid moves between entities in file order, not in the time)`, `Glued volume: ${fmtVolume(m.volume)} (part area ${(m.area / 100).toFixed(1)} cm2 x thickness, before kerf)`];
   if (e.weight !== null) L.push(`Weight: ${fmtWeight(e.weight)}`);
   if (e.time !== null) {
     const parts = [e.cutTime !== null ? `cutting ${formatDuration(e.cutTime)}` : "cutting not included (no cut speed)", e.engraveTime !== null ? `engraving ${formatDuration(e.engraveTime)}` : "engraving not included (no engrave speed)"];

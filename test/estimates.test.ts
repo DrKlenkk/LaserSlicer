@@ -69,11 +69,11 @@ describe("pipeline measurements", () => {
 });
 
 describe("estimate", () => {
-  const m = { cutLength: 3000, engraveLength: 600, area: 5000, volume: 20000, sheets: 3 };
+  const m = { cutLength: 3000, engraveLength: 600, area: 5000, volume: 20000, sheets: 3, travelLength: 500 };
   it("0 means not set", () => {
     const e = estimate(m, NONE);
     expect(e).toEqual({ weight: null, time: null, cutTime: null, engraveTime: null, cost: null });
-    expect(estimateLines(m, e).length).toBe(3);
+    expect(estimateLines(m, e).length).toBe(4); // cut, engrave, travel, volume
     expect(estimateSummary(m, e)).toBe("cut 3.00 m".replace("3.00 m", "3000 mm"));
   });
   it("weight, time and cost", () => {
@@ -85,6 +85,7 @@ describe("estimate", () => {
     expect(e.cost).toBe(13.5); // whole sheets
     const text = estimateLines(m, e).join("\n");
     expect(text).toMatch(/Weight: 13 g/);
+    expect(text).toMatch(/Travel between cuts: 500 mm/);
     expect(text).toMatch(/Cutting time \(rough\): about 5 min/);
     expect(text).toMatch(/Material cost: 13.50 \(3 sheets, partial sheets count whole\)/);
     expect(estimateSummary(m, e)).toBe("cut 3000 mm · ≈ 5 min · cost 13.50");

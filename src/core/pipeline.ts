@@ -18,6 +18,8 @@ import { addBridges } from "./bridges";
 import { nestParts, type NestResult } from "./nest";
 import { measureParts, type Measurements } from "./estimates";
 import { shapeArea } from "./poly";
+import { drawingTravel } from "./export/order";
+import { sheetDrawing } from "./export/common";
 import { partsInRange, resolveRange, type LayerRange } from "./range";
 
 export type RunInfo = {
@@ -72,6 +74,7 @@ export class Pipeline {
   private cReg: Cached<{ parts: Part[]; warnings: Warning[] }> | null = null;
   private cKerf: Cached<{ parts: Part[]; warnings: Warning[] }> | null = null;
   private cNest: Cached<NestResult> | null = null;
+  private cTravel: { parts: Part[]; nested: NestResult; value: number } | null = null;
   private cBridges: Cached<{ parts: Part[]; warnings: Warning[] }> | null = null;
   /** counters for tests: how many times each stage actually ran */
   readonly runs = { orient: 0, slice: 0, modes: 0, cleanup: 0, hollow: 0, registration: 0, kerf: 0, nest: 0, bridges: 0 };
@@ -235,10 +238,17 @@ export class Pipeline {
         size: oriented.size,
         range,
       },
-      measure: measureParts(inRange, areaBeforeKerf, s.thickness, nested.sheets.length),
+      measure: measureParts(inRange, areaBeforeKerf, s.thickness, nested.sheets.length, this.travelOf(bridged.parts, nested)),
     };
     this.last = { result, settings: s };
     return result;
+  }
+
+  /** Rapid travel over all sheets in the file's cutting order. Cached by identity of the inputs: the bridged parts and the nesting only change when a stage re-ran. */
+  private travelOf(parts: Part[], nested: NestResult): number {
+    if (this.cTravel?.parts !== parts || this.cTravel.nested !== nested)
+      this.cTravel = { parts, nested, value: nested.sheets.reduce((a, sh) => a + drawingTravel(sheetDrawing(parts, nested.placements, sh.index, sh.w, sh.h)), 0) };
+    return this.cTravel.value;
   }
 
   private meshWarnings(): Warning[] {

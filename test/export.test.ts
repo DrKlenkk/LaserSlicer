@@ -56,20 +56,25 @@ describe("DXF", () => {
       expect(cut[i].shape).toBe(true);
       const v = verts(cut[i]);
       expect(v).toHaveLength(ring.length);
+      // the ring may start at another vertex (cutting order), the cyclic sequence is the same
+      const s0 = ring.findIndex((r) => Math.abs(r[0] - v[0][0]) < 0.001 && Math.abs(r[1] - v[0][1]) < 0.001);
+      expect(s0).toBeGreaterThanOrEqual(0);
       v.forEach((q, k) => {
-        expect(Math.abs(q[0] - ring[k][0])).toBeLessThan(0.001);
-        expect(Math.abs(q[1] - ring[k][1])).toBeLessThan(0.001);
+        const r = ring[(s0 + k) % ring.length];
+        expect(Math.abs(q[0] - r[0])).toBeLessThan(0.001);
+        expect(Math.abs(q[1] - r[1])).toBeLessThan(0.001);
       });
     }
+    // order inside a layer follows the cutting order, so look entities up by kind; open lines may be reversed
     const eng = ents.filter((e) => e.layer === "ENGRAVE");
     expect(eng).toHaveLength(2);
-    expect(eng[0].shape).toBe(false);
-    expect(verts(eng[0])).toEqual(p.engrave[0]);
-    expect(eng[1].shape).toBe(true); // repeated end point = closed
-    expect(verts(eng[1])).toHaveLength(4);
+    const openEng = eng.find((e) => !e.shape)!;
+    expect([verts(openEng), verts(openEng).reverse()]).toContainEqual(p.engrave[0]);
+    const closedEng = eng.find((e) => e.shape)!; // repeated end point = closed
+    expect(verts(closedEng)).toHaveLength(4);
     const lab = ents.filter((e) => e.layer === "LABEL");
     expect(lab).toHaveLength(2);
-    expect(verts(lab[0])).toEqual(p.label[0]);
+    for (const l of p.label) expect(lab.some((e) => [verts(e), verts(e).reverse()].some((v) => JSON.stringify(v) === JSON.stringify(l)))).toBe(true);
     const circ = ents.filter((e) => e.type === "CIRCLE");
     expect(circ).toHaveLength(1);
     expect(circ[0].layer).toBe("CUT");
@@ -149,8 +154,8 @@ describe("export files and ZIP", () => {
     const layerFiles = buildExportFiles(r, { ...s, perLayerFiles: true }, "cube");
     expect(layerFiles.map((f) => f.name)).toEqual(["cube_L000.dxf", "cube_L000.svg", "cube_L001.dxf", "cube_L001.svg", "cube_L002.dxf", "cube_L002.svg"]);
     // per-layer drawing starts at the origin
-    const e = (parse(new TextDecoder().decode(layerFiles[0].bytes)).entities as any[])[0];
-    expect(Math.min(...verts(e).map((v) => v[0]))).toBeCloseTo(0, 3);
+    const ents = parse(new TextDecoder().decode(layerFiles[0].bytes)).entities as any[];
+    expect(Math.min(...ents.filter((e) => e.type === "POLYLINE").flatMap((e) => verts(e).map((v) => v[0])))).toBeCloseTo(0, 3);
 
     const readme = buildReadme(r, s, "cube", layerFiles);
     const zip = unzipSync(buildZip(layerFiles, readme));

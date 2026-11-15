@@ -2,11 +2,13 @@
 // ENTITIES, EOF. R12 has no handles. Coordinates in mm, Y up, sheet lower-left = (0, 0).
 // Closed outlines are POLYLINE (70 = 1) + VERTEX + SEQEND, open engrave lines the same with 70 = 0, dowel holes CIRCLE.
 // Bridged rings: the ring without its gaps is a set of open polylines on CUT, each gap an open polyline on BRIDGE (magenta).
-// Entity order: SHEET, inner rings, dowel circles, outer outlines, BRIDGE, ENGRAVE, LABEL (holes first, so a part cannot move before they are cut).
+// Entity order: SHEET, ENGRAVE, LABEL, inner cuts (holes and dowel circles), outer outlines, BRIDGE (engraving first, holes before any outline, so a part cannot move
+// before it is marked or before its holes are cut). Inside each group a nearest-neighbour path from the sheet origin (export/order.ts).
 // With layers.innerLayer, inner rings and dowel circles are on layer CUT_INNER (orange, ACI 30) instead of CUT.
 // Labels are polylines, never TEXT entities.
 import type { Vec2 } from "../types";
-import { filterDrawing, num, polyline, splitCut, type Drawing, type ExportLayers } from "./common";
+import { filterDrawing, num, type Drawing, type ExportLayers } from "./common";
+import { cuttingSequence, type Entity } from "./order";
 
 export const DXF_LAYERS = [
   { name: "CUT", color: 1 },
@@ -88,23 +90,19 @@ export function writeDxf(src: Drawing, opts: DxfOptions = {}): string {
   };
   if (L.sheet)
     poly("SHEET", [[0, 0], [d.width, 0], [d.width, d.height], [0, d.height]], true);
-  const cut = splitCut(d);
-  for (const r of cut.innerClosed) poly(innerName, r, true);
-  for (const l of cut.innerOpen) poly(innerName, l, false);
-  for (const c of d.circles) {
-    out.push("  0", "CIRCLE", "  8", innerName); g(10, c.c[0]); g(20, c.c[1]); g(30, 0); g(40, c.d / 2);
-  }
-  for (const r of cut.outerClosed) poly("CUT", r, true);
-  for (const l of cut.outerOpen) poly("CUT", l, false);
-  for (const l of d.bridge ?? []) poly("BRIDGE", l, false);
-  for (const l of d.engrave) {
-    const { pts, closed } = polyline(l);
-    poly("ENGRAVE", pts, closed);
-  }
-  for (const l of d.label) {
-    const { pts, closed } = polyline(l);
-    poly("LABEL", pts, closed);
-  }
+  const seq = cuttingSequence(d);
+  const write = (layer: string, ents: Entity[]) => {
+    for (const e of ents) {
+      if (e.k === "circle") {
+        out.push("  0", "CIRCLE", "  8", layer); g(10, e.c[0]); g(20, e.c[1]); g(30, 0); g(40, e.d / 2);
+      } else poly(layer, e.pts, e.k === "closed");
+    }
+  };
+  write("ENGRAVE", seq.engrave);
+  write("LABEL", seq.label);
+  write(innerName, seq.inner);
+  write("CUT", seq.outer);
+  write("BRIDGE", seq.bridge);
   out.push("  0", "ENDSEC");
   out.push("  0", "EOF");
   return out.join("\r\n") + "\r\n";

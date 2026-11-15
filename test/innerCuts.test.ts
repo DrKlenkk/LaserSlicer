@@ -48,8 +48,11 @@ describe("inner cuts first (entity order)", () => {
   it("SVG: inner ring and circle before the outline in CUT", () => {
     const svg = writeSvg(drawingOf([part()], 200, 200));
     const cut = svg.slice(svg.indexOf('<g id="CUT"'), svg.indexOf("</g>", svg.indexOf('<g id="CUT"')));
-    expect(cut.indexOf("<circle")).toBeGreaterThan(cut.indexOf("M30.0"));
-    expect(cut.indexOf("M0.0")).toBeGreaterThan(cut.indexOf("<circle"));
+    const paths = cut.split("\n").filter((l) => l.startsWith("<path") || l.startsWith("<circle"));
+    expect(paths).toHaveLength(3);
+    expect(paths.slice(0, 2).some((l) => l.startsWith("<circle"))).toBe(true);
+    expect(paths[2]).toMatch(/^<path/); // the outline (100 mm square) is last
+    expect(paths.slice(0, 2).filter((l) => l.startsWith("<path"))[0]).toMatch(/^<path d="M(30|60)\.0 /);
   });
 });
 

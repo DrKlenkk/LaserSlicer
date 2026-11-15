@@ -1,8 +1,10 @@
 // SVG writer (plan "SVG"): 1 user unit = 1 mm, Y flipped (y_svg = height - y), groups CUT / ENGRAVE / LABEL / BRIDGE (+ CUT_INNER when inner cuts have their own layer).
-// Every ring is its own stroke-only path (no evenodd subpaths, so inner rings can come first and can move to CUT_INNER). Order: inner rings, dowel circles, outer outlines;
-// with CUT_INNER the first two are in that group, which comes first in the file.
+// Every ring is its own stroke-only path (no evenodd subpaths, so inner rings can come first and can move to CUT_INNER).
+// Group and path order is the cutting order (export/order.ts, same as the DXF): ENGRAVE, LABEL, inner cuts (holes, dowel circles; with CUT_INNER these are in that
+// group), outer outlines, BRIDGE, then the SHEET border. Paths inside a group follow a nearest-neighbour path from the sheet origin.
 import type { Vec2 } from "../types";
-import { filterDrawing, num, polyline, splitCut, type Drawing, type ExportLayers } from "./common";
+import { filterDrawing, num, type Drawing, type ExportLayers } from "./common";
+import { cuttingSequence, type Entity } from "./order";
 
 export const SVG_COLORS = { CUT: "#ff0000", ENGRAVE: "#0000ff", LABEL: "#00a000", BRIDGE: "#d000d0", SHEET: "#808080", CUT_INNER: "#ff8000" } as const;
 
@@ -20,32 +22,18 @@ export function writeSvg(src: Drawing, layers: Partial<ExportLayers> = {}): stri
   const group = (id: keyof typeof SVG_COLORS, body: string[]) =>
     out.push(`<g id="${id}" stroke="${SVG_COLORS[id]}" fill="none" stroke-width="0.1">`, ...body, "</g>");
 
-  // Inner rings and dowel circles first, then the outer outlines (the order a cutter that follows the file will use).
-  const cut = splitCut(d);
-  const inner = [
-    ...cut.innerClosed.map((r) => `<path d="${sub(r, true)}"/>`),
-    ...cut.innerOpen.map((l) => `<path d="${sub(l, false)}"/>`),
-    ...d.circles.map((c) => `<circle cx="${num(c.c[0])}" cy="${num(d.height - c.c[1])}" r="${num(c.d / 2)}"/>`),
-  ];
-  const outer = [
-    ...cut.outerClosed.map((r) => `<path d="${sub(r, true)}"/>`),
-    ...cut.outerOpen.map((l) => `<path d="${sub(l, false)}"/>`),
-  ];
+  const seq = cuttingSequence(d);
+  const paths = (ents: Entity[]) =>
+    ents.map((e) => (e.k === "circle" ? `<circle cx="${num(e.c[0])}" cy="${num(d.height - e.c[1])}" r="${num(e.d / 2)}"/>` : `<path d="${sub(e.pts, e.k === "closed")}"/>`));
+  if (L.engrave) group("ENGRAVE", paths(seq.engrave));
+  if (L.label) group("LABEL", paths(seq.label));
   if (L.cut) {
     if (L.innerLayer) {
-      if (inner.length) group("CUT_INNER", inner);
-      group("CUT", outer);
-    } else group("CUT", [...inner, ...outer]);
+      if (seq.inner.length) group("CUT_INNER", paths(seq.inner));
+      group("CUT", paths(seq.outer));
+    } else group("CUT", [...paths(seq.inner), ...paths(seq.outer)]);
   }
-
-  const lines = (ls: Vec2[][]) =>
-    ls.map((l) => {
-      const { pts, closed } = polyline(l);
-      return `<path d="${sub(pts, closed)}"/>`;
-    });
-  if (L.engrave) group("ENGRAVE", lines(d.engrave));
-  if (L.label) group("LABEL", lines(d.label));
-  if (L.bridge && (d.bridge ?? []).length) group("BRIDGE", lines(d.bridge ?? []));
+  if (L.bridge && seq.bridge.length) group("BRIDGE", paths(seq.bridge));
   if (L.sheet) group("SHEET", [`<rect x="0" y="0" width="${w}" height="${h}"/>`]);
   out.push("</svg>");
   return out.join("\n") + "\n";

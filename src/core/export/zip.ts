@@ -47,7 +47,8 @@ export function buildReadme(result: RunResult, s: Settings, model: string, files
   }
   L.push(EL.innerLayer && EL.cut
     ? "  Inner cuts: holes, cavities and dowel holes are on DXF layer CUT_INNER (SVG group CUT_INNER, orange); only the outer outlines are on CUT. Cut CUT_INNER first, then CUT. PNG and JPG images ignore this and show everything as before."
-    : "  Inner cuts (holes, cavities, dowel holes) are written before the outer outlines in every part's DXF and SVG data.");
+    : "  Inner cuts (holes, cavities, dowel holes) are written before the outer outlines in the DXF and SVG data.");
+  L.push("  Cutting order in DXF and SVG: engraving and labels first, then inner cuts, then outer outlines, each along a short nearest-neighbour path from the sheet corner (rings start at the vertex nearest the previous end, open lines may run in reverse; geometry unchanged). See \"Travel between cuts\" above for the rapid moves.");
   if (!EL.cut) L.push("  Note: CUT is not included, so these files do not cut the parts out.");
   if (s.formats.includes("png") || s.formats.includes("jpg"))
     L.push(`  Raster images: ${s.dpi} DPI, ${s.rasterStyle} style${s.rasterEngrave && (EL.engrave || EL.label) ? ", engrave and labels in grey" : ""}; not suitable for cutting without tracing`);
