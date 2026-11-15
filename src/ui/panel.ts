@@ -272,6 +272,7 @@ export function createPanel(root: HTMLElement, store: Store, actions: PanelActio
     h("div", { class: "grid2" }, numField("Sheet W", "sheetW", { min: 10, unit: "mm", help: "sheetSize" }), numField("Sheet H", "sheetH", { min: 10, unit: "mm" })),
     numField("Kerf", "kerf", { step: 0.01, min: 0, unit: "mm", help: "kerf" }),
     expert(h("div", { class: "grid2" }, numField("Part spacing", "partSpacing", { min: 0, unit: "mm", help: "partSpacing" }), numField("Sheet margin", "sheetMargin", { min: 0, unit: "mm", help: "sheetMargin" }))),
+    expert(numField("Copies", "copies", { step: 1, min: 1, max: 50, hint: "Cut the whole model this many times (1 to 50). All parts are nested again for every copy.", help: "copies" })),
     expert(numField("Density", "density", { step: 0.01, min: 0, unit: "g/cm³", hint: "0 = not set. Plywood is about 0.6–0.7. Only used for the weight estimate.", help: "density" })),
     expert(h("div", { class: "grid2" }, numField("Cut speed", "cutSpeed", { min: 0, unit: "mm/s", help: "cutSpeed" }), numField("Engrave speed", "engraveSpeed", { min: 0, unit: "mm/s", help: "engraveSpeed" }))),
     expert(numField("Price per sheet", "pricePerSheet", { step: 0.01, min: 0, hint: "Any currency, 0 = not set. Cost = price x sheets used (a partly used sheet counts whole).", help: "pricePerSheet" })),

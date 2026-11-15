@@ -170,11 +170,12 @@ export type NestResult = { placements: Placement[]; sheets: Sheet[]; warnings: W
  * Nest parts onto sheets. Parts are sorted by layer (then by size, largest first) and each is rotated to its
  * minimum-area rectangle; MaxRects may also turn it by 90 degrees. `partSpacing` is kept between parts and
  * `sheetMargin` at the sheet edges (spacing is added to every rectangle and to the bin, the usual trick).
+ * With `copies` > 1 every part is nested that many times (placements carry `copy`, `Sheet.partIds` lists the id once per copy).
  * Parts that do not fit even an empty sheet get an error warning and no placement.
  */
 export function nestParts(
   parts: Part[],
-  s: Pick<Settings, "sheetW" | "sheetH" | "partSpacing" | "sheetMargin">,
+  s: Pick<Settings, "sheetW" | "sheetH" | "partSpacing" | "sheetMargin"> & Partial<Pick<Settings, "copies">>,
 ): NestResult {
   const warnings: Warning[] = [];
   const placements: Placement[] = [];
@@ -183,7 +184,8 @@ export function nestParts(
   const spacing = Math.max(0, s.partSpacing);
   const usableW = s.sheetW - 2 * s.sheetMargin, usableH = s.sheetH - 2 * s.sheetMargin;
 
-  type Item = { part: Part; rect: Rect; minX: number; minY: number; area: number };
+  const copies = Math.max(1, Math.round(s.copies ?? 1));
+  type Item = { part: Part; rect: Rect; minX: number; minY: number; area: number; copy: number };
   const items: Item[] = [];
   for (const part of parts) {
     const rect = minAreaRect(part.cut.outer);
@@ -197,9 +199,11 @@ export function nestParts(
       });
       continue;
     }
-    items.push({ part, rect, minX: 0, minY: 0, area: shapeArea(part.cut) });
+    const area = shapeArea(part.cut);
+    for (let copy = 0; copy < copies; copy++) items.push({ part, rect, minX: 0, minY: 0, area, copy });
   }
-  items.sort((a, b) => a.part.layer - b.part.layer || b.rect.area - a.rect.area);
+  // Same order as without copies, the copies of one part directly after each other (stable sort keeps the input order for ties).
+  items.sort((a, b) => a.part.layer - b.part.layer || b.rect.area - a.rect.area || a.copy - b.copy);
 
   for (const it of items) {
     // Rect at rotation angle: rotated outer has bbox [0,w] x [0,h] after the translation computed below.
@@ -228,6 +232,7 @@ export function nestParts(
         x: s.sheetMargin + f.x - minX,
         y: s.sheetMargin + f.y - minY,
         angleDeg: angle,
+        ...(copies > 1 ? { copy: it.copy } : {}),
       });
       sheets[si].partIds.push(it.part.id);
       sheets[si].usedArea += it.area;

@@ -22,6 +22,7 @@ export const DEFAULT_SETTINGS: Settings = {
   kerf: 0.15,
   partSpacing: 3,
   sheetMargin: 5,
+  copies: 1,
   density: 0.65,
   cutSpeed: 0,
   engraveSpeed: 0,
@@ -127,9 +128,12 @@ export function serializeProject(s: Settings, model?: ProjectModel | null): stri
   return JSON.stringify(o, null, 2) + "\n";
 }
 
+/** Upper limit of the Copies setting. */
+export const MAX_COPIES = 50;
+
 const POSITIVE = ["thickness", "sheetW", "sheetH", "scale", "labelHeight", "dowelDiameter", "bridgeWidth"] as const;
 const NON_NEGATIVE = ["kerf", "partSpacing", "sheetMargin", "smoothRadius", "simplifyTol", "minPartArea", "minFeature", "hollowWall", "solidCapLayers", "bridgeMinLength", "bridgeMaxSpacing", "density", "cutSpeed", "engraveSpeed", "pricePerSheet"] as const;
-const INTEGERS = ["samplesPerLayer", "solidCapLayers", "dowelCount", "bridgeCount"] as const;
+const INTEGERS = ["samplesPerLayer", "solidCapLayers", "dowelCount", "bridgeCount", "copies"] as const;
 const ENUMS: Record<string, readonly string[]> = {
   axis: ["+X", "-X", "+Y", "-Y", "+Z", "-Z"],
   mode: ["oversize", "midplane", "undersize"],
@@ -189,6 +193,7 @@ export function parseProjectFile(text: string, withModel = true): { settings: Se
       if (k === "samplesPerLayer" && (v as number) < 1) bad(k);
       if (k === "dowelCount" && (v as number) < 1) bad(k);
       if (k === "bridgeCount" && ((v as number) < 1 || (v as number) > 8)) bad(k);
+      if (k === "copies" && ((v as number) < 1 || (v as number) > MAX_COPIES)) bad(k);
       if (k === "dpi" && ((v as number) < 1 || (v as number) > 4800)) bad(k);
     } else if (typeof v !== typeof def) bad(k);
     out[k] = src[k];

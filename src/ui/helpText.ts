@@ -33,6 +33,9 @@ export const HELP = {
   sheetMargin:
     "A border around the sheet edge where no parts are placed. It keeps cuts away from warped or damaged edges and from the clamps or honeycomb limits of your laser bed. Typical value 3 to 10 mm. Larger margins reduce the usable area, so large parts may no longer fit.",
 
+  copies:
+    "How many times the whole model is cut, 1 to 50 (default 1). Every part is nested that many times onto the sheets, so you get that many complete stacks from one export, for example three identical lamps or a spare set. The layer labels stay the same on every copy (L12 appears once per copy). The sheet count, cut length, time, weight, cost and the assembly guide all count every copy. The layers are not sliced again; only the nesting is redone. With 'One file per layer' each file holds one copy, so cut it that many times.",
+
   // ----- Slicing -----
   mode:
     "How the outline of each layer is taken from the model, since the model's shape changes within the thickness of one layer. Oversize (default): every part covers the model everywhere inside its layer, so you glue the stack and sand it down to the shape. Mid-plane: the section at the middle of the layer, which is closest on average but leaves small steps both ways. Undersize: the part never sticks out of the model, so nothing needs sanding, but the result is slightly smaller and may lose thin details.",
@@ -148,6 +151,7 @@ export const HELP_DOC: Record<HelpKey, string> = {
   kerf: "kerf",
   partSpacing: "sheet-size",
   sheetMargin: "sheet-size",
+  copies: "copies",
   mode: "outline-modes",
   samplesPerLayer: "outline-modes",
   roundHeightToLayers: "layer-height",

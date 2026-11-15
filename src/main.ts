@@ -448,7 +448,7 @@ function renderSummaries() {
   const lines = estimateLines(r.measure, e);
   const range = r.info.range;
   const partial = !range.all;
-  const nParts = partial ? r.parts.filter((p) => p.layer >= range.from && p.layer <= range.to).length : r.parts.length;
+  const nParts = (partial ? r.parts.filter((p) => p.layer >= range.from && p.layer <= range.to).length : r.parts.length) * Math.max(1, r.info.copies ?? 1);
   const base = `${partial ? `only layers ${range.from}–${range.to} (model: 0–${r.info.layerCount - 1})` : `${r.info.layerCount} layers`} · ${nParts} parts · ${r.sheets.length} sheet${r.sheets.length === 1 ? "" : "s"} · ${materialUse(r.sheets).toFixed(0)} % material use`;
   const full = `${base} · ${estimateSummary(r.measure, e)}`;
   runSummary.textContent = !ctl.auto && ctl.stale ? `${full} · outdated` : full;

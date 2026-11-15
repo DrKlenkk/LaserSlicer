@@ -148,7 +148,14 @@ export function buildAssemblyGuide(result: RunResult, s: GuideSettings, model: s
     if (a) a.push(p);
     else byLayer.set(p.layer, [p]);
   }
-  const sheetOf = new Map(result.placements.map((pl) => [pl.partId, pl.sheet]));
+  const copies = Math.max(1, result.info.copies ?? 1);
+  // sheets of a part: one entry per copy (sorted, no duplicates in the text)
+  const sheetsOf = new Map<string, number[]>();
+  for (const pl of result.placements) {
+    const a = sheetsOf.get(pl.partId);
+    if (a) a.push(pl.sheet);
+    else sheetsOf.set(pl.partId, [pl.sheet]);
+  }
   const indices: number[] = [];
   for (let i = from; i <= to; i++) indices.push(i);
 
@@ -173,7 +180,7 @@ export function buildAssemblyGuide(result: RunResult, s: GuideSettings, model: s
   row("Date", escapeHtml(dateText(date)));
   row("Material", `${escapeHtml(String(s.thickness))} mm thick, sheets ${escapeHtml(String(s.sheetW))} x ${escapeHtml(String(s.sheetH))} mm, kerf ${escapeHtml(String(s.kerf))} mm`);
   row("Layers", rt ? `${indices.length} of ${n} (${escapeHtml(first)} to ${escapeHtml(last)})` : `${n} (${escapeHtml(layerLabel(0))} bottom${n > 1 ? `, ${escapeHtml(layerLabel(n - 1))} top` : ""})`);
-  row("Parts", String(shown));
+  row("Parts", copies > 1 ? `${shown} per copy, ${copies} copies = ${shown * copies} parts to cut` : String(shown));
   row("Sheets", `${sheetsUsed}, material use ${materialUse(result.sheets).toFixed(1)} %`);
   row("Outline mode", escapeHtml(s.mode));
   row("Scale of the drawings", escapeHtml(scaleText));
@@ -181,6 +188,7 @@ export function buildAssemblyGuide(result: RunResult, s: GuideSettings, model: s
   if (rt) o.push(`<p class="warn">Only ${escapeHtml(rt.replace(/^only /, ""))} are in this guide and in the files; the other layers are not included.</p>`);
   o.push(`<ul class="est">${est.map((l) => `<li>${escapeHtml(l)}</li>`).join("")}</ul>`);
 
+  if (copies > 1) o.push(`<p class="warn">${copies} copies: the files hold ${copies} of every part, so you get ${copies} complete stacks. The drawings below show one copy; glue each stack on its own and keep the stacks apart.</p>`);
   o.push("<h2>How to glue</h2><ol class=\"how\">");
   o.push(`<li>Cut every part face-up and never flip a part. Start with ${escapeHtml(first)}${from === 0 ? ", the bottom layer" : ", the lowest layer in this guide"}, and stack upward in the order below.</li>`);
   o.push(engraved
@@ -204,8 +212,9 @@ export function buildAssemblyGuide(result: RunResult, s: GuideSettings, model: s
     o.push("<ul>");
     if (parts.length === 0) o.push("<li>no parts</li>");
     for (const p of parts) {
-      const sh = sheetOf.get(p.id);
-      o.push(`<li><b>${escapeHtml(p.id)}</b>: ${sh === undefined ? "not on a sheet (does not fit)" : `sheet ${sh + 1}`}</li>`);
+      const sh = sheetsOf.get(p.id);
+      const where = !sh ? "not on a sheet (does not fit)" : copies > 1 ? `${copies} copies on sheet ${[...new Set(sh)].sort((a, b) => a - b).map((n) => n + 1).join(", ")}` : `sheet ${sh[0] + 1}`;
+      o.push(`<li><b>${escapeHtml(p.id)}</b>: ${where}</li>`);
     }
     o.push("</ul>");
     const nh = parts.reduce((m, p) => m + p.holes.length, 0);

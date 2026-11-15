@@ -21,7 +21,10 @@ export function buildReadme(result: RunResult, s: Settings, model: string, files
     if (range.clamped) L.push("  (The range set in the app lay outside the model's layers or was reversed and was adjusted.)");
   }
   L.push(`  Layers: ${range && !range.all ? `${range.to - range.from + 1} of ${n}` : n}`);
-  L.push(`  Parts: ${parts.length}`);
+  const copies = Math.max(1, result.info.copies ?? 1);
+  L.push(copies > 1 ? `  Parts: ${parts.length} per copy, ${copies} copies = ${parts.length * copies} parts to cut` : `  Parts: ${parts.length}`);
+  if (copies > 1)
+    L.push(`  COPIES: ${copies}. Every part is nested ${copies} times; the estimates below are for all copies.${s.perLayerFiles ? " The per-layer files hold ONE copy of each part: cut each file " + copies + " times." : ""}`);
   L.push(`  Sheets: ${result.sheets.length} (${s.sheetW} x ${s.sheetH} mm), material use ${materialUse(result.sheets).toFixed(1)} %`);
   for (const sh of result.sheets) L.push(`    sheet ${sh.index + 1}: ${sh.partIds.length} parts, ${sh.usePct.toFixed(1)} % used`);
   L.push("");

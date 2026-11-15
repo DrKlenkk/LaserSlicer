@@ -65,7 +65,8 @@ export type Sheet = {
   usePct: number;
 };
 
-export type Placement = { partId: string; sheet: number; x: number; y: number; angleDeg: number };
+/** `copy` (0-based) is set only when Copies > 1: the same part id is then placed once per copy. */
+export type Placement = { partId: string; sheet: number; x: number; y: number; angleDeg: number; copy?: number };
 
 export type Warning = { level: "info" | "warn" | "error"; layer?: number; partId?: string; message: string };
 
@@ -89,6 +90,8 @@ export type Settings = {
   kerf: number;
   partSpacing: number;
   sheetMargin: number;
+  /** how many times the whole model is cut (1..50): every part is nested this many times. Nesting stage, never re-slices. */
+  copies: number;
   // Estimates (do not affect geometry; 0 = not set, the estimate that needs it is not shown)
   /** material density in g/cm3 (plywood about 0.6 to 0.7) */
   density: number;

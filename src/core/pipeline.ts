@@ -34,6 +34,8 @@ export type RunInfo = {
   size: [number, number, number];
   /** layer range of the export, resolved against this model (only these layers are nested and exported) */
   range: LayerRange;
+  /** how many times the model is cut (Copies setting): parts are nested this many times */
+  copies: number;
 };
 
 export type RunResult = {
@@ -206,7 +208,7 @@ export class Pipeline {
     // ---- stage 7: nesting ----
     // The layer range is resolved (clamped) first, so two requests that mean the same layers share one nesting.
     const range = resolveRange(sliced.plan.count, s.rangeFrom, s.rangeTo);
-    const nestKey = JSON.stringify([kerfKey, s.sheetW, s.sheetH, s.partSpacing, s.sheetMargin, range.from, range.to]);
+    const nestKey = JSON.stringify([kerfKey, s.sheetW, s.sheetH, s.partSpacing, s.sheetMargin, s.copies, range.from, range.to]);
     if (this.cNest?.key !== nestKey) {
       this.cNest = { key: nestKey, value: nestParts(partsInRange(kerfed.parts, range), s) };
       this.runs.nest++;
@@ -248,8 +250,9 @@ export class Pipeline {
         scale: oriented.scale,
         size: oriented.size,
         range,
+        copies: Math.max(1, Math.round(s.copies ?? 1)),
       },
-      measure: measureParts(inRange, areaBeforeKerf, s.thickness, nested.sheets.length, this.travelOf(bridged.parts, nested)),
+      measure: measureParts(inRange, areaBeforeKerf, s.thickness, nested.sheets.length, this.travelOf(bridged.parts, nested), s.copies),
     };
     this.last = { result, settings: s };
     return result;
