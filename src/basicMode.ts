@@ -27,6 +27,7 @@ export const BASIC_OVERRIDES: Partial<Settings> = {
   exportBridge: false,
   exportSheet: false,
   exportInnerLayer: false,
+  exportStl: false,
   perLayerFiles: false,
   rangeFrom: null,
   rangeTo: null,

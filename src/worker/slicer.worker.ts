@@ -9,6 +9,7 @@ import { runComparison, type CompareEntry } from "../core/compare";
 import { buildRasterFiles } from "../core/export/raster";
 import { buildReadme, buildZip } from "../core/export/zip";
 import { buildAssemblyGuide } from "../core/export/guide";
+import { buildStackedStl } from "../core/export/stl";
 
 const ctx = self as unknown as {
   postMessage(msg: FromWorker, transfer?: Transferable[]): void;
@@ -72,6 +73,7 @@ async function compareJob(jobId: number, entries: CompareEntry[]) {
 async function exportJob(jobId: number, result: RunResult, settings: Settings, model: string) {
   try {
     const files = [...buildExportFiles(result, settings, model), ...(await buildRasterFiles(result, settings, model))];
+    if (settings.exportStl) files.push({ name: "stacked.stl", mime: "model/stl", bytes: buildStackedStl(result) });
     if (settings.formats.includes("guide"))
       files.push({ name: "assembly.html", mime: "text/html", bytes: new TextEncoder().encode(buildAssemblyGuide(result, settings, model)) });
     if (files.length === 0) throw new Error("Nothing to export: select a format and make sure parts exist");
@@ -121,6 +123,7 @@ ctx.onmessage = (e) => {
           exportBridge: msg.layers.bridge,
           exportSheet: msg.layers.sheet,
           exportInnerLayer: msg.layers.innerLayer,
+          exportStl: msg.stl,
           // the estimate settings may have changed after the run (they never trigger one): use the current ones
           ...msg.estimate,
         };

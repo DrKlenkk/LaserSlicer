@@ -286,8 +286,8 @@ const panel = createPanel(panelEl, store, {
     if (!m) throw new Error("No model loaded");
     await ensureFresh(); // the ZIP is built from the last finished run, so it must match the current settings
     const st = effectiveSettings(store.get()); // read after the update: a click just before Download is included
-    const { formats, perLayerFiles, dpi, rasterStyle, rasterEngrave } = st;
-    const f = await worker.exportZip(m.fileName, { formats, perLayerFiles, dpi, rasterStyle, rasterEngrave, layers: exportLayersOf(st), estimate: estimateSettingsOf(st) });
+    const { formats, perLayerFiles, dpi, rasterStyle, rasterEngrave, exportStl: stl } = st;
+    const f = await worker.exportZip(m.fileName, { formats, perLayerFiles, dpi, rasterStyle, rasterEngrave, stl, layers: exportLayersOf(st), estimate: estimateSettingsOf(st) });
     downloadBytes(f.name, f.mime, f.bytes);
     store.setStatus(`Saved ${f.name}`);
   },

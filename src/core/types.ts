@@ -150,6 +150,8 @@ export type Settings = {
   exportSheet: boolean;
   /** DXF and SVG only: inner rings (holes, cavities) and dowel circles on their own layer CUT_INNER, so only outer outlines stay on CUT. Export-only. */
   exportInnerLayer: boolean;
+  /** adds stacked.stl (the glued stack as a binary STL, mm) to the ZIP. Export-only. */
+  exportStl: boolean;
   perLayerFiles: boolean;
   /** layer range of the export (0-based layer numbers as in the UI, inclusive); null = first / last layer. Part of the nesting stage's key. */
   rangeFrom: number | null;

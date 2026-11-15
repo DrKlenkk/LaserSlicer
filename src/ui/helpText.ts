@@ -111,6 +111,8 @@ export const HELP = {
     "Chooses which traces are written into the exported DXF, SVG, PNG and JPG files. CUT = part outlines and dowel holes, ENGRAVE = the next-layer outline for gluing, LABEL = the layer text, BRIDGE = the gaps of the holding bridges (without it the gaps stay uncut tabs), SHEET border = a frame around the sheet (off by default; DXF layer SHEET, SVG group SHEET, grey frame in images). Use it, for example, to make a file with the cut lines only and a second one with the engraving only. Without CUT the files do not cut the parts out. These boxes are independent of the legend checkboxes in the views, which only change what you see. At least one layer must stay selected.",
   exportInnerLayer:
     "Puts the inner cuts (holes, hollowing cavities and dowel holes) on their own layer CUT_INNER (orange) in DXF and SVG, so only the outer outlines stay on CUT. In LightBurn and similar software you can then cut CUT_INNER first and CUT last, so a part cannot drop or shift before its holes are cut. Inner cuts are always written before the outlines in the files, with or without this option (and engraving and labels come first of all, then the cuts follow a short path from the sheet corner, see the Travel line in the summary). PNG and JPG ignore it. Bridge gaps on inner rings stay on BRIDGE. It does not re-slice.",
+  exportStl:
+    "Adds stacked.stl to the ZIP: the glued stack as a binary STL in mm, for a slicer, a CAD program or a render. Every layer's final outline (after hollowing and kerf compensation, as it is cut, with holes, hollow cavities and dowel holes) is extruded to the material thickness and placed at its height in the stack, so the model is the thickness times the layer count tall. It follows the layer range. It does not depend on the formats or the CUT, ENGRAVE chips, and it is not nested.",
   layerRange:
     "Exports only some layers, for example to recut one that broke or went missing without cutting the whole model again. Enter the first and last layer with the same numbers the Layer tab and the part names use (layer 0 is the bottom one, L012 is layer 12); leave a field empty for no limit, or press 'All layers'. Only parts of layers in the range are nested, so the sheets, the Sheets tab, the summary line and the estimates show exactly what will be exported, and files per layer follow the range too. Labels and engrave lines stay those of the full model. A range outside the model's layers is clamped (and the note under the fields says so); a reversed range is swapped. Changing it re-runs only the nesting, not the slicing.",
   density:
@@ -184,6 +186,7 @@ export const HELP_DOC: Record<HelpKey, string> = {
   viewTraces: "legend",
   exportLayers: "layers-in-files",
   exportInnerLayer: "inner-cuts",
+  exportStl: "stacked-stl",
   layerRange: "layer-range",
   density: "estimates",
   cutSpeed: "estimates",

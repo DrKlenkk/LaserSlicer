@@ -59,6 +59,7 @@ export const DEFAULT_SETTINGS: Settings = {
   exportBridge: true,
   exportSheet: false,
   exportInnerLayer: false,
+  exportStl: false,
   perLayerFiles: false,
   rangeFrom: null,
   rangeTo: null,

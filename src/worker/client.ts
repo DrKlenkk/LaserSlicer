@@ -113,7 +113,7 @@ export class WorkerClient {
   }
 
   /** ZIP of the last completed run (bytes arrive transferred, not copied). */
-  async exportZip(model: string, o: { formats: Settings["formats"]; perLayerFiles: boolean; dpi: number; rasterStyle: Settings["rasterStyle"]; rasterEngrave: boolean; layers: ExportLayers; estimate: EstimateSettings }) {
+  async exportZip(model: string, o: { formats: Settings["formats"]; perLayerFiles: boolean; dpi: number; rasterStyle: Settings["rasterStyle"]; rasterEngrave: boolean; stl: boolean; layers: ExportLayers; estimate: EstimateSettings }) {
     const r = await this.request({ type: "export", model, ...o });
     if (r.type !== "file") throw new Error("Unexpected reply");
     return r;

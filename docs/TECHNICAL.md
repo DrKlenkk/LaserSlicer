@@ -319,6 +319,7 @@ The last four are in the exclusion list of `slicingKey` (like the export setting
 | BRIDGE (`exportBridge`) | on | bool | Bridge gap polylines. Off: gaps are simply not drawn, leaving uncut tabs. |
 | SHEET border (`exportSheet`) | off | bool | A frame around the sheet. |
 | Inner cuts on own layer (`exportInnerLayer`) | off | bool | DXF and SVG: inner rings (holes, cavities) and dowel circles go on layer `CUT_INNER` (orange) instead of `CUT`, so only outer outlines stay on `CUT`. Follows the CUT chip (no CUT, no inner cuts). Images ignore it. Not a trace: no legend checkbox, no view toggle. |
+| Stacked model (`exportStl`) | off | bool (Expert) | Adds `stacked.stl`, the glued stack as a binary STL (see 5.10). Independent of formats and layer chips. |
 
 At least one layer chip must stay selected, otherwise Download is disabled with a hint. Deselecting CUT shows the hint "CUT is
 not included: the files will not cut the parts out."
@@ -610,6 +611,10 @@ re-runs everything from slicing on; export settings re-run nothing. Tests count 
 
 Export is a ZIP, always (even for one file), named `<model>_laser.zip`, built in the worker and saved from a Blob URL.
 `<model>` is the model file name without extension, with characters outside `A-Za-z0-9._-` replaced by `_`.
+
+### 5.10 Stacked STL
+
+*Code:* `src/core/export/stl.ts` (pure; triangulation by three.js `ShapeUtils`, earcut). With `exportStl` the ZIP gets `stacked.stl`: binary STL, 80 byte header, little-endian triangle count, 50 bytes per triangle, mm, Z up. For every part in the layer range (`partsInRange`) the **final** kerf-compensated cut outline (`Part.cut`: outer ring plus holes and hollowing cavities, plus the dowel holes as 32-gons) is extruded from the layer's `z0` to `z1` (stacked position `index x thickness`), before nesting and without bridges, engraving or labels. Caps are triangulated with earcut using only the polygon's own vertices, so cap and wall share vertices and every prism is a closed 2-manifold (tested: every directed edge has its reverse, volume equals area x thickness). Consecutive layers with identical outlines touch with coincident faces and edges: the file is a set of closed prisms in the stacked position, not one merged solid (slicers and CAD programs union touching solids). The option travels in the `export` message (`stl`), like the other export choices, and is in the `slicingKey` exclusion list. An empty range gives an STL with zero triangles. The README names the file when present.
 
 ### 5.1 Files and naming
 

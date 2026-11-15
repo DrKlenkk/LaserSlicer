@@ -57,6 +57,11 @@ export function createExportSection(store: Store, onDownload: () => Promise<void
   innerCb.addEventListener("change", () => store.updateSettings({ exportInnerLayer: innerCb.checked }));
   syncers.push((s) => (innerCb.checked = s.exportInnerLayer));
   const innerField = h("label", { class: "field check" }, innerCb, h("span", { class: "lbl" }, "Inner cuts on own layer (CUT_INNER)", infoIcon("exportInnerLayer")));
+  // The glued stack as one STL (own file next to the drawings; independent of the formats and layer chips).
+  const stlCb = h("input", { type: "checkbox", id: "f-exportStl" });
+  stlCb.addEventListener("change", () => store.updateSettings({ exportStl: stlCb.checked }));
+  syncers.push((s) => (stlCb.checked = s.exportStl));
+  const stlField = h("label", { class: "field check" }, stlCb, h("span", { class: "lbl" }, "Stacked model (STL)", infoIcon("exportStl")));
   const layerHint = h("small", { class: "hint warn", id: "layer-hint", role: "status" });
 
   // Raster options (shown only while PNG or JPG is selected).
@@ -165,6 +170,7 @@ export function createExportSection(store: Store, onDownload: () => Promise<void
     expert(h("div", { class: "row-label" }, "Layers in the files", infoIcon("exportLayers"))),
     expert(h("div", { class: "chips", id: "export-layers" }, ...layerChips)),
     expert(innerField),
+    expert(stlField),
     expert(layerHint),
     expert(rangeField),
     expert(h("label", { class: "field" }, h("span", { class: "lbl" }, "Files", infoIcon("perLayerFiles")), h("span", { class: "ctl" }, mode))),

@@ -21,7 +21,7 @@ export type ToWorker =
    * The export choices travel with the message because they do not affect slicing (a pending re-run
    * must not make the user's latest checkbox click be ignored).
    */
-  | { type: "export"; jobId: number; model: string; formats: Settings["formats"]; perLayerFiles: boolean; dpi: number; rasterStyle: Settings["rasterStyle"]; rasterEngrave: boolean; layers: ExportLayers; estimate: EstimateSettings };
+  | { type: "export"; jobId: number; model: string; formats: Settings["formats"]; perLayerFiles: boolean; dpi: number; rasterStyle: Settings["rasterStyle"]; rasterEngrave: boolean; stl: boolean; layers: ExportLayers; estimate: EstimateSettings };
 
 export type FromWorker =
   | { type: "pong"; jobId: number; t: number }
