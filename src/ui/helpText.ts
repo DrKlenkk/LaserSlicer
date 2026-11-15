@@ -83,7 +83,7 @@ export const HELP = {
 
   // ----- Export -----
   formats:
-    "Which files go in the ZIP. DXF is the file to cut with (mm, red CUT, blue ENGRAVE, green LABEL layers) and works in most laser software. SVG is the same drawing as 1 unit = 1 mm. PNG and JPG are pictures for engraving, previewing or tracing, not for cutting directly. You can pick several.",
+    "Which files go in the ZIP. DXF is the file to cut with (mm, red CUT, blue ENGRAVE, green LABEL layers) and works in most laser software. SVG is the same drawing as 1 unit = 1 mm. PNG and JPG are pictures for engraving, previewing or tracing, not for cutting directly. \"Assembly guide (HTML)\" adds one assembly.html page to the ZIP: a printable A4 gluing guide with one block per layer (part numbers, the sheet each part is on and a drawing of the layer in its place in the model, all at one scale, with the layer below dashed). It opens in any browser, needs no network and prints in black and white. You can pick several.",
   perLayerFiles:
     "One file per sheet (default) holds all parts nested together on a sheet of the size you set, which is what you cut, with the fewest sheets. One file per layer gives each layer its own file with only that layer's parts, not nested to the sheet; this suits cutting one layer at a time or making a layer's parts easy to find, but it uses material less efficiently.",
   dpi:

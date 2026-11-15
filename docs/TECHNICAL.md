@@ -56,7 +56,7 @@ Collapsible groups, in this order. Model and Material start open, the rest colla
 | **Slicing** | Outline mode, samples per layer, round height to whole layers, smoothing radius, simplify tolerance, min part area, min feature. |
 | **Hollowing** | Enable, wall, solid cap layers. |
 | **Gluing aids** | Engrave next-layer outline, layer labels, label height, dowel holes, diameter, count. |
-| **Export** | Format chips (DXF, SVG, PNG, JPG), "Layers in the files" chips (CUT, ENGRAVE, LABEL, BRIDGE, SHEET border), **layer range** (from / to, "All layers", section 5.8), one file per sheet / per layer, raster options (DPI preset or custom, image style, grey engrave lines), summary line, **Download all (ZIP)**. |
+| **Export** | Format chips (DXF, SVG, PNG, JPG, Assembly guide (HTML)), "Layers in the files" chips (CUT, ENGRAVE, LABEL, BRIDGE, SHEET border), **layer range** (from / to, "All layers", section 5.8), one file per sheet / per layer, raster options (DPI preset or custom, image style, grey engrave lines), summary line, **Download all (ZIP)**. |
 | **Project** | "Save settings..." and "Load settings..." (JSON), the checkbox "Include the model in the project file", and the preference "Restore the last model when the page opens". |
 
 Dropping a file anywhere on the page also loads it (an overlay says "Drop model to load"). Loading a new model resets the
@@ -284,7 +284,7 @@ The last four are in the exclusion list of `slicingKey` (like the export setting
 
 | Setting | Default | Unit / range | What it does |
 |---|---|---|---|
-| Formats (`formats`) | `["dxf"]` | subset of dxf, svg, png, jpg | Files written into the ZIP. |
+| Formats (`formats`) | `["dxf"]` | subset of dxf, svg, png, jpg, guide | Files written into the ZIP. `guide` adds the printable assembly guide `assembly.html` (section 5.9); it is not a drawing format and does not need a raster or vector file. |
 | Files (`perLayerFiles`) | off (per sheet) | bool | One file per nested sheet, or one per layer (not nested). |
 | Layer range from / to (`rangeFrom`, `rangeTo`) | `null` / `null` (all layers) | integer >= 0 or `null`, 0-based layer numbers as the UI shows them | Only parts of layers from..to (inclusive) are nested and exported (section 5.8). `null` = first / last layer. A range outside the model is clamped, a reversed one swapped. **Not export-only:** it is part of the nesting stage's key, so a change re-runs nesting only (and, as it changes the sheets, the preview is marked stale in manual mode). |
 | Resolution (`dpi`) | 300 | 1..4800 (presets 254, 300, 600, 1000, custom) | PNG/JPG resolution; stored in the file. Shown only with PNG or JPG selected. |
@@ -624,6 +624,19 @@ Use: recut one broken or lost layer without cutting the whole model again. The E
 * **Labels and engrave lines are those of the full model** (registration runs before, on all layers): the first layer of a range still carries the outline of its next layer, and its label is its real number, so recut layers fit the rest of the stack. The Layer tab and 3D view always show the whole model. If the range holds no part (all its layers empty) a warning says nothing will be exported.
 * Part of the project file (keys `rangeFrom`, `rangeTo`, missing = all; validated as `null` or an integer >= 0). The range stays when another model is loaded and is clamped to that model's layers (with the note).
 
+### 5.9 Assembly guide
+
+Use: gluing 20+ layers is error-prone. Tick **Assembly guide (HTML)** in the Export formats and the ZIP gets one extra file, `assembly.html` (written even when it is the only format). It is built in the worker with the rest of the export by the pure function `buildAssemblyGuide(result, settings, model, date)` in `src/core/export/guide.ts` (no DOM, tested in Node; `date` is a parameter so the output is deterministic).
+
+* **Self-contained:** one HTML file, inline CSS, inline SVG, no script, no event handlers, no URL of any kind (the SVG elements carry no `xmlns`), no font or image files. It opens from `file://` with JavaScript disabled and prints black-and-white: only greys and black, the line kinds differ by dash pattern (`@page` A4, 12 mm margin; each layer block avoids page breaks, about three blocks per page).
+* **Header:** model name, date (UTC, `YYYY-MM-DD`), material (thickness, sheet size, kerf), layers (with bottom / top ids), parts, sheets and material use, outline mode, the drawing scale, and the estimate lines of section 5.7 (settings of 0 stay out). With a layer range (section 5.8) the header and a bordered note say that only layers X to Y are included, and only those layers get blocks.
+* **How to glue:** start with the lowest layer shown, engraved line = where the next layer goes, labels face up, dowels, press and wipe. The engraved-outline, label and dowel lines appear only when the setting is on (and, for the first two, the ENGRAVE / LABEL layer is in the files); otherwise the text says the files carry no engraved outline and points to the dotted line of the drawing.
+* **One block per layer, in order:** big layer id, `layer i of last` (bottom / top), one line per part `L012-b: sheet 3` (the sheet number of the file name; `not on a sheet (does not fit)` for a part left out of nesting), the dowel hole count, and the thumbnail.
+* **Thumbnail:** inline SVG of the layer in its model position seen from above (the nesting is not shown), Y up as in the app. It draws the kerf-compensated cut outlines and holes (light grey fill, solid line), dowel holes as circles, the engraved next-layer outline (dotted) and the label strokes, and the outline of the **layer below dashed**, for orientation (the layer below the first shown layer is drawn too, even when it is outside the range; the lowest layer has none). Bridges are not shown (the closed outline is drawn). Coordinates are rounded to 0.1 mm and consecutive duplicates dropped.
+* **One scale and one window for the whole document:** the view is the bounding box of every shown layer (outlines, engrave lines, labels, the layer below the first) plus 2 mm. Its size on paper is scaled by one factor, 1:1 at most and otherwise so that it fits 118 x 74 mm, so all layers have the same size and position and sizes compare. The header gives the scale ("1 : 2.4 (printed at 100 %)"; the SVG sizes are in mm). Because the window is common, a small top layer is small on its sheet of paper.
+* **Size:** about 4 KB per layer for a smooth sphere; a 100-layer sphere (radius 50 mm, 1 mm layers, dowels) gives about 400 KB (87 KB deflated in the ZIP).
+* README.txt of the ZIP mentions it and lists `assembly.html` among the files. Names are escaped (`& < > " '`); the model name is the sanitised file name, but the escaping does not rely on that.
+
 ### 5.3 DXF (R12)
 
 `src/core/export/dxf.ts`. ASCII, `$ACADVER AC1009`, `$INSUNITS 4` (mm), `$MEASUREMENT 1`, `$EXTMIN/$EXTMAX` over what is drawn (or the sheet
@@ -727,6 +740,7 @@ A crashed worker sets the badge to `Worker error: ...`.
 | `src/core/kerf.ts` | Kerf offset. |
 | `src/core/nest.ts` | Convex hull, min-area rectangle, MaxRects, `applyPlacement`, material use. |
 | `src/core/compare.ts` | Material comparison: entry settings, one row per run, `runComparison` on a forked pipeline (cancellable), best-row marking. |
+| `src/core/export/guide.ts` | Printable assembly guide: `buildAssemblyGuide`, `guideView` (common scale and window), `escapeHtml`. |
 | `src/core/range.ts` | Layer range: `resolveRange` (clamp, swap), `partsInRange`, `rangeText`. |
 | `src/core/bridges.ts` | Bridge planning and ring splitting. |
 | `src/core/pipeline.ts` | Staged, cached pipeline. |
@@ -822,6 +836,7 @@ GitHub Actions (`.github/workflows/build.yml`): on every push, pull request, man
 | Hollowing, registration | `hollow`, `registration` | cavity and wall maths on a sphere, dowel runs; labels (placement, shrink, fallback), engrave-line rules, font |
 | Bridges | `bridges` | placement (straight edges, N, spacing, short rings), gap maths with kerf, splitting, pipeline stage |
 | Nesting | `nest` | hull, minimum rectangle, no overlaps, margins/spacing, oversize parts, multiple sheets |
+| Assembly guide | `guide` | one block per layer in order, one scale and viewBox for all layers, 1:1 / reduced scale, no script / URL / external resource, layer range, dashed previous layer, escaping, sheets per part, instruction text per setting, project validation of the `guide` format, README mention, size for 100 layers |
 | Layer range | `layerRange` | `resolveRange` (clamp, swap, open ends), only in-range parts nested, estimates over the range, labels and engrave unchanged, nesting-only re-run (stage counters), per-layer and per-sheet files, README text, project validation and defaults |
 | Estimates | `estimates` | lengths, area before kerf, bridged rings without gaps, hollow volume, pricing and 0 = not set, README block, the four settings are not in the slicing key, project defaults and validation |
 | Export | `export`, `raster`, `project`, `base64`, `sessionStore` | DXF and SVG structure (parsed with `dxf-parser`), file naming, ZIP and README, export layer selection; CRC-32, PNG `pHYs`, JPEG JFIF, size limits, painting through a mock canvas; project file round trip, validation, version 2 with an embedded model (odd lengths, corrupt data); base64 against Node's encoder; the IndexedDB wrapper with no, throwing, hanging, failing and in-memory fake storage |
@@ -857,6 +872,7 @@ checked by hand in Chromium).
 * **Welding is tolerance-based:** vertices of one source that differ by more than `1e-5 x bbox diagonal` are not welded, the section opens and repair joins gaps with straight lines (a warning is shown). Open-chain repair is skipped above 400 open chains in a plane (everything is force-closed).
 * **Limits:** at most 5000 layers; about 94 million vertices; images at most 16384 px per side and 200 MP.
 * **Hollowing, bridges and the 3D view:** the stacked 3D view does not show bridges or dowel holes (it extrudes layer outlines).
+* **Assembly guide:** checked in headless Chromium only (screen and `page.pdf()`); other browsers and real printers are untested. The thumbnails are small for very large models (the scale is the same for all layers, so the top layers of a pointed model are tiny), and bridges and the nesting are not drawn.
 * **Estimates are approximate.** The time ignores travel moves (their length is reported separately as "Travel between cuts"), acceleration, passes and the BRIDGE layer speed; the weight ignores dowel holes and rods and any glue; cost counts partial sheets whole and ignores waste beyond that. Not compared with a real job.
 * **Undo covers settings only.** Loading a model, tab and layer selection are not undone, and the history is lost when the page closes. Undo while a number field has focus is the browser's text undo, not the app's. Merging is by time (1 s), so a slow typist gets several steps.
 * **Presets are per browser** (not in the project file, not synced); the starting points are guesses for plywood, not measured values for any laser.

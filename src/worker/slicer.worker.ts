@@ -8,6 +8,7 @@ import { buildExportFiles, modelBaseName } from "../core/export/files";
 import { runComparison, type CompareEntry } from "../core/compare";
 import { buildRasterFiles } from "../core/export/raster";
 import { buildReadme, buildZip } from "../core/export/zip";
+import { buildAssemblyGuide } from "../core/export/guide";
 
 const ctx = self as unknown as {
   postMessage(msg: FromWorker, transfer?: Transferable[]): void;
@@ -71,6 +72,8 @@ async function compareJob(jobId: number, entries: CompareEntry[]) {
 async function exportJob(jobId: number, result: RunResult, settings: Settings, model: string) {
   try {
     const files = [...buildExportFiles(result, settings, model), ...(await buildRasterFiles(result, settings, model))];
+    if (settings.formats.includes("guide"))
+      files.push({ name: "assembly.html", mime: "text/html", bytes: new TextEncoder().encode(buildAssemblyGuide(result, settings, model)) });
     if (files.length === 0) throw new Error("Nothing to export: select a format and make sure parts exist");
     const bytes = buildZip(files, buildReadme(result, settings, model, files));
     ctx.postMessage({ type: "file", jobId, name: `${model}_laser.zip`, mime: "application/zip", bytes }, [bytes.buffer]);

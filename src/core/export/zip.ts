@@ -60,6 +60,8 @@ export function buildReadme(result: RunResult, s: Settings, model: string, files
   L.push("");
   L.push(`DXF layers: CUT (red), ENGRAVE (blue), LABEL (green), ${s.bridgesEnabled ? "BRIDGE (magenta), " : ""}${EL.innerLayer && EL.cut ? "CUT_INNER (orange, inner cuts: cut first), " : ""}SHEET (grey). Units: mm, Y up, R12 (AC1009).`);
   L.push("");
+  if (files.some((f) => f.name === "assembly.html"))
+    L.push("Assembly guide: open assembly.html in a browser and print it (A4). One block per layer with the part numbers, the sheet of each part and a drawing of the layer in the model's position, all at one scale; the layer below is dashed.", "");
   L.push("Files");
   for (const f of files) L.push(`  ${f.name}`);
   L.push("");

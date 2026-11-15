@@ -4,7 +4,8 @@ import type { Store } from "../state";
 import { h } from "./dom";
 import { infoIcon } from "./tooltip";
 
-const FORMATS = ["dxf", "svg", "png", "jpg"] as const;
+const FORMATS = ["dxf", "svg", "png", "jpg", "guide"] as const;
+const FORMAT_LABEL: Record<(typeof FORMATS)[number], string> = { dxf: "DXF", svg: "SVG", png: "PNG", jpg: "JPG", guide: "Assembly guide (HTML)" };
 const DPI_PRESETS = [254, 300, 600, 1000];
 
 /** Save bytes through a Blob and a temporary link (works from file://). */
@@ -29,7 +30,7 @@ export function createExportSection(store: Store, onDownload: () => Promise<void
       store.updateSettings({ formats: FORMATS.filter((x) => cur.has(x)) });
     });
     syncers.push((s) => (cb.checked = s.formats.includes(f)));
-    return h("label", { class: "chip" }, cb, f.toUpperCase());
+    return h("label", { class: "chip" }, cb, FORMAT_LABEL[f]);
   });
 
   // Layers in the files (independent of the legend checkboxes, which only change the view).

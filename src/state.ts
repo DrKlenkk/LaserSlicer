@@ -169,7 +169,7 @@ export function parseProjectFile(text: string, withModel = true): { settings: Se
     if (k in ENUMS) {
       if (typeof v !== "string" || !ENUMS[k].includes(v)) bad(k);
     } else if (k === "formats") {
-      if (!Array.isArray(v) || v.some((f) => !["dxf", "svg", "png", "jpg"].includes(f as string))) bad(k);
+      if (!Array.isArray(v) || v.some((f) => !["dxf", "svg", "png", "jpg", "guide"].includes(f as string))) bad(k);
     } else if (k === "rotationSteps") {
       if (!Array.isArray(v) || v.length !== 3 || v.some((n) => !Number.isInteger(n))) bad(k);
       src[k] = (v as number[]).map((n) => ((n % 4) + 4) % 4);

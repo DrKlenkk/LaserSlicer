@@ -131,7 +131,8 @@ export type Settings = {
   /** if > 0, long outlines get more bridges so that no gap between neighbours exceeds this arc length (mm); 0 = off */
   bridgeMaxSpacing: number;
   // Export
-  formats: ("dxf" | "svg" | "png" | "jpg")[];
+  /** "guide" is the printable assembly guide (assembly.html), not a drawing format */
+  formats: ("dxf" | "svg" | "png" | "jpg" | "guide")[];
   dpi: number;
   rasterStyle: "filled" | "outline";
   /** draw engrave lines and labels (grey) in raster images */
