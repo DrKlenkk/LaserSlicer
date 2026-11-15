@@ -6,7 +6,7 @@
 
 [Online documentation](https://laserslicer.com/docs.html) · [Latest release (offline use)](https://github.com/DrKlenkk/LaserSlicer/releases/latest) · [Build from source](#build-from-source)
 
-[![Laser Slicer: a 3D model sliced into layers and nested onto sheets](public/og-image.png)](https://laserslicer.com)
+[![Laser Slicer in the browser: the demo model sliced into 4 mm layers, shown as the stacked result](docs/screenshots/app.png)](https://laserslicer.com)
 
 ## What it does
 
