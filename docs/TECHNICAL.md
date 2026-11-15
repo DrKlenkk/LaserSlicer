@@ -54,7 +54,7 @@ The drawer state is a class on the layout element only: not a setting, not undon
 
 ### 2.1 Parameter panel
 
-Collapsible groups, in this order. Model and Material start open, the rest collapsed.
+Collapsible groups, in this order. Only Model starts open, the rest are collapsed. The open or closed state of a group is not remembered (a reload starts again with only Model open).
 
 | Group | Contents |
 |---|---|

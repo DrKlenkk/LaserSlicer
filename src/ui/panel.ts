@@ -256,7 +256,7 @@ export function createPanel(root: HTMLElement, store: Store, actions: PanelActio
 
   const materialGroup = group(
     "Material",
-    true,
+    false,
     h("div", { class: "field" }, h("span", { class: "lbl" }, "Preset", infoIcon("presets")), h("span", { class: "ctl" }, presetSel)),
     h("div", { class: "rotrow" }, presetSave, presetDelete),
     h("div", { class: "rotrow" }, compareBtn, infoIcon("compare")),
