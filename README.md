@@ -95,18 +95,6 @@ and, on `v*` tags, attaches `laserslicer-site.zip` and `index.html` to the relea
 - [docs/test-protocol/PROTOCOL.md](docs/test-protocol/PROTOCOL.md): the manual test protocol and its results.
 - [docs/PLAN.md](docs/PLAN.md): the original project plan.
 
-## Known limitations
-
-- Developed and tested in **Chromium** only (headless Playwright); Firefox, Safari and Edge are untested.
-- The **DXF has not been tested in LightBurn or LibreCAD**, only parsed with a DXF library; the `BRIDGE` and `CUT_INNER` workflows are unchecked in real laser software.
-- **Nesting is rectangle based**: round parts waste sheet area; a part larger than the sheet is reported and left out.
-- The phone and tablet layout was tested with emulated devices only, not real devices or touch gestures.
-- Hollow cavities are sealed (no vent hole); dowels need room, so thin hollow walls may leave no valid dowel position.
-- Estimates (time, weight, cost) are approximate and not compared with a real job; the calibration sheet is a guide, not a measurement.
-- The label font is a hand-drawn reconstruction with digits, letters, `-` and space only.
-
-The full list is in [docs/TECHNICAL.md](docs/TECHNICAL.md#9-known-limitations-and-unverified-items).
-
 ## Licence and credits
 
 Free software under the **GNU General Public License, version 3 only (GPL-3.0-only)**, see [LICENSE](LICENSE).
