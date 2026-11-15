@@ -88,6 +88,17 @@ export class Pipeline {
     this.meshVersion++;
   }
 
+  /**
+   * A new pipeline on the same model with empty caches: runs on it never read or write this pipeline's caches, counters or
+   * `last` (used by the material comparison). The (read-only) mesh is shared, not copied; every stage builds new arrays.
+   */
+  fork(): Pipeline {
+    if (!this.mesh) throw new Error("No model loaded");
+    const p = new Pipeline();
+    p.setMesh(this.mesh, this.stats);
+    return p;
+  }
+
   /** Returns null when the run was abandoned through `hooks.shouldAbort`. */
   async run(s: Settings, hooks: Hooks = {}): Promise<RunResult | null> {
     if (!this.mesh) throw new Error("No model loaded");

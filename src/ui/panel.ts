@@ -20,6 +20,8 @@ export type PanelActions = {
   /** The original file of the loaded model, or null without a model. */
   getModelSource(): ProjectModel | null;
   setRestoreSession(on: boolean): void;
+  /** Opens the material comparison dialog (needs a model). */
+  compareMaterials(): void;
 };
 
 type NumKey = {
@@ -213,13 +215,24 @@ export function createPanel(root: HTMLElement, store: Store, actions: PanelActio
     presetDelete.title = user ? `Delete the preset "${m!.name}"` : m ? "Starting points cannot be deleted" : "Select one of your presets to delete it";
   }
   syncers.push(syncPresets);
-  presetSel.addEventListener("change", () => {
-    const p = presets.find(presetSel.value);
+  function applyNamedPreset(name: string) {
+    const p = presets.find(name);
     if (!p) return;
     store.updateSettings(applyPreset(store.get().settings, p), "step");
     const starter = !presets.isUser(p.name);
     presetNote.textContent = `Applied "${p.name}"${starter ? ". Starting points: check kerf and thickness with your own material and laser." : "."}`;
+  }
+  presetSel.addEventListener("change", () => applyNamedPreset(presetSel.value));
+  const compareBtn = h("button", { type: "button", class: "btn small", id: "compare-materials", onclick: () => actions.compareMaterials() }, "Compare materials…");
+  function syncCompare() {
+    const has = !!store.get().model;
+    compareBtn.disabled = !has;
+    compareBtn.title = has ? "Run the model with every material preset and compare layers, sheets, time and cost" : "Load a model first";
+  }
+  store.subscribe((_s, changed) => {
+    if (changed.has("model")) syncCompare();
   });
+  syncCompare();
   presetSave.addEventListener("click", () => {
     const sel = presets.find(presetSel.value);
     const name = normalizeName(window.prompt("Name for this material preset (the same name replaces that preset):", sel && presets.isUser(sel.name) ? sel.name : "") ?? "");
@@ -246,6 +259,7 @@ export function createPanel(root: HTMLElement, store: Store, actions: PanelActio
     true,
     h("div", { class: "field" }, h("span", { class: "lbl" }, "Preset", infoIcon("presets")), h("span", { class: "ctl" }, presetSel)),
     h("div", { class: "rotrow" }, presetSave, presetDelete),
+    h("div", { class: "rotrow" }, compareBtn, infoIcon("compare")),
     presetNote,
     numField("Thickness", "thickness", { step: 0.05, min: 0.1, unit: "mm", hint: "Measure with calipers; nominal 4 mm is often 3.7–3.9 mm.", help: "thickness" }),
     h("div", { class: "grid2" }, numField("Sheet W", "sheetW", { min: 10, unit: "mm", help: "sheetSize" }), numField("Sheet H", "sheetH", { min: 10, unit: "mm" })),
@@ -394,6 +408,9 @@ export function createPanel(root: HTMLElement, store: Store, actions: PanelActio
     setSummary(text: string, details: string[] = []) {
       exportSection.setSummary(text, details);
     },
+    /** All presets (starting points, then mine), for the material comparison. */
+    allPresets: () => presets.all(),
+    applyPreset: applyNamedPreset,
     setRangeNote(text: string, warn = false) {
       exportSection.setRangeNote(text, warn);
     },

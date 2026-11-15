@@ -5,6 +5,7 @@ import { buildMesh } from "../core/mesh";
 import { Pipeline, type RunResult } from "../core/pipeline";
 import type { Settings } from "../core/types";
 import { buildExportFiles, modelBaseName } from "../core/export/files";
+import { runComparison, type CompareEntry } from "../core/compare";
 import { buildRasterFiles } from "../core/export/raster";
 import { buildReadme, buildZip } from "../core/export/zip";
 
@@ -16,6 +17,9 @@ const ctx = self as unknown as {
 const pipeline = new Pipeline();
 /** Newest "run" job seen. Older runs abandon themselves at their next checkpoint (stale-job dropping). */
 let latestRun = 0;
+
+/** The comparison in progress (0 = none); set to 0 by a cancel message or a model load, which makes it abandon itself. */
+let activeCompare = 0;
 
 /** Macrotask yield so queued messages (a newer "run") are delivered while a job is in progress. */
 const channel = new MessageChannel();
@@ -40,6 +44,29 @@ async function runJob(jobId: number, settings: Parameters<Pipeline["run"]>[0]) {
   }
 }
 
+/**
+ * Material comparison on a fork of the main pipeline: own caches, so the preview's caches, counters and `last` (the result
+ * that export uses) stay as they are. It shares the worker's thread with the main runs, but both yield every 25 ms, so a
+ * preview run started meanwhile makes progress too (and its stale-job logic is independent of this one).
+ */
+async function compareJob(jobId: number, entries: CompareEntry[]) {
+  activeCompare = jobId;
+  try {
+    const fork = pipeline.fork();
+    const ok = await runComparison(fork, entries, {
+      onRow: (index, row) => ctx.postMessage({ type: "compareRow", jobId, index, row }),
+      progress: (fraction, _i, stage) => ctx.postMessage({ type: "progress", jobId, stage, fraction }),
+      shouldAbort: () => activeCompare !== jobId,
+      yieldNow,
+    });
+    ctx.postMessage({ type: "compareDone", jobId, cancelled: !ok });
+  } catch (err) {
+    ctx.postMessage({ type: "error", jobId, message: err instanceof Error ? err.message : String(err) });
+  } finally {
+    if (activeCompare === jobId) activeCompare = 0;
+  }
+}
+
 /** Builds the ZIP; async because raster images are rendered on an OffscreenCanvas. */
 async function exportJob(jobId: number, result: RunResult, settings: Settings, model: string) {
   try {
@@ -61,6 +88,7 @@ ctx.onmessage = (e) => {
         break;
       case "load": {
         latestRun = msg.jobId; // a run in flight belongs to the old mesh: it abandons itself
+        activeCompare = 0; // so does a comparison
         const soup = parseToSoup(msg.buffer, msg.ext);
         const { mesh, stats } = buildMesh(soup);
         pipeline.setMesh(mesh, stats);
@@ -96,6 +124,12 @@ ctx.onmessage = (e) => {
         void exportJob(msg.jobId, last.result, settings, model);
         break;
       }
+      case "compare":
+        void compareJob(msg.jobId, msg.entries);
+        break;
+      case "cancel":
+        if (activeCompare === msg.target) activeCompare = 0;
+        break;
       case "run":
         latestRun = msg.jobId;
         void runJob(msg.jobId, msg.settings);

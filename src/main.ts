@@ -15,6 +15,8 @@ import { load3mfToSoup } from "./ui/load3mf";
 import { read3mfUnit, THREEMF_UNIT_NAME, THREEMF_UNIT_PLURAL, type ImportUnit } from "./core/units";
 import { h } from "./ui/dom";
 import { createHelp } from "./ui/help";
+import { createCompareDialog } from "./ui/compareDialog";
+import { compareEntries } from "./presets";
 import type { ViewMode } from "./ui/viewport3d";
 import type { Tab } from "./state";
 import { UpdateController, slicingKey, type RunAction } from "./updateController";
@@ -42,6 +44,11 @@ const tabs: { id: Tab; label: string; el: HTMLElement }[] = [
 ];
 const tabBar = h("div", { class: "tabs", role: "tablist" });
 const help = createHelp();
+const compare = createCompareDialog({
+  entries: () => compareEntries(store.get().settings, panel.allPresets()),
+  start: (entries, onRow, onProgress) => worker.compare(entries, onRow, onProgress),
+  apply: (name) => panel.applyPreset(name),
+});
 const tabButtons = tabs.map((t) => {
   const b = h("button", { type: "button", role: "tab", id: `tab-${t.id}`, onclick: () => store.set({ tab: t.id }) }, t.label);
   tabBar.append(b);
@@ -80,6 +87,7 @@ app.append(
   h("div", { class: "layout" }, panelEl, h("main", { class: "main" }, tabBar, h("div", { class: "stage" }, viewEl, layerEl, sheetsEl, fitBtn, viewToggle, updateWrap)), statusBar, createLegalBar()),
   dropOverlay,
   help.el,
+  compare.el,
 );
 
 // ---------- worker ----------
@@ -230,6 +238,9 @@ const panel = createPanel(panelEl, store, {
   openFile,
   loadProject,
   getModelSource: () => lastSource,
+  compareMaterials() {
+    if (store.get().model) compare.show();
+  },
   setRestoreSession(on) {
     saveUiPrefs({ ...loadUiPrefs(), restoreSession: on });
     if (!on) void session.clear();
@@ -436,6 +447,7 @@ let lastSlicingKey = slicingKey(store.get().settings);
 store.subscribe((state, changed) => {
   if (changed.has("model") && state.model !== lastRunModel) {
     lastRunModel = state.model;
+    compare.close(); // its runs belong to the old model
     resetLayerView = true;
     layerView.setResult(null, true);
     sheetView.setResult(null, true);
@@ -480,6 +492,10 @@ function typingTarget(t: HTMLElement | null): boolean {
   return t.tagName === "INPUT" && TEXT_INPUT_TYPES.has((t as HTMLInputElement).type);
 }
 window.addEventListener("keydown", (e) => {
+  if (compare.open) {
+    if (e.key === "Escape") compare.close();
+    return; // the dialog is modal: no shortcuts behind it
+  }
   if (e.key === "Escape" && help.open) {
     help.close();
     return;

@@ -1,6 +1,7 @@
 // Material presets: a named set of the Material group values, kept in the browser (own localStorage key, not part of the
 // project file). Pure parts (validation, matching, applying) are separate from the storage wrapper so tests need no DOM.
 import type { Settings } from "./core/types";
+import { comparisonSettings, type CompareEntry } from "./core/compare";
 
 export const PRESET_FIELDS = ["thickness", "sheetW", "sheetH", "kerf", "partSpacing", "sheetMargin", "density", "cutSpeed", "engraveSpeed", "pricePerSheet"] as const;
 export type PresetField = (typeof PRESET_FIELDS)[number];
@@ -73,6 +74,18 @@ export function presetValuesOf(s: Settings): PresetValues {
 /** Settings with the preset's values applied (fields the preset lacks stay as they are). */
 export function applyPreset(s: Settings, p: Preset): Settings {
   return { ...s, ...p.values };
+}
+
+/** Display name of the first row of a comparison (the user's own settings). */
+export const CURRENT_ROW_NAME = "Current settings";
+
+/** The runs of a material comparison: the current settings first, then one run per preset (in the order given), each the
+ *  current settings with the preset's values on top and the layer range cleared. */
+export function compareEntries(current: Settings, presets: readonly Preset[]): CompareEntry[] {
+  return [
+    { name: CURRENT_ROW_NAME, settings: comparisonSettings(current, {}), current: true },
+    ...presets.map((p) => ({ name: p.name, settings: comparisonSettings(applyPreset(current, p), {}), current: false })),
+  ];
 }
 
 /** True when every value of the preset equals the setting (so the dropdown can show it as selected). */

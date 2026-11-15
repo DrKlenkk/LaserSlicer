@@ -79,16 +79,16 @@ export function estimate(m: Measurements, s: EstimateSettings): Estimates {
 
 // ---------- text ----------
 
-const fmtLength = (mm: number) => (mm >= 10000 ? `${(mm / 1000).toFixed(2)} m` : `${mm.toFixed(0)} mm`);
+export const fmtLength = (mm: number) => (mm >= 10000 ? `${(mm / 1000).toFixed(2)} m` : `${mm.toFixed(0)} mm`);
 const fmtVolume = (mm3: number) => `${(mm3 / 1000).toFixed(mm3 >= 1e6 ? 0 : 1)} cm3`;
-const fmtWeight = (g: number) => (g >= 1000 ? `${(g / 1000).toFixed(2)} kg` : `${g.toFixed(0)} g`);
+export const fmtWeight = (g: number) => (g >= 1000 ? `${(g / 1000).toFixed(2)} kg` : `${g.toFixed(0)} g`);
 /** "1 h 05 min", "12 min", "45 s" */
 export function formatDuration(sec: number): string {
   if (sec < 60) return `${Math.round(sec)} s`;
   const min = Math.round(sec / 60);
   return min < 60 ? `${min} min` : `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, "0")} min`;
 }
-const fmtCost = (c: number) => c.toFixed(2);
+export const fmtCost = (c: number) => c.toFixed(2);
 
 /** The full list, one `label: value` entry per line (run info tooltip, ZIP README). Unset estimates are left out. */
 export function estimateLines(m: Measurements, e: Estimates): string[] {

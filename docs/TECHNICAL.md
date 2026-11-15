@@ -51,7 +51,7 @@ Collapsible groups, in this order. Model and Material start open, the rest colla
 | Group | Contents |
 |---|---|
 | **Model** | Drop zone / "Choose file..." (accepts `.stl`, `.obj`, `.3mf`), file name and triangle count, effective size readout (mm), import unit (micron, mm, cm, m, inch, foot), scale %, target size along X/Y/Z, "Reset 100 %", slicing axis (`+X -X +Y -Y +Z -Z`), 90-degree rotation buttons for X, Y, Z with "Reset". |
-| **Material** | Thickness, sheet width and height, kerf, part spacing, sheet margin, density, cut speed, engrave speed, price per sheet (estimates, section 5.7), and the "Download calibration sheet" button (works without a model, section 5.5). |
+| **Material** | Thickness, sheet width and height, kerf, part spacing, sheet margin, density, cut speed, engrave speed, price per sheet (estimates, section 5.7), the **Compare materials...** button (needs a model, section 2.8) and the "Download calibration sheet" button (works without a model, section 5.5). |
 | **Holding bridges** | Enable, bridges per outline, width, minimum outline length, inner holes, maximum spacing. |
 | **Slicing** | Outline mode, samples per layer, round height to whole layers, smoothing radius, simplify tolerance, min part area, min feature. |
 | **Hollowing** | Enable, wall, solid cap layers. |
@@ -166,6 +166,24 @@ case-insensitive and at most 60 characters). Selecting a preset applies it as on
 removes the selected preset of yours. The list shows the preset whose values match the current ones (so it clears when you edit a
 field). Presets are not part of the project file. Without usable storage the presets last for the page session and the panel says
 so.
+
+**Compare materials** (`src/core/compare.ts`, `src/ui/compareDialog.ts`; button in the Material group, disabled without a model).
+Opens a dialog styled like the help overlay and sends the worker one `compare` message with the entries from
+`presets.compareEntries`: first "Current settings", then every starting point and every preset of yours, each entry the full
+current settings with the preset's values on top (so speeds and price stay yours when the preset has none) and the layer range
+cleared (layer numbers mean something else at another thickness, and the question is about the whole model). The worker runs the
+entries one after another on `pipeline.fork()`: a second `Pipeline` on the same (read-only) mesh with its own stage caches, so the
+preview's caches, stage counters and `last` result (the one export uses) are never read or changed; runs that share early stages
+(same thickness, e.g. presets that differ only in price or sheet size) reuse them inside the private pipeline, which is dropped
+at the end. Each finished entry is posted at once (`compareRow`), progress is overall 0..1, `cancel` (or a model load) makes the
+run abandon itself within a slice chunk and the worker answers `compareDone { cancelled }`; rows already shown stay complete. A
+run that throws becomes a row with the error text and the rest goes on. Columns: preset, thickness (and sheet size), layers,
+parts, sheets, sheet use %, cut length, rough time (only if some row has speeds), weight (density), cost (price), warnings (warn
+and error level, not info notes). The lowest sheets, time and cost are marked when at least two rows differ. "Use" closes the
+dialog and applies the preset exactly like the list does (one undo step); the settings change then re-slices the preview in the
+normal way. The dialog is modal (shortcuts are off behind it, Esc closes and cancels), closes when another model loads, and does
+not touch the update state, the progress bar or the summary line. Measured: cylinder 40 x 30 mm with the three starting points
+about 0.15 s, 60 mm sphere 0.3 s (Chromium, headless).
 
 ### 2.7 Project files and persistence
 
@@ -708,6 +726,7 @@ A crashed worker sets the badge to `Worker error: ...`.
 | `src/core/registration.ts`, `font/hershey.ts` | Engrave outline, labels, dowels; stroke font. |
 | `src/core/kerf.ts` | Kerf offset. |
 | `src/core/nest.ts` | Convex hull, min-area rectangle, MaxRects, `applyPlacement`, material use. |
+| `src/core/compare.ts` | Material comparison: entry settings, one row per run, `runComparison` on a forked pipeline (cancellable), best-row marking. |
 | `src/core/range.ts` | Layer range: `resolveRange` (clamp, swap), `partsInRange`, `rangeText`. |
 | `src/core/bridges.ts` | Bridge planning and ring splitting. |
 | `src/core/pipeline.ts` | Staged, cached pipeline. |
@@ -719,7 +738,7 @@ A crashed worker sets the badge to `Worker error: ...`.
 | `src/core/calibration.ts` | Calibration sheet geometry (kerf and dowel tests), its README and ZIP. |
 | `src/core/export/files.ts`, `zip.ts` | File naming and selection; ZIP and `README.txt` (via `fflate`). |
 | `src/worker/slicer.worker.ts`, `client.ts`, `protocol.ts` | Worker entry, promise wrapper, message types. |
-| `src/ui/panel.ts`, `exportDialog.ts` | Parameter panel and export section. |
+| `src/ui/panel.ts`, `exportDialog.ts`, `compareDialog.ts` | Parameter panel, export section, material comparison dialog. |
 | `src/ui/viewport3d.ts`, `layerView2d.ts`, `sheetView.ts` | The three tabs. |
 | `src/ui/legend.ts`, `warnings.ts`, `tooltip.ts`, `helpText.ts`, `help.ts`, `load3mf.ts`, `dom.ts` | Legend, warnings list, tooltips and their texts, help overlay, 3MF parse, DOM helper. |
 | `scripts/gen-licenses.mjs`, `scripts/check-dist.mjs` | Licence file generator; dist verification. |
@@ -737,6 +756,8 @@ Worker: loading (STL, OBJ), welding, the whole pipeline, ZIP building and image 
 | `ping` | round-trip check | `pong` |
 | `load { buffer, ext: stl/obj/soup }` | parse, weld, keep mesh | `loaded { stats, positions, indices, bbox }` |
 | `run { settings }` | run the pipeline | `progress { stage, fraction }` (overall 0..1), then `result { layers, parts, placements, sheets, warnings, info, measure }` |
+| `compare { entries }` | material comparison on a forked pipeline (section 2.8) | `compareRow { index, row }` per entry, `progress`, then `compareDone { cancelled }` |
+| `cancel { target }` | abandon the comparison with that job id | (`compareDone { cancelled: true }`) |
 | `export { model, formats, perLayerFiles, dpi, rasterStyle, rasterEngrave, layers, estimate }` | ZIP of the last finished run | `file { name, mime, bytes }` (bytes transferred) |
 | any | failure | `error { message }` |
 
@@ -789,7 +810,7 @@ GitHub Actions (`.github/workflows/build.yml`): on every push, pull request, man
 
 ## 8. Testing and measured performance
 
-`npm test` runs 294 Vitest tests in 27 files in Node (no browser). Synthetic meshes (cube, sphere, torus, filleted plate, broken meshes) are generated by `test/fixtures/`.
+`npm test` runs 344 Vitest tests in 30 files in Node (no browser). Synthetic meshes (cube, sphere, torus, filleted plate, broken meshes) are generated by `test/fixtures/`.
 
 | Area | Files | What is covered |
 |---|---|---|
@@ -805,6 +826,7 @@ GitHub Actions (`.github/workflows/build.yml`): on every push, pull request, man
 | Estimates | `estimates` | lengths, area before kerf, bridged rings without gaps, hollow volume, pricing and 0 = not set, README block, the four settings are not in the slicing key, project defaults and validation |
 | Export | `export`, `raster`, `project`, `base64`, `sessionStore` | DXF and SVG structure (parsed with `dxf-parser`), file naming, ZIP and README, export layer selection; CRC-32, PNG `pHYs`, JPEG JFIF, size limits, painting through a mock canvas; project file round trip, validation, version 2 with an embedded model (odd lengths, corrupt data); base64 against Node's encoder; the IndexedDB wrapper with no, throwing, hanging, failing and in-memory fake storage |
 | History, presets | `history` | undo / redo stacks, merge window, cap 100, no-op not recorded, redo cleared by a new step, rebase of silent changes, store integration (bulk replace is one step); preset validation, starting points, apply / match, `PresetStore` with working, throwing and missing storage |
+| Material comparison | `compare` | preset merging (current first, preset values on top, range cleared), rows (layers = ceil(height / thickness), cost, nulls), same numbers as a plain run, main pipeline caches / counters / `last` untouched, cancel between rows and inside a run, best-row marking |
 | UI logic | `updateController`, `helpText` | auto/manual state machine, `slicingKey`, UI prefs; every tooltip key used and non-empty, tooltip placement |
 | Performance | `perf` | 500k-triangle smoke test |
 

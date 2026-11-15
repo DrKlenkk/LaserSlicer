@@ -9,6 +9,7 @@ type Pending = {
   resolve: (m: FromWorker) => void;
   reject: (e: Error) => void;
   onProgress?: (stage: string, fraction: number) => void;
+  onRow?: (index: number, row: CompareRow) => void;
 };
 
 /** Rejection reason for a run that was replaced by a newer one; callers should ignore it. */
@@ -17,6 +18,7 @@ export class StaleJobError extends Error {
     super("Superseded by a newer job");
   }
 }
+import type { CompareEntry, CompareRow } from "../core/compare";
 import type { EstimateSettings } from "../core/estimates";
 import type { ExportLayers } from "../core/export/common";
 
@@ -31,6 +33,10 @@ export class WorkerClient {
       if (!p) return; // stale job
       if (e.data.type === "progress") {
         p.onProgress?.(e.data.stage, e.data.fraction);
+        return;
+      }
+      if (e.data.type === "compareRow") {
+        p.onRow?.(e.data.index, e.data.row);
         return;
       }
       this.pending.delete(e.data.jobId);
@@ -48,10 +54,11 @@ export class WorkerClient {
     msg: DistributiveOmit<ToWorker, "jobId">,
     transfer: Transferable[] = [],
     onProgress?: Pending["onProgress"],
+    onRow?: Pending["onRow"],
   ): Promise<FromWorker> {
     const jobId = this.nextJob++;
     return new Promise((resolve, reject) => {
-      this.pending.set(jobId, { resolve, reject, onProgress });
+      this.pending.set(jobId, { resolve, reject, onProgress, onRow });
       this.worker.postMessage({ ...msg, jobId } as ToWorker, transfer);
     });
   }
@@ -89,6 +96,20 @@ export class WorkerClient {
     const r = await this.request({ type: "run", settings }, [], onProgress);
     if (r.type !== "result") throw new Error("Unexpected reply");
     return r;
+  }
+
+  /**
+   * Material comparison: `onRow` gets each row as soon as it is done, `onProgress` the overall fraction (0..1) and the index
+   * of the entry being run. Resolves with `cancelled` true when `cancel()` (or a model load) ended it early. The main run,
+   * its progress and its caches are not involved.
+   */
+  compare(entries: CompareEntry[], onRow: (index: number, row: CompareRow) => void, onProgress: (fraction: number, stage: string) => void) {
+    const jobId = this.nextJob;
+    const done = this.request({ type: "compare", entries }, [], (stage, f) => onProgress(f, stage), onRow).then((r) => {
+      if (r.type !== "compareDone") throw new Error("Unexpected reply");
+      return { cancelled: r.cancelled };
+    });
+    return { done, cancel: () => this.worker.postMessage({ type: "cancel", jobId: 0, target: jobId } satisfies ToWorker) };
   }
 
   /** ZIP of the last completed run (bytes arrive transferred, not copied). */
