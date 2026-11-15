@@ -1,0 +1,11 @@
+App session (served from http://127.0.0.1:37361)
+GET http://127.0.0.1:37361/index.html
+GET blob:http://127.0.0.1:37361/0d201605-1a74-4e2f-b224-99828e593f1a
+GET http://127.0.0.1:37361/impressum.html
+GET http://127.0.0.1:37361/datenschutz.html
+GET http://127.0.0.1:37361/lizenzen.html
+
+No-JS iPhone session
+http://127.0.0.1:37361/impressum.html
+http://127.0.0.1:37361/datenschutz.html
+http://127.0.0.1:37361/lizenzen.html
