@@ -566,3 +566,11 @@ cache key contains it and nothing earlier re-runs; kerf, hollowing and nesting c
 - **No hreflang `<link>` tags:** an absolute alternate URL would be an external reference for the dist check, and a relative one is ignored by search engines; plain anchors with `hreflang` are used instead.
 - **Footer:** "Legal notice (EN)" and "Privacy (EN)" are added to the app's legal bar, the documentation, the 404 page and the noscript block. The one-line footer of short landscape phones hides the two English links (they stay in the help overlay and on every legal page). The licence page (`lizenzen.html`) has no translation; the English pages link it as "Lizenzen (licences, German)".
 - **Not verified:** a legal review of the translation (it is a convenience translation by definition).
+
+## Measure tool
+- **Per view, not global:** each of the Layer and Sheets views owns a `MeasureTool` (own button, own points) because the coordinates differ (model position vs. sheet strip). The maths live in `src/core/measure.ts` so they are unit-tested in Node; the DOM and canvas part is thin and checked in the browser.
+- **Snapping to vertices only** (polygon corners, plus sheet corners in the Sheets tab), 8 px tolerance: the brief asked for vertices; edge or midpoint snapping and arc centres were not added. Dowel hole centres are not snap targets either.
+- **Units:** the app has no display-unit setting (the import unit converts the model file only), so the readout is in mm, the unit of the exported files, and the docs say so.
+- **Keyboard:** the button is a normal toggle; there is no global shortcut (the single letters are taken by the existing shortcuts). `Esc` clears first, switches the tool off on the second press. The listener is on `window` but only acts while the tool is on and its tab is visible.
+- **Sheets across sheets:** the sheets are drawn side by side with a 20 mm gap, so a measurement across two sheets would include the gap; the readout adds "different sheets" instead of hiding it.
+- **Not verified:** touch use (a tap works like a click, but there is no hover preview on touch).

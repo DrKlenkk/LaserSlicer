@@ -5,6 +5,8 @@ import type { RunResult } from "../core/pipeline";
 import { h } from "./dom";
 import { createLegend } from "./legend";
 import { traceVisibility as vis, traceVisibility } from "../traceVisibility";
+import type { Vec2 } from "../core/types";
+import { MeasureTool } from "./measureTool";
 
 type View = { scale: number; ox: number; oy: number }; // screen = o + world * scale (y flipped)
 
@@ -18,7 +20,8 @@ export class LayerView2D {
   private view: View = { scale: 1, ox: 0, oy: 0 };
   private bounds: { minX: number; minY: number; maxX: number; maxY: number } | null = null;
   private fitPending = true;
-  private drag: { x: number; y: number } | null = null;
+  private drag: { x: number; y: number; moved: number } | null = null;
+  private measureTool: MeasureTool;
 
   constructor(private root: HTMLElement, private onLayer: (i: number) => void) {
     root.classList.add("layer-view");
@@ -38,29 +41,50 @@ export class LayerView2D {
       "Colours map to the DXF layers, so you can assign them to cut / engrave in LightBurn and similar software.",
     );
     window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => legend.refresh());
-    root.append(this.canvas, this.info, this.empty, legend.el, bar);
+    this.measureTool = new MeasureTool(root, {
+      vertices: () => (this.result ? this.result.layers[this.layer].shapes.flatMap((s) => [s.outer, ...s.holes]) : []),
+      scale: () => this.view.scale,
+      changed: () => {
+        this.canvas.classList.toggle("measuring", this.measureTool.active);
+        this.draw();
+      },
+    }, "measure-layer");
+    root.append(this.canvas, this.info, this.empty, this.measureTool.el, legend.el, bar);
     traceVisibility.subscribe(() => this.draw()); // view only: no pipeline run
 
     this.slider.addEventListener("input", () => this.step(Number(this.slider.value) - this.layer));
     this.canvas.addEventListener("wheel", (e) => this.onWheel(e), { passive: false });
     this.canvas.addEventListener("pointerdown", (e) => {
-      this.drag = { x: e.clientX, y: e.clientY };
+      this.drag = { x: e.clientX, y: e.clientY, moved: 0 };
       this.canvas.setPointerCapture(e.pointerId);
       this.canvas.focus();
     });
     this.canvas.addEventListener("pointermove", (e) => {
-      if (!this.drag) return;
-      this.view.ox += e.clientX - this.drag.x;
-      this.view.oy += e.clientY - this.drag.y;
-      this.drag = { x: e.clientX, y: e.clientY };
+      if (!this.drag) {
+        this.measureTool.move(this.toWorld(e));
+        return;
+      }
+      const dx = e.clientX - this.drag.x, dy = e.clientY - this.drag.y;
+      this.view.ox += dx;
+      this.view.oy += dy;
+      this.drag = { x: e.clientX, y: e.clientY, moved: this.drag.moved + Math.abs(dx) + Math.abs(dy) };
       this.draw();
     });
     const end = () => (this.drag = null);
-    this.canvas.addEventListener("pointerup", end);
+    this.canvas.addEventListener("pointerup", (e) => {
+      if (this.drag && this.drag.moved < 4) this.measureTool.click(this.toWorld(e));
+      this.drag = null;
+    });
     this.canvas.addEventListener("pointercancel", end);
     this.canvas.addEventListener("dblclick", () => this.fit());
     new ResizeObserver(() => this.draw()).observe(root);
     this.updateUi();
+  }
+
+  private toWorld(e: PointerEvent | MouseEvent): Vec2 {
+    const r = this.canvas.getBoundingClientRect();
+    const v = this.view;
+    return [(e.clientX - r.left - v.ox) / v.scale, (v.oy - (e.clientY - r.top)) / v.scale];
   }
 
   /** `resetView`: frame the new geometry (new model). Otherwise zoom and pan are kept. */
@@ -69,6 +93,7 @@ export class LayerView2D {
     this.bounds = r ? layersBounds(r.layers) : null;
     if (resetView) this.fitPending = true;
     this.layer = r ? Math.min(this.layer, r.layers.length - 1) : 0;
+    this.measureTool.clear();
     this.updateUi();
     this.draw();
   }
@@ -78,6 +103,7 @@ export class LayerView2D {
     const n = Math.max(0, Math.min(this.result.layers.length - 1, i));
     if (n === this.layer) return;
     this.layer = n;
+    this.measureTool.clear();
     this.updateUi();
     this.draw();
   }
@@ -109,6 +135,7 @@ export class LayerView2D {
       return;
     }
     this.layer = n;
+    this.measureTool.clear();
     this.updateUi();
     this.draw();
     this.onLayer(n);
@@ -266,6 +293,9 @@ export class LayerView2D {
           ctx.arc(v.ox + c.c[0] * v.scale, v.oy - c.c[1] * v.scale, rad, 0, Math.PI * 2);
         }
     ctx.stroke();
+
+    // Measure tool overlay (screen space).
+    this.measureTool.draw(ctx, ([x, y]) => [v.ox + x * v.scale, v.oy - y * v.scale], css.getPropertyValue("--accent").trim() || "#d9822b", css.getPropertyValue("--text").trim() || "#222", css.getPropertyValue("--surface").trim() || "#fff");
   }
 
   /** Light 10 mm / 50 mm grid so zoom level is readable. */

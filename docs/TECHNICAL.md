@@ -97,6 +97,10 @@ carry a "Documentation" link to `docs.html`.
 
 ![Stacked 3D result with the selected layer highlighted](screenshots/stacked-3d.png)
 
+### 2.2a Measure tool
+
+*Code:* `src/core/measure.ts` (pure: distance, dx/dy, nearest vertex, snap radius), `src/ui/measureTool.ts` (toggle button, readout, overlay), wired into `layerView2d.ts` and `sheetView.ts`. A `Measure` toggle button (`aria-pressed`, ids `measure-layer` and `measure-sheets`) sits at the top right of each view. With it on, two clicks (a click is a pointer-up after less than 4 px of movement, so panning still works) give a line with `distance mm (dx, dy)` in an `aria-live` readout and on the canvas; after the first click a dashed line follows the pointer. The points snap to the nearest polygon vertex within 8 screen pixels (`SNAP_PX`; converted to mm by the zoom): the vertices of the shown layer's rings in the Layer tab, all placed part rings and the sheet corners in the Sheets tab (view coordinates, including the sheet offset). `Esc` clears the points, a second `Esc` switches the tool off; switching off, changing the layer and a new result also clear. In the Sheets tab the tool suppresses the hover and the click-to-open-layer. The unit is always mm (the app has no display-unit setting). UI state only: nothing is stored, nothing reaches the pipeline.
+
 ### 2.3 Legend and trace toggles
 
 The Layer and Sheets tabs have a collapsible legend (bottom right). Row names are the DXF layers so colours can be mapped in

@@ -7,6 +7,8 @@ import { cutPaths } from "../core/bridges";
 import { h } from "./dom";
 import { createLegend } from "./legend";
 import { traceVisibility as vis, traceVisibility } from "../traceVisibility";
+import { sheetAtX } from "../core/measure";
+import { MeasureTool } from "./measureTool";
 
 type View = { scale: number; ox: number; oy: number }; // screen = o + world * (scale, -scale)
 /** `path` = closed cut shape (hover fill, hit-test), `cutPath` = what is stroked (bridged rings open), `bridgePath` = the gaps */
@@ -45,6 +47,9 @@ export class SheetView {
   private drag: { x: number; y: number; moved: number } | null = null;
   private sheetsW = 0;
   private sheetsH = 0;
+  private measureTool: MeasureTool;
+  /** vertices to snap to, in view coordinates (sheet offset applied): part rings and sheet corners */
+  private snapGroups: Vec2[][] = [];
 
   constructor(private root: HTMLElement, private onPart: (layer: number, partId: string) => void) {
     root.classList.add("layer-view");
@@ -63,7 +68,20 @@ export class SheetView {
       "Colours map to the DXF layers, so you can assign them to cut / engrave in LightBurn and similar software.",
     );
     window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => legend.refresh());
-    root.append(this.canvas, this.tip, this.empty, this.banner, legend.el);
+    this.measureTool = new MeasureTool(root, {
+      vertices: () => this.snapGroups,
+      scale: () => this.view.scale,
+      changed: () => {
+        this.canvas.classList.toggle("measuring", this.measureTool.active);
+        if (this.measureTool.active) this.setHover(null);
+        this.draw();
+      },
+      note: (a, b) => {
+        const w = this.result?.sheets[0]?.w ?? 0;
+        return w && sheetAtX(a[0], w, GAP) !== sheetAtX(b[0], w, GAP) ? " · different sheets" : "";
+      },
+    }, "measure-sheets");
+    root.append(this.canvas, this.tip, this.empty, this.banner, this.measureTool.el, legend.el);
     traceVisibility.subscribe(() => this.draw()); // view only: no pipeline run
     const c = this.canvas;
     c.addEventListener("wheel", (e) => this.onWheel(e), { passive: false });
@@ -82,13 +100,18 @@ export class SheetView {
         this.draw();
         return;
       }
+      if (this.measureTool.active) {
+        this.measureTool.move(this.toWorld(e));
+        return;
+      }
       this.setHover(this.hit(e), e);
     });
     c.addEventListener("pointerleave", () => this.setHover(null));
     c.addEventListener("pointerup", (e) => {
       const wasClick = this.drag && this.drag.moved < 4;
       this.drag = null;
-      if (wasClick) {
+      if (wasClick && this.measureTool.active) this.measureTool.click(this.toWorld(e));
+      else if (wasClick) {
         const p = this.hit(e);
         if (p) this.onPart(p.part.layer, p.part.id);
       }
@@ -103,6 +126,8 @@ export class SheetView {
     this.hover = null;
     this.tip.hidden = true;
     this.placed = [];
+    this.snapGroups = [];
+    this.measureTool.clear();
     this.sheetsW = this.sheetsH = 0;
     if (r) {
       const byId = new Map(r.parts.map((p) => [p.id, p]));
@@ -127,9 +152,12 @@ export class SheetView {
         for (const [x, y] of part.cut.outer) {
           minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y);
         }
+        for (const ring of [part.cut.outer, ...part.cut.holes]) this.snapGroups.push(ring.map(([x, y]) => [ox + x, y] as Vec2));
         this.placed.push({ part, sheet: pl.sheet, ox, path, cutPath, bridgePath, minX, minY, maxX, maxY });
       }
       for (const s of r.sheets) {
+        const sx = s.index * (s.w + GAP);
+        this.snapGroups.push([[sx, 0], [sx + s.w, 0], [sx + s.w, s.h], [sx, s.h]]);
         this.sheetsW = s.index * (s.w + GAP) + s.w;
         this.sheetsH = Math.max(this.sheetsH, s.h);
       }
@@ -289,6 +317,7 @@ export class SheetView {
       const x = v.ox + s.index * (s.w + GAP) * v.scale;
       ctx.fillText(`Sheet ${s.index + 1} · ${s.partIds.length} parts · ${s.usePct.toFixed(1)} % used`, x, v.oy - s.h * v.scale - 4);
     }
+    this.measureTool.draw(ctx, ([x, y]) => [v.ox + x * v.scale, v.oy - y * v.scale], css.getPropertyValue("--accent").trim() || "#d9822b", css.getPropertyValue("--text").trim() || "#222", paper);
   }
 }
 

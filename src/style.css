@@ -404,3 +404,9 @@ button.warn-item:hover { background: var(--accent-soft); }
 .basic-only { display: none; }
 .ui-basic .basic-only { display: block; }
 .ui-basic .expert-only { display: none !important; }
+
+/* measure tool (Layer and Sheets views) */
+.measure-box { position: absolute; top: 10px; right: 12px; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; z-index: 2; }
+.measure-box .measure-btn.active { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.measure-readout { padding: 4px 10px; border-radius: 6px; background: color-mix(in srgb, var(--surface) 90%, transparent); border: 1px solid var(--border); font-size: 12px; font-variant-numeric: tabular-nums; max-width: 60vw; }
+.layer-canvas.measuring { cursor: crosshair; }
