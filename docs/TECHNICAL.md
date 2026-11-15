@@ -72,7 +72,7 @@ hover, keyboard focus and tap; Esc closes them; the bubble flips above/below and
 | Tab (key) | What it shows |
 |---|---|
 | **3D** (`1`) | Three.js view with orbit/zoom/pan. A segmented toggle switches between **Model** (the loaded mesh in the chosen orientation and scale, 78 % opaque, with bounding box and grid) and **Stacked result** (one extruded solid per layer, two wood tones alternating, the layer selected in the Layer tab highlighted blue; shows the outlines after hollowing, before kerf; bridges are not drawn). Stacked is disabled until a result exists. "Fit view" frames the model. |
-| **Layer** (`2`) | 2D canvas of one layer with a slider (and arrow keys): this layer's outline in red with a light red fill, dowel holes, the previous layer as a grey ghost, the **next** layer's outline as a dashed blue line (what is engraved on the part), labels in green, bridge gaps in magenta. Wheel zoom, drag pan, double-click fits, a 10/50 mm grid with a "grid N mm" caption. Info line: `Layer i of N - Z a to b mm - k parts`. It shows the model outline (before kerf) except that bridged parts are drawn from their cut paths. |
+| **Layer** (`2`) | 2D canvas of one layer with a slider (and arrow keys): this layer's outline in red with a light red fill, dowel holes, the previous layer as a grey ghost, the **engrave lines** of the parts as dashed blue lines (exactly what is engraved: the next layer's outline inside the part), labels in green, bridge gaps in magenta. Wheel zoom, drag pan, double-click fits, a 10/50 mm grid with a "grid N mm" caption. Info line: `Layer i of N - Z a to b mm - k parts`. It shows the model outline (before kerf) except that bridged parts are drawn from their cut paths. |
 | **Sheets** (`3`) | All nested sheets side by side with captions, parts drawn as placed (kerf-compensated cut outlines, engraving, labels, bridges). Hover shows `L012-b (layer 12)`; click jumps to that layer's Layer tab. Wheel zoom, drag pan, double-click fits. |
 
 ![Stacked 3D result with the selected layer highlighted](screenshots/stacked-3d.png)
@@ -448,9 +448,13 @@ layer[i] = layer[i] − hole                       pieces of hole smaller than m
 *Code:* `src/core/registration.ts`, `src/core/font/hershey.ts`. Runs on the uncompensated outlines, before kerf, so a kerf change
 never re-runs it (kerf only grows outlines, so what was placed inside stays inside).
 
-**Next-layer engraving.** The engrave lines are the closed rings of `part ∩ next layer` (the joint). When the next layer covers
-the whole part (area within 0.1 %, as on the growing half of a sphere) the joint outline would just retrace the cut, so
-no engrave line is written. The top layer has none. Engrave lines are never kerf-offset and may cross dowel holes.
+**Next-layer engraving.** The candidate lines are the rings of `part ∩ next layer` (the joint; with hollowing only its outer rings).
+`core/engrave.ts` (`insideRuns`) keeps only the stretches that lie inside the part: every edge is sampled (at both ends and about
+every 1 mm) and dropped where all samples are within `EDGE_TOL` = 0.2 mm of the part's own boundary (outer ring and holes), because an
+engrave line that close to the cut edge is useless and only chars it. Consecutive kept stretches become open polylines; a ring that
+is kept completely stays closed (first point repeated); runs shorter than `MIN_RUN` = 1 mm are dropped. So a next layer that covers the
+whole part (the growing half of a sphere) gives no line, a next layer that is almost as large gives only its inner step, and a clearly
+smaller one gives its full closed ring. A boundary grid keeps the distance test fast on parts with thousands of vertices. The top layer has none. Engrave lines are never kerf-offset and may cross dowel holes.
 
 **Labels.** Text such as `L12` or `L12-b`, drawn as single-stroke polylines (never DXF TEXT entities) from a built-in
 Hershey-style font (digits, A-Z, a-z, `-`, space; unknown characters become a space). Placement:

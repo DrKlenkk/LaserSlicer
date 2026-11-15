@@ -144,3 +144,54 @@ describe("registration on a sphere", () => {
     expect(out.parts[0].label.length).toBeGreaterThan(0);
   });
 });
+
+describe("engrave lines retrace nothing", () => {
+  const sq = (x0: number, y0: number, x1: number, y1: number): Vec2[] => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
+  const holeAt = (cx: number, cy: number, r = 3): Vec2[] => {
+    const h: Vec2[] = [];
+    for (let i = 0; i < 16; i++) h.push([cx + r * Math.cos((-2 * Math.PI * i) / 16), cy + r * Math.sin((-2 * Math.PI * i) / 16)]);
+    return h;
+  };
+  const corners: [number, number][] = [[10, 10], [70, 10], [70, 70], [10, 70]];
+  const lower: Shape = { outer: sq(0, 0, 80, 80), holes: corners.map(([x, y]) => holeAt(x, y)) };
+  const layersOf = (upper: Shape) => [
+    { index: 0, z0: 0, z1: 3, shapes: [lower] },
+    { index: 1, z0: 3, z1: 6, shapes: [upper] },
+  ];
+  const part = (): Parts => [{ id: "L000", layer: 0, cut: lower, engrave: [], label: [], holes: [] }];
+  type Parts = Parameters<typeof addRegistration>[1];
+  const lenOf = (ls: Vec2[][]) => ls.reduce((s, l) => s + l.reduce((a, p, i) => (i ? a + Math.hypot(p[0] - l[i - 1][0], p[1] - l[i - 1][1]) : 0), 0), 0);
+  const noLabels = settings({ labels: false, dowels: false, hollowEnabled: false });
+
+  it("next layer with one corner chamfered 6 mm (joint 99.7 % of the part): only the chamfer line is engraved, not the cut edge or holes", () => {
+    const upper: Shape = { outer: [[0, 0], [80, 0], [80, 74], [74, 80], [0, 80]], holes: lower.holes };
+    const out = addRegistration(layersOf(upper), part(), noLabels).parts[0];
+    const total = lenOf(out.engrave);
+    expect(total).toBeGreaterThan(8);
+    expect(total).toBeLessThan(9); // 6 * sqrt(2) = 8.49 mm; before the fix this was about 390 mm (the whole outline and the holes)
+  });
+
+  it("next layer with a 10 mm step along one side: only the step line is engraved", () => {
+    const upper: Shape = { outer: sq(0, 0, 70, 80), holes: lower.holes.filter((h) => h[0][0] < 70).map((h) => h) };
+    const out = addRegistration(layersOf(upper), part(), noLabels).parts[0];
+    const total = lenOf(out.engrave);
+    // the inner edge x = 70 runs from y = 0 to 80 (minus what lies on the corner hole at (70,10) and (70,70))
+    expect(total).toBeGreaterThan(55);
+    expect(total).toBeLessThan(81);
+    for (const l of out.engrave) for (const [x] of l) expect(x).toBeGreaterThan(60);
+    expect(out.engrave.some((l) => l[0][0] === l[l.length - 1][0] && l[0][1] === l[l.length - 1][1])).toBe(false); // open
+  });
+
+  it("next layer covering the whole part gives no engrave line", () => {
+    const big: Shape = { outer: sq(-5, -5, 85, 85), holes: [] };
+    expect(addRegistration(layersOf(big), part(), noLabels).parts[0].engrave).toHaveLength(0);
+  });
+
+  it("a clearly smaller next layer keeps its full closed ring", () => {
+    const small: Shape = { outer: sq(20, 20, 60, 60), holes: [] };
+    const e = addRegistration(layersOf(small), part(), noLabels).parts[0].engrave;
+    expect(e).toHaveLength(1);
+    expect(e[0][0]).toEqual(e[0][e[0].length - 1]);
+    expect(lenOf(e)).toBeCloseTo(160, 3);
+  });
+});

@@ -55,7 +55,7 @@ export const HELP = {
 
   // ----- Gluing aids -----
   engraveNextOutline:
-    "Engraves a light line on top of each part showing where the next layer up goes (the outline of the next layer). You glue each part exactly on that line, which keeps the stack aligned. Strongly recommended. The line is engraved, not cut, so run the engrave layer at low power. The top layer has no next layer, so it has none.",
+    "Engraves a light line on top of each part showing where the next layer up goes (the outline of the next layer). Stretches where the next layer's edge lies on the part's own edge are left out, since they would only retrace the cut line, so a part that the next layer covers completely has no line. You glue each part exactly on that line, which keeps the stack aligned. Strongly recommended. The line is engraved, not cut, so run the engrave layer at low power. The top layer has no next layer, so it has none.",
   labels:
     "Engraves the layer number (like L12, or L12-b for a second piece of the same layer) on each part so you can put the pieces back in order. The label is placed in the area the next layer will cover, so it is hidden inside the glued stack. Turn it off if you prefer clean parts, but you must then keep the order yourself.",
   labelHeight:

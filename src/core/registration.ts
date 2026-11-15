@@ -3,7 +3,8 @@
 // kerf never re-runs it (kerf only grows the cut outline outwards, so everything placed inside stays inside).
 import type { Layer, Part, Ring, Settings, Shape, Vec2, Warning } from "./types";
 import polylabel from "polylabel";
-import { difference, intersect, offset, pointInShape, shapeArea, shapesArea } from "./poly";
+import { difference, intersect, offset, pointInShape, shapesArea } from "./poly";
+import { insideRuns } from "./engrave";
 import { textToPolylines, textWidth } from "./font/hershey";
 
 /** Smallest label cap height (mm) before we give up on the joint area and fall back to the whole part. */
@@ -24,13 +25,6 @@ const rect = (cx: number, cy: number, w: number, h: number): Shape => ({
   outer: [[cx - w / 2, cy - h / 2], [cx + w / 2, cy - h / 2], [cx + w / 2, cy + h / 2], [cx - w / 2, cy + h / 2]],
   holes: [],
 });
-
-/** Engrave polylines: every ring of the shapes, closed. */
-function ringsOf(shapes: Shape[]): Vec2[][] {
-  const out: Vec2[][] = [];
-  for (const s of shapes) for (const r of [s.outer, ...s.holes]) if (r.length >= 3) out.push(close(r));
-  return out;
-}
 
 type Pole = { c: Vec2; d: number };
 
@@ -237,10 +231,11 @@ export function addRegistration(layers: Layer[], parts: Part[], s: Settings): { 
     const joint = clearOfHoles(jointFull);
     let engrave: Vec2[][] = [];
     if (s.engraveNextOutline && jointFull.length) {
-      // When the next layer covers the whole part (the stack grows upwards) the joint outline is the part's own
-      // edge: engraving it would only retrace the cut line, so the part gets no engrave line (see DECISIONS.md).
-      const j = solid(jointFull);
-      if (shapesArea(j) < shapeArea(solid([p.cut])[0]) * 0.999) engrave = ringsOf(j);
+      // Only the stretches of the next layer's edge that run inside the part are useful: where it coincides with the part's own
+      // edge (outer or holes) the engraving would retrace the cut line (see DECISIONS.md). A next layer that covers the whole
+      // part therefore gives no engrave line, one that is almost as large gives only its inner step.
+      const rings: Ring[] = solid(jointFull).flatMap((x) => [x.outer, ...x.holes]);
+      engrave = insideRuns(rings, p.cut);
     }
     let label: Vec2[][] = [];
     if (s.labels) {

@@ -51,7 +51,7 @@ export class SheetView {
       "legend-sheets",
       [
         { trace: "cut", layer: "CUT", text: "kerf-compensated outlines, dowel holes: cut through", color: () => col().cut },
-        { trace: "engrave", layer: "ENGRAVE", text: "next-layer outline, glue alignment line", color: () => col().engrave },
+        { trace: "engrave", layer: "ENGRAVE", text: "engrave line: next-layer outline inside the part, glue alignment", color: () => col().engrave },
         { trace: "label", layer: "LABEL", text: "layer label text: engraved", color: () => col().label },
         { trace: "bridge", layer: "BRIDGE", text: "holding bridges (gaps in the cut): score only, or leave out", color: () => col().bridge },
         { layer: "CUT_INNER", text: "export only, if chosen: holes and dowel holes on their own layer, cut first", color: () => "#ff8000", thin: true },

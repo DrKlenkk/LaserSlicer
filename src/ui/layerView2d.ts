@@ -29,7 +29,7 @@ export class LayerView2D {
       "legend-layer",
       [
         { trace: "cut", layer: "CUT", text: "this layer's outline, dowel holes: cut through", color: css("--cut") },
-        { trace: "engrave", layer: "ENGRAVE", text: "next-layer outline (dashed), glue alignment line", color: css("--engrave"), dash: true },
+        { trace: "engrave", layer: "ENGRAVE", text: "engrave line (dashed): next-layer outline inside the part, glue alignment", color: css("--engrave"), dash: true },
         { trace: "label", layer: "LABEL", text: "layer label text: engraved", color: css("--label") },
         { trace: "bridge", layer: "BRIDGE", text: "holding bridges (gaps in the cut): score only, or leave out", color: css("--bridge") },
         { layer: "CUT_INNER", text: "export only, if chosen: holes and dowel holes on their own layer, cut first", color: () => "#ff8000", thin: true },
@@ -228,10 +228,13 @@ export class LayerView2D {
       ctx.stroke();
     }
 
-    // Next layer outline (blue): where the next part will sit, as engraved on the parts of this layer.
-    const nextLayer = r.layers[this.layer + 1];
-    if (nextLayer && vis.visible("engrave")) {
-      trace(nextLayer.shapes);
+    // Engrave lines (blue): exactly what is engraved on the parts of this layer, i.e. the next layer's outline where it runs
+    // inside the part (stretches on the part's own cut edge are left out, see DECISIONS.md).
+    if (vis.visible("engrave")) {
+      ctx.beginPath();
+      for (const p of r.parts)
+        if (p.layer === this.layer)
+          for (const l of p.engrave) l.forEach(([x, y], i) => (i ? ctx.lineTo(v.ox + x * v.scale, v.oy - y * v.scale) : ctx.moveTo(v.ox + x * v.scale, v.oy - y * v.scale)));
       ctx.strokeStyle = engrave;
       ctx.lineWidth = 1.5;
       ctx.setLineDash([6, 4]);

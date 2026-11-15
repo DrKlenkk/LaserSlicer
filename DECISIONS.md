@@ -172,10 +172,17 @@ Sheets tab colours are close to, not identical to, the ACI colours (readable on 
   polygon difference (box minus region has no area), horizontal first, then turned by 90 degrees. Height goes from `labelHeight`
   down in 8 % steps to 3 mm. Fallback: the same procedure on the part itself (info warning when a next layer exists); if even 3 mm does
   not fit, the text shrinks to the inscribed circle (warn) and is left out below 1 mm (warn). Top layer: inside the part, no warning.
-- **Engrave lines** are the closed rings of `part ∩ next layer`. When the next layer covers the whole part (area within 0.1 %, the
-  case on the growing half of a sphere) the intersection is the part's own edge, so no engrave line is written: it would retrace the cut
-  and the glued part overhangs the edge anyway.
-- Layer tab: next layer outline dashed blue (from `layers[i+1]`, the model outline), labels green (from the parts).
+- **Engrave lines** are the rings of `part ∩ next layer`, filtered to the stretches that run inside the part (`core/engrave.ts`).
+  The first rule (skip the whole line when the joint is at least 99.9 % of the part) failed when the next layer covered, say,
+  98 % of the part (a chamfered corner, one hole fewer): all rings were engraved, including the long stretches that lie on the
+  part's own cut edge and corner holes, so the engraving doubled the cut (reproduced in `registration.test.ts`: about 390 mm of
+  engrave on an 80 mm plate whose next layer had one 6 mm chamfer). Now each edge is sampled and dropped where it is within
+  `EDGE_TOL` = 0.2 mm of any ring of the part's own cut outline (outer and holes): closer than that the line is useless and only
+  chars the edge, while laser and glue tolerances are larger. Kept edges are joined to open polylines (closed ring if all are kept);
+  runs shorter than 1 mm are dropped. Full cover gives no line naturally; a clearly smaller next layer keeps its closed ring.
+  Distance tests use a uniform grid over the boundary segments, no clipper.
+- Layer tab: the dashed blue line is `part.engrave` (what is really engraved), no longer the whole next-layer outline, so the view
+  and the export agree; it also disappears when "engrave next outline" is off. Labels green (from the parts).
 
 ## Raster export (M7)
 - **Where.** `core/export/rasterBytes.ts` holds the pure parts (pixel size, size limits, CRC-32, PNG `pHYs` insert/read, JFIF
