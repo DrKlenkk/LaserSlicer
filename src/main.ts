@@ -21,6 +21,7 @@ import type { ViewMode } from "./ui/viewport3d";
 import type { Tab } from "./state";
 import { UpdateController, slicingKey, type RunAction } from "./updateController";
 import { loadUiPrefs, saveUiPrefs } from "./uiPrefs";
+import { effectiveSettings } from "./basicMode";
 import { SessionStore } from "./sessionStore";
 import { createLegalBar } from "./ui/legal";
 import type { Settings } from "./core/types";
@@ -47,7 +48,7 @@ const tabs: { id: Tab; label: string; el: HTMLElement }[] = [
 const tabBar = h("div", { class: "tabs", role: "tablist" });
 const help = createHelp();
 const compare = createCompareDialog({
-  entries: () => compareEntries(store.get().settings, panel.allPresets()),
+  entries: () => compareEntries(effectiveSettings(store.get()), panel.allPresets()),
   start: (entries, onRow, onProgress) => worker.compare(entries, onRow, onProgress),
   apply: (name) => panel.applyPreset(name),
 });
@@ -284,7 +285,7 @@ const panel = createPanel(panelEl, store, {
     const m = store.get().model;
     if (!m) throw new Error("No model loaded");
     await ensureFresh(); // the ZIP is built from the last finished run, so it must match the current settings
-    const st = store.get().settings; // read after the update: a click just before Download is included
+    const st = effectiveSettings(store.get()); // read after the update: a click just before Download is included
     const { formats, perLayerFiles, dpi, rasterStyle, rasterEngrave } = st;
     const f = await worker.exportZip(m.fileName, { formats, perLayerFiles, dpi, rasterStyle, rasterEngrave, layers: exportLayersOf(st), estimate: estimateSettingsOf(st) });
     downloadBytes(f.name, f.mime, f.bytes);
@@ -390,7 +391,8 @@ function act(a: RunAction) {
 /** Slice now with the current settings (replaces a run in flight). Resolves when this run is over. */
 function startRun(): Promise<void> {
   clearTimeout(runTimer);
-  const { model, settings } = store.get();
+  const { model } = store.get();
+  const settings = effectiveSettings(store.get()); // Basic mode: the stored settings with the Expert-only ones replaced
   if (!model) return Promise.resolve();
   const seq = ctl.runStarted();
   showProgress("Starting", 0);
@@ -433,7 +435,8 @@ async function ensureFresh() {
 /** Summary line (top bar and export section) and the full estimate list. Recomputed on every settings change: the estimate
  *  settings never start a run, so the numbers follow them here, on the main thread, from the measurements of the last result. */
 function renderSummaries() {
-  const { result: r, settings } = store.get();
+  const r = store.get().result;
+  const settings = effectiveSettings(store.get());
   if (!r) {
     runSummary.textContent = "";
     runSummary.title = "";
@@ -479,7 +482,7 @@ autoCb.addEventListener("change", () => {
 });
 
 let lastRunModel: object | null = null;
-let lastSlicingKey = slicingKey(store.get().settings);
+let lastSlicingKey = slicingKey(effectiveSettings(store.get()));
 store.subscribe((state, changed) => {
   if (changed.has("model") && state.model !== lastRunModel) {
     lastRunModel = state.model;
@@ -490,11 +493,11 @@ store.subscribe((state, changed) => {
     warnings.set([]);
     runSummary.textContent = "";
     runSummary.title = "";
-    lastSlicingKey = slicingKey(state.settings);
+    lastSlicingKey = slicingKey(effectiveSettings(state));
     act(ctl.modelLoaded());
     renderUpdate();
-  } else if (changed.has("settings")) {
-    const k = slicingKey(state.settings);
+  } else if (changed.has("settings") || changed.has("uiMode")) {
+    const k = slicingKey(effectiveSettings(state)); // switching Basic / Expert re-runs only when the effective settings differ
     if (k !== lastSlicingKey) {
       lastSlicingKey = k;
       act(ctl.settingsChanged());
@@ -510,6 +513,14 @@ store.subscribe((state, changed) => {
     viewport.setHighlight(r ? state.layer : -1);
     renderUpdate();
   }
+});
+
+// Basic / Expert: a UI preference (saved in the UI prefs, not a setting, not an undo step); the CSS class hides the Expert-only controls.
+document.body.classList.toggle("ui-basic", store.get().uiMode === "basic");
+store.subscribe((state, changed) => {
+  if (!changed.has("uiMode")) return;
+  document.body.classList.toggle("ui-basic", state.uiMode === "basic");
+  saveUiPrefs({ ...loadUiPrefs(), uiMode: state.uiMode });
 });
 
 store.subscribe(refresh);

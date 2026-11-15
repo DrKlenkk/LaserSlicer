@@ -5,6 +5,10 @@
 // EXTRA_HELP_KEYS; test/helpText.test.ts checks that every key is used by the UI and that no text is empty.
 
 export const HELP = {
+  // ----- Basic / Expert -----
+  basicExpert:
+    "Basic shows only what most jobs need: the model (file, unit, size, slicing axis, rotation), the material (preset, thickness, sheet size, kerf) and the export formats, and writes the cut outlines only, with no engraving, labels, bridges or dowels, and everything else at its default. Expert shows every setting. Your Expert values are not lost: they are kept while you are in Basic and come back when you switch. This is a preference of this browser, not part of the project file.",
+
   // ----- Model -----
   axis:
     "Layers are cut perpendicular to this axis, and the selected axis points up in the finished stack. Pick the direction that gives the best result: usually the model's natural 'up', or the way that keeps overhangs short, because every layer is a flat slice. +Z and -Z give the same layers in opposite order (the bottom layer becomes the top).",
@@ -129,10 +133,11 @@ export const HELP = {
 export type HelpKey = keyof typeof HELP;
 
 /** Keys that cover one control rather than a single Settings field. */
-export const EXTRA_HELP_KEYS: readonly HelpKey[] = ["rotate", "sheetSize", "viewToggle", "autoUpdate", "viewTraces", "exportLayers", "layerRange", "calibration", "projectModel", "restoreSession", "presets", "compare"];
+export const EXTRA_HELP_KEYS: readonly HelpKey[] = ["basicExpert", "rotate", "sheetSize", "viewToggle", "autoUpdate", "viewTraces", "exportLayers", "layerRange", "calibration", "projectModel", "restoreSession", "presets", "compare"];
 
 /** Section of docs.html (its `id`) that explains each tooltip's setting; the tooltip ends with a "Read more" link to it. */
 export const HELP_DOC: Record<HelpKey, string> = {
+  basicExpert: "basic-expert",
   axis: "orientation",
   rotate: "orientation",
   importUnit: "import-unit",

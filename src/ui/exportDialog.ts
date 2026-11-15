@@ -1,6 +1,7 @@
 // Export section of the panel: formats, per sheet / per layer, summary line and the ZIP download.
 import type { Settings } from "../core/types";
 import type { Store } from "../state";
+import { effectiveSettings } from "../basicMode";
 import { h } from "./dom";
 import { infoIcon } from "./tooltip";
 
@@ -18,19 +19,29 @@ export function downloadBytes(name: string, mime: string, bytes: Uint8Array) {
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
 
+/** Marks a control that only Expert mode shows (CSS: `.ui-basic .expert-only` is hidden). */
+function expert<T extends HTMLElement>(el: T): T {
+  el.classList.add("expert-only");
+  return el;
+}
+
 export function createExportSection(store: Store, onDownload: () => Promise<void>) {
   const syncers: ((s: Settings) => void)[] = [];
 
   const chips = FORMATS.map((f) => {
     const cb = h("input", { type: "checkbox", id: `fmt-${f}` });
     cb.addEventListener("change", () => {
-      const cur = new Set(store.get().settings.formats);
+      const st = store.get();
+      const cur = new Set(effectiveSettings(st).formats); // Basic shows (and edits) the formats it exports, which leave out the guide
       if (cb.checked) cur.add(f);
       else cur.delete(f);
+      if (st.uiMode === "basic" && st.settings.formats.includes("guide")) cur.add("guide"); // the Expert choice stays
       store.updateSettings({ formats: FORMATS.filter((x) => cur.has(x)) });
     });
     syncers.push((s) => (cb.checked = s.formats.includes(f)));
-    return h("label", { class: "chip" }, cb, FORMAT_LABEL[f]);
+    const chip = h("label", { class: "chip" }, cb, FORMAT_LABEL[f]);
+    if (f === "guide") chip.classList.add("expert-only");
+    return chip;
   });
 
   // Layers in the files (independent of the legend checkboxes, which only change the view).
@@ -139,7 +150,7 @@ export function createExportSection(store: Store, onDownload: () => Promise<void
   });
   let ready = false;
   const updateButton = () => {
-    const s = store.get().settings;
+    const s = effectiveSettings(store.get());
     const none = !(s.exportCut || s.exportEngrave || s.exportLabel || s.exportBridge || s.exportSheet);
     layerHint.hidden = !none && s.exportCut;
     layerHint.textContent = none ? "No layer selected: choose at least one to download." : "CUT is not included: the files will not cut the parts out.";
@@ -151,14 +162,15 @@ export function createExportSection(store: Store, onDownload: () => Promise<void
     { class: "export-section" },
     h("div", { class: "row-label" }, "Formats", infoIcon("formats")),
     h("div", { class: "chips" }, ...chips),
-    h("div", { class: "row-label" }, "Layers in the files", infoIcon("exportLayers")),
-    h("div", { class: "chips", id: "export-layers" }, ...layerChips),
-    innerField,
-    layerHint,
-    rangeField,
-    h("label", { class: "field" }, h("span", { class: "lbl" }, "Files", infoIcon("perLayerFiles")), h("span", { class: "ctl" }, mode)),
-    h("small", { class: "hint" }, "DXF is the file to cut with (R12, mm, layers CUT red, ENGRAVE blue, LABEL green, BRIDGE magenta, CUT_INNER orange if chosen). SVG is a second vector option."),
-    rasterBox,
+    expert(h("div", { class: "row-label" }, "Layers in the files", infoIcon("exportLayers"))),
+    expert(h("div", { class: "chips", id: "export-layers" }, ...layerChips)),
+    expert(innerField),
+    expert(layerHint),
+    expert(rangeField),
+    expert(h("label", { class: "field" }, h("span", { class: "lbl" }, "Files", infoIcon("perLayerFiles")), h("span", { class: "ctl" }, mode))),
+    h("small", { class: "hint basic-only" }, "Basic mode writes the cut outlines only (DXF layer CUT, one file per sheet)."),
+    expert(h("small", { class: "hint" }, "DXF is the file to cut with (R12, mm, layers CUT red, ENGRAVE blue, LABEL green, BRIDGE magenta, CUT_INNER orange if chosen). SVG is a second vector option.")),
+    expert(rasterBox),
     h("small", { class: "hint" }, "Cut every part face-up and stack bottom-up without flipping."),
     summary,
     estimatesBox,
@@ -167,11 +179,11 @@ export function createExportSection(store: Store, onDownload: () => Promise<void
   );
 
   const sync = () => {
-    syncers.forEach((f) => f(store.get().settings));
+    syncers.forEach((f) => f(effectiveSettings(store.get())));
     updateButton();
   };
   store.subscribe((_s, changed) => {
-    if (changed.has("settings")) sync();
+    if (changed.has("settings") || changed.has("uiMode")) sync();
   });
   sync();
 

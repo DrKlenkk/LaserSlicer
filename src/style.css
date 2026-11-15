@@ -393,3 +393,12 @@ button.warn-item:hover { background: var(--accent-soft); }
   .legend { display: flex; flex-direction: column; max-height: 55%; }
   .lg-body { overflow-y: auto; overscroll-behavior: contain; }
 }
+
+/* Basic | Expert: Basic hides everything marked expert-only (the effective settings are in src/basicMode.ts) */
+.mode-box { padding: 0 16px 12px; display: flex; flex-direction: column; gap: 6px; }
+.mode-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.mode-head .lbl { font-weight: 600; }
+.segmented.mode-toggle { grid-template-columns: repeat(2, 1fr); min-width: 150px; }
+.basic-only { display: none; }
+.ui-basic .basic-only { display: block; }
+.ui-basic .expert-only { display: none !important; }

@@ -1,7 +1,8 @@
 // Parameter panel: collapsible groups of inputs bound to Settings in the store.
 import type { Axis, Dim, Settings } from "../core/types";
 import { serializeProject, type ProjectModel, type Store } from "../state";
-import { loadUiPrefs } from "../uiPrefs";
+import { loadUiPrefs, type UiMode } from "../uiPrefs";
+import { effectiveSettings } from "../basicMode";
 import { h } from "./dom";
 import type { HelpKey } from "./helpText";
 import { infoIcon } from "./tooltip";
@@ -69,6 +70,12 @@ export function createPanel(root: HTMLElement, store: Store, actions: PanelActio
     });
     syncers.push((s) => (sel.value = String(s[key])));
     return h("label", { class: "field" }, h("span", { class: "lbl" }, label, help ? infoIcon(help) : null), h("span", { class: "ctl" }, sel));
+  }
+
+  /** Marks a control that only Expert mode shows (CSS: `.ui-basic .expert-only` is hidden). */
+  function expert<T extends HTMLElement>(el: T): T {
+    el.classList.add("expert-only");
+    return el;
   }
 
   function group(title: string, open: boolean, ...body: (Node | null)[]) {
@@ -258,20 +265,20 @@ export function createPanel(root: HTMLElement, store: Store, actions: PanelActio
     "Material",
     false,
     h("div", { class: "field" }, h("span", { class: "lbl" }, "Preset", infoIcon("presets")), h("span", { class: "ctl" }, presetSel)),
-    h("div", { class: "rotrow" }, presetSave, presetDelete),
-    h("div", { class: "rotrow" }, compareBtn, infoIcon("compare")),
+    expert(h("div", { class: "rotrow" }, presetSave, presetDelete)),
+    expert(h("div", { class: "rotrow" }, compareBtn, infoIcon("compare"))),
     presetNote,
     numField("Thickness", "thickness", { step: 0.05, min: 0.1, unit: "mm", hint: "Measure with calipers; nominal 4 mm is often 3.7–3.9 mm.", help: "thickness" }),
     h("div", { class: "grid2" }, numField("Sheet W", "sheetW", { min: 10, unit: "mm", help: "sheetSize" }), numField("Sheet H", "sheetH", { min: 10, unit: "mm" })),
     numField("Kerf", "kerf", { step: 0.01, min: 0, unit: "mm", help: "kerf" }),
-    h("div", { class: "grid2" }, numField("Part spacing", "partSpacing", { min: 0, unit: "mm", help: "partSpacing" }), numField("Sheet margin", "sheetMargin", { min: 0, unit: "mm", help: "sheetMargin" })),
-    numField("Density", "density", { step: 0.01, min: 0, unit: "g/cm³", hint: "0 = not set. Plywood is about 0.6–0.7. Only used for the weight estimate.", help: "density" }),
-    h("div", { class: "grid2" }, numField("Cut speed", "cutSpeed", { min: 0, unit: "mm/s", help: "cutSpeed" }), numField("Engrave speed", "engraveSpeed", { min: 0, unit: "mm/s", help: "engraveSpeed" })),
-    numField("Price per sheet", "pricePerSheet", { step: 0.01, min: 0, hint: "Any currency, 0 = not set. Cost = price x sheets used (a partly used sheet counts whole).", help: "pricePerSheet" }),
-    h("div", { class: "rotrow" }, h("button", { type: "button", class: "btn small", id: "calibration-download", onclick: downloadCalibration }, "Download calibration sheet"), infoIcon("calibration")),
-    calibrationStatus,
+    expert(h("div", { class: "grid2" }, numField("Part spacing", "partSpacing", { min: 0, unit: "mm", help: "partSpacing" }), numField("Sheet margin", "sheetMargin", { min: 0, unit: "mm", help: "sheetMargin" }))),
+    expert(numField("Density", "density", { step: 0.01, min: 0, unit: "g/cm³", hint: "0 = not set. Plywood is about 0.6–0.7. Only used for the weight estimate.", help: "density" })),
+    expert(h("div", { class: "grid2" }, numField("Cut speed", "cutSpeed", { min: 0, unit: "mm/s", help: "cutSpeed" }), numField("Engrave speed", "engraveSpeed", { min: 0, unit: "mm/s", help: "engraveSpeed" }))),
+    expert(numField("Price per sheet", "pricePerSheet", { step: 0.01, min: 0, hint: "Any currency, 0 = not set. Cost = price x sheets used (a partly used sheet counts whole).", help: "pricePerSheet" })),
+    expert(h("div", { class: "rotrow" }, h("button", { type: "button", class: "btn small", id: "calibration-download", onclick: downloadCalibration }, "Download calibration sheet"), infoIcon("calibration"))),
+    expert(calibrationStatus),
   );
-  const bridgeGroup = group(
+  const bridgeGroup = expert(group(
     "Holding bridges",
     false,
     boolField("Add holding bridges", "bridgesEnabled", "bridgesEnabled", "Short uncut tabs keep each part attached to the sheet until you break it out. Separate DXF layer BRIDGE."),
@@ -280,8 +287,8 @@ export function createPanel(root: HTMLElement, store: Store, actions: PanelActio
     numField("Min outline length", "bridgeMinLength", { min: 0, unit: "mm", help: "bridgeMinLength" }),
     boolField("Also bridge inner holes", "bridgeHoles", "bridgeHoles"),
     numField("Max spacing (0 = off)", "bridgeMaxSpacing", { min: 0, unit: "mm", help: "bridgeMaxSpacing" }),
-  );
-  const slicingGroup = group(
+  ));
+  const slicingGroup = expert(group(
     "Slicing",
     false,
     selectField("Outline mode", "mode", [
@@ -296,15 +303,15 @@ export function createPanel(root: HTMLElement, store: Store, actions: PanelActio
     numField("Simplify tolerance", "simplifyTol", { step: 0.01, min: 0, unit: "mm", help: "simplifyTol" }),
     numField("Min part area", "minPartArea", { min: 0, unit: "mm²", help: "minPartArea" }),
     numField("Min feature (0 = off)", "minFeature", { min: 0, unit: "mm", help: "minFeature" }),
-  );
-  const hollowGroup = group(
+  ));
+  const hollowGroup = expert(group(
     "Hollowing",
     false,
     boolField("Hollow inner layers", "hollowEnabled", "hollowEnabled"),
     numField("Wall", "hollowWall", { min: 0, unit: "mm", help: "hollowWall" }),
     numField("Solid cap layers", "solidCapLayers", { step: 1, min: 0, help: "solidCapLayers" }),
-  );
-  const gluingGroup = group(
+  ));
+  const gluingGroup = expert(group(
     "Gluing aids",
     false,
     boolField("Engrave next-layer outline", "engraveNextOutline", "engraveNextOutline"),
@@ -314,7 +321,7 @@ export function createPanel(root: HTMLElement, store: Store, actions: PanelActio
     boolField("Dowel holes", "dowels", "dowels"),
     numField("Dowel diameter", "dowelDiameter", { min: 1, unit: "mm", help: "dowelDiameter" }),
     numField("Dowel count", "dowelCount", { step: 1, min: 1, help: "dowelCount" }),
-  );
+  ));
 
   const exportSection = createExportSection(store, actions.exportZip);
   const exportGroup = group("Export", false, exportSection.el);
@@ -350,7 +357,7 @@ export function createPanel(root: HTMLElement, store: Store, actions: PanelActio
     if (changed.has("model")) syncProject();
   });
   syncProject();
-  const projectGroup = group(
+  const projectGroup = expert(group(
     "Project",
     false,
     h("div", { class: "rotrow" },
@@ -358,7 +365,7 @@ export function createPanel(root: HTMLElement, store: Store, actions: PanelActio
         type: "button", class: "btn small", id: "project-save",
         onclick: () => {
           const model = withModelCb.checked ? actions.getModelSource() : null;
-          downloadBytes("laser-slicer-project.json", "application/json", new TextEncoder().encode(serializeProject(store.get().settings, model)));
+          downloadBytes("laser-slicer-project.json", "application/json", new TextEncoder().encode(serializeProject(effectiveSettings(store.get()), model)));
           projectStatus.textContent = model ? `Saved laser-slicer-project.json with the model ${model.name}` : "Saved laser-slicer-project.json";
         },
       }, "Save settings…"),
@@ -368,10 +375,37 @@ export function createPanel(root: HTMLElement, store: Store, actions: PanelActio
     h("small", { class: "hint" }, "Without the checkbox the file holds the settings only. With it, loading the file brings back the model too. The last settings are also remembered in this browser."),
     restoreLabel,
     projectStatus,
+  ));
+
+  // ---------- Basic | Expert (UI preference: main.ts saves it and applies the effective settings) ----------
+  const modeButtons = new Map<UiMode, HTMLButtonElement>();
+  const modeRow = h("div", { class: "segmented mode-toggle", id: "mode-toggle", role: "group", "aria-label": "Settings mode" });
+  for (const [m, label] of [["basic", "Basic"], ["expert", "Expert"]] as const) {
+    const b = h("button", { type: "button", id: `mode-${m}`, "data-mode": m, onclick: () => store.get().uiMode !== m && store.set({ uiMode: m }) }, label);
+    modeButtons.set(m, b);
+    modeRow.append(b);
+  }
+  const syncMode = () => {
+    const cur = store.get().uiMode;
+    modeButtons.forEach((b, m) => {
+      b.classList.toggle("active", m === cur);
+      b.setAttribute("aria-pressed", String(m === cur));
+    });
+  };
+  store.subscribe((_s, changed) => {
+    if (changed.has("uiMode")) syncMode();
+  });
+  syncMode();
+  const modeBox = h(
+    "div",
+    { class: "mode-box" },
+    h("div", { class: "mode-head" }, h("span", { class: "lbl" }, "Settings", infoIcon("basicExpert")), modeRow),
+    h("small", { class: "hint basic-only", id: "basic-note" }, "Basic: only the cut outlines are exported, everything else uses default values. Your Expert settings are kept."),
   );
 
   root.append(
     h("div", { class: "brand" }, h("span", { class: "logo" }, "▤"), h("span", {}, "Laser Slicer")),
+    modeBox,
     modelGroup,
     materialGroup,
     bridgeGroup,

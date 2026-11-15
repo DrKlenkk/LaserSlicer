@@ -4,14 +4,18 @@
 export const TRACES = ["cut", "engrave", "label", "bridge", "sheet", "ghost"] as const;
 export type TraceId = (typeof TRACES)[number];
 
-export type UiPrefs = { autoUpdate: boolean; hiddenTraces: TraceId[]; /** opt-in: keep the last model in this browser and load it again at start-up (default off) */ restoreSession: boolean };
+/** Basic shows the few controls most people need and exports cut outlines only; Expert shows everything (default). */
+export type UiMode = "basic" | "expert";
+
+export type UiPrefs = { uiMode: UiMode; autoUpdate: boolean; hiddenTraces: TraceId[]; /** opt-in: keep the last model in this browser and load it again at start-up (default off) */ restoreSession: boolean };
 
 const KEY = "laserslicer.ui.v1";
 
 export function parseUiPrefs(raw: string | null): UiPrefs {
-  const prefs: UiPrefs = { autoUpdate: true, hiddenTraces: [], restoreSession: false };
+  const prefs: UiPrefs = { uiMode: "expert", autoUpdate: true, hiddenTraces: [], restoreSession: false };
   try {
     const o = raw ? (JSON.parse(raw) as Partial<UiPrefs> | null) : null;
+    if (o && (o.uiMode === "basic" || o.uiMode === "expert")) prefs.uiMode = o.uiMode;
     if (o && typeof o.autoUpdate === "boolean") prefs.autoUpdate = o.autoUpdate;
     if (o && typeof o.restoreSession === "boolean") prefs.restoreSession = o.restoreSession;
     if (o && Array.isArray(o.hiddenTraces)) prefs.hiddenTraces = TRACES.filter((t) => (o.hiddenTraces as unknown[]).includes(t));

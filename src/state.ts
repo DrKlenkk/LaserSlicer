@@ -3,6 +3,7 @@ import type { Mesh, MeshStats, Settings } from "./core/types";
 import type { RunResult } from "./core/pipeline";
 import { IMPORT_UNITS } from "./core/units";
 import { decodeBase64, encodeBase64 } from "./core/base64";
+import { loadUiPrefs, type UiMode } from "./uiPrefs";
 import { History, changedKeys, type StepKind } from "./history";
 
 /** How a settings change enters the undo history: an edit of one control (rapid repeats merge), a bulk change that is
@@ -79,6 +80,8 @@ export type AppState = {
   /** layer selected in the Layer tab */
   layer: number;
   tab: Tab;
+  /** Basic or Expert panel (a UI preference, saved by main.ts in the UI prefs; not a setting, not in the undo history) */
+  uiMode: UiMode;
   /** transient status text and level for the status bar */
   status: { text: string; level: "info" | "warn" | "error" };
 };
@@ -217,6 +220,7 @@ export class Store {
     result: null,
     layer: 0,
     tab: "3d",
+    uiMode: loadUiPrefs().uiMode,
     status: { text: "Starting…", level: "info" },
   };
   private listeners = new Set<Listener>();

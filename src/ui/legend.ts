@@ -7,7 +7,7 @@ import { infoIcon } from "./tooltip";
 import { traceVisibility } from "../traceVisibility";
 import type { TraceId } from "../uiPrefs";
 
-export type LegendItem = { trace?: TraceId; layer: string; text: string; color: () => string; dash?: boolean; fill?: boolean; thin?: boolean };
+export type LegendItem = { trace?: TraceId; layer: string; text: string; color: () => string; dash?: boolean; fill?: boolean; thin?: boolean; /** row hidden in Basic mode (CSS .ui-basic .expert-only): the file layers Basic never writes */ expert?: boolean };
 
 const KEY = "laserslicer.legend.collapsed";
 
@@ -55,7 +55,7 @@ export function createLegend(id: string, items: LegendItem[], note: string, extr
         for (const c of [sw, name, text]) c.classList.toggle("off", !on);
       });
     }
-    return h("li", {}, cb, sw, name, text);
+    return h("li", { class: it.expert ? "expert-only" : undefined }, cb, sw, name, text);
   });
   const toggle = h("button", { type: "button", class: "lg-head", "aria-expanded": "true", title: "Show or hide the legend" }, "Legend");
   const body = h("div", { class: "lg-body" }, h("ul", {}, ...rows), ...extra, h("p", { class: "lg-note" }, note, infoIcon("viewTraces")));
