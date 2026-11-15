@@ -16,7 +16,7 @@ Full technical documentation (features, settings, pipeline, output formats, arch
 
 ```
 npm install
-npm run build      # type check + produces dist/ (index.html, about 1 MB, plus the documentation page, the legal pages and licence files)
+npm run build      # type check + produces dist/ (index.html, about 1 MB, plus the documentation page, the legal pages, licence files and the SEO files)
 npm run check      # verifies the dist/ file set, no external resources, the legal pages, no analytics
 npm test           # unit tests (Vitest)
 ```
@@ -26,7 +26,7 @@ Open `dist/index.html` by double-click (`file://` works; nothing is fetched). `n
 ## Deployment and legal pages
 
 `dist/` is the whole site: `index.html` (the app), `docs.html` with its screenshots in `docs-img/` (the user documentation, static, no JavaScript; from `public/`), `impressum.html`, `datenschutz.html`, `lizenzen.html` (German, static, no JavaScript),
-`LICENSE.txt` and `THIRD_PARTY_LICENSES.txt`. **Upload all files** to the host (Cloudflare for laserslicer.com); the legal links in the app
+`404.html`, `LICENSE.txt`, `THIRD_PARTY_LICENSES.txt` and the SEO files `robots.txt`, `sitemap.xml`, `og-image.png` (1200x630 social preview), `favicon.svg` and `apple-touch-icon.png`. **Upload all files, including `robots.txt`, `sitemap.xml` and `og-image.png`,** to the host (Cloudflare for laserslicer.com); the legal links in the app
 are relative, so the same files also work unzipped from a folder. GitHub Actions uploads the whole `dist/` as the artifact `laserslicer-site`
 and, on `v*` tags, attaches `laserslicer-site.zip` (and `index.html`) to the release. The legal pages are in `public/`; `LICENSE.txt` and
 `THIRD_PARTY_LICENSES.txt` are copied from `LICENSE` and `THIRD_PARTY_LICENSES.txt` (generated with `node scripts/gen-licenses.mjs`) at build time.
